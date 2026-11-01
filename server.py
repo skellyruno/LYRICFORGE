@@ -43,7 +43,7 @@ PRESETS = {
     "noir": ("#282b31", "#050505", "#b3b8bc"),
 }
 FONTS = {"Arial", "DejaVu Sans", "Liberation Sans", "Impact", "Georgia", "Courier New"}
-ANIMATIONS = {"fade", "pop", "slide", "typewriter", "none"}
+ANIMATIONS = {"fade", "pop", "slide", "typewriter", "zoom", "bounce", "blur", "none"}
 MODES = {"line", "word", "karaoke"}
 SIZES = {"portrait": (720, 1280), "landscape": (1280, 720), "square": (720, 720)}
 executor = ThreadPoolExecutor(max_workers=2)
@@ -504,6 +504,12 @@ def animation_tags(name: str, W: int, H: int, y: int) -> str:
         return r"\fscx80\fscy80\t(0,160,\fscx100\fscy100)\fad(65,120)"
     if name == "slide":
         return rf"\move({W//2},{y + 65},{W//2},{y},0,200)\fad(100,150)"
+    if name == "zoom":
+        return r"\fscx125\fscy125\t(0,300,\fscx100\fscy100)\fad(90,130)"
+    if name == "bounce":
+        return r"\fscx65\fscy65\t(0,110,\fscx115\fscy115)\t(110,260,\fscx100\fscy100)\fad(40,100)"
+    if name == "blur":
+        return r"\blur6\t(0,280,\blur0.5)\fad(170,140)"
     return ""
 
 
@@ -643,6 +649,84 @@ def get_job(job_id: str):
     if not job:
         raise HTTPException(404, "Unknown render job")
     return job
+
+
+
+def derived_files(keep_project_id: str | None = None) -> list[Path]:
+    """Only generated files, never uploads, saved edits, or AI models."""
+    if not DATA.exists():
+        return []
+    results = []
+    for directory in DATA.iterdir():
+        if not directory.is_dir() or directory.is_symlink() or not re.fullmatch(r"[0-9a-f]{32}", directory.name):
+            continue
+        if directory.name == keep_project_id or not (directory / "project.json").is_file():
+            continue
+        for filename in ("lyric_video.mp4", "captions.ass", "generated_bg.png"):
+            candidate = directory / filename
+            if candidate.is_file() and not candidate.is_symlink():
+                results.append(candidate)
+    return results
+
+
+def storage_overview(keep_project_id: str | None = None) -> dict:
+    """Cheap workspace accounting; never recursively scan downloaded AI models."""
+    project_count = 0
+    workspace_bytes = 0
+    exports_bytes = 0
+    if DATA.exists():
+        for directory in DATA.iterdir():
+            if not directory.is_dir() or directory.is_symlink() or not (directory / "project.json").is_file():
+                continue
+            project_count += 1
+            for path in directory.iterdir():
+                if path.is_file() and not path.is_symlink():
+                    size = path.stat().st_size
+                    workspace_bytes += size
+                    if path.name == "lyric_video.mp4":
+                        exports_bytes += size
+    candidates = derived_files(keep_project_id)
+    return {"projects": project_count, "workspace_bytes": workspace_bytes,
+            "exports_bytes": exports_bytes, "cleanup_files": len(candidates),
+            "cleanup_bytes": sum(path.stat().st_size for path in candidates),
+            "model_cache_unchanged": True}
+
+
+class CleanupRequest(BaseModel):
+    keep_project_id: str | None = None
+    confirm: bool = False
+
+
+@app.get("/api/storage")
+def storage_info(keep_project_id: str | None = None):
+    if keep_project_id is not None and not re.fullmatch(r"[0-9a-f]{32}", keep_project_id):
+        raise HTTPException(400, "Invalid project ID")
+    return storage_overview(keep_project_id)
+
+
+@app.post("/api/storage/cleanup")
+def cleanup_old_renders(body: CleanupRequest):
+    """Explicit, opt-in cleanup. Retain the open project's export and source files."""
+    if not body.confirm:
+        raise HTTPException(400, "Explicit confirmation is required")
+    if body.keep_project_id is not None and not re.fullmatch(r"[0-9a-f]{32}", body.keep_project_id):
+        raise HTTPException(400, "Invalid project ID")
+    with job_lock:
+        if any(job["status"] == "rendering" for job in jobs.values()):
+            raise HTTPException(409, "Wait until active video renders finish")
+        candidates = derived_files(body.keep_project_id)
+        freed = 0
+        removed = 0
+        for path in candidates:
+            try:
+                size = path.stat().st_size
+                path.unlink()
+                freed += size
+                removed += 1
+            except OSError:
+                continue
+    return {"removed_files": removed, "freed_bytes": freed,
+            "model_cache_unchanged": True, "source_audio_untouched": True}
 
 
 @app.get("/api/projects/{project_id}/export")
