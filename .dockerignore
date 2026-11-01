@@ -1,0 +1,17 @@
+.git
+.github
+.venv
+workspace
+model-cache
+previews
+__pycache__
+.pytest_cache
+build
+dist
+*.zip
+*.mp3
+*.wav
+*.mp4
+*.mov
+*.spec
+.env*
