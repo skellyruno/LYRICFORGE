@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>LYRICFORGE — Music visual studio</title>
+  <title>SkellyMotion — Lyric video studio</title>
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
   <div id="app" class="app">
     <header class="topbar">
-      <div class="brand"><div class="brand-symbol"><span>✳</span></div><span class="brand-name">LYRIC<span>FORGE</span></span><span class="brand-pill">STUDIO</span></div>
+      <div class="brand"><div class="brand-symbol"><span>✳</span></div><span class="brand-name">SKELLY<span>MOTION</span></span><span class="brand-pill">STUDIO</span></div>
       <div class="top-middle"><span id="projectTitle" class="song-title">Untitled project</span><span class="top-separator">/</span><span id="projectStatus" class="project-status">Ready to create</span></div>
       <div class="top-actions">
         <button id="newBtn" class="ghost-btn" title="Start a new song">＋ New</button>
@@ -26,7 +26,7 @@
         <button class="rail-item" data-panel="background"><span class="rail-ico">▧</span><span>Canvas</span></button>
         <button class="rail-item" data-panel="export"><span class="rail-ico">↗</span><span>Export</span></button>
         <button class="rail-item" data-panel="storage"><span class="rail-ico">▤</span><span>Storage</span></button>
-        <div class="rail-bottom">LF<span>01</span></div>
+        <div class="rail-bottom">SM<span>01</span></div>
       </nav>
 
       <aside class="settings-panel">
@@ -137,7 +137,7 @@
       <div class="timeline-scroller" id="timelineScroll"><div class="timeline-inner" id="timelineInner"><div id="ruler" class="ruler"></div><div class="track"><div class="track-tag"><span>CC</span> LYRICS</div><div id="lyricTrack" class="clip-track"></div></div><div class="track audio-track"><div class="track-tag"><span>♫</span> AUDIO</div><div class="audio-wave" id="audioWave"></div></div><div class="playhead" id="playhead"><span class="playhead-top"></span></div></div></div>
     </section>
 
-    <div class="welcome-overlay" id="welcome"><div class="welcome-grain"></div><div class="welcome-content"><div class="welcome-kicker"><span class="green-dot"></span> THE LYRIC VIDEO STUDIO</div><h1>YOUR MUSIC.<br /><em>YOUR WORDS.</em><br />YOUR VISION.</h1><p>Upload a song. Review the AI-detected lyrics. Turn every line into a lyric video that hits right on the beat.</p><label class="hero-upload" id="heroUpload"><span class="upload-glyph">↥</span><span><b>Drop a song here or click to upload</b><small>MP3, WAV, M4A, FLAC, OGG · Up to 15 min</small></span><span class="upload-arrow">↗</span><input id="audioFile" type="file" accept="audio/*,.mp3,.wav,.m4a,.flac,.ogg,.aac,.opus,.mp4,.webm" hidden /></label><div class="welcome-features"><span>✳ AI lyric detection</span><span>✳ Word-level sync</span><span>✳ MP4 export</span></div><button id="demoBtn" class="demo-btn">Or explore the demo editor <span>→</span></button></div><div class="welcome-decor">LF / CREATIVE TOOLS — 001</div></div>
+    <div class="welcome-overlay" id="welcome"><div class="welcome-grain"></div><div class="welcome-content"><div class="welcome-kicker"><span class="green-dot"></span> SKELLYMOTION / LYRIC VIDEO STUDIO</div><h1>YOUR MUSIC.<br /><em>YOUR WORDS.</em><br />YOUR VISION.</h1><p>Upload a song. Review the AI-detected lyrics. Turn every line into a lyric video that hits right on the beat.</p><label class="hero-upload" id="heroUpload"><span class="upload-glyph">↥</span><span><b>Drop a song here or click to upload</b><small>MP3, WAV, M4A, FLAC, OGG · Up to 15 min</small></span><span class="upload-arrow">↗</span><input id="audioFile" type="file" accept="audio/*,.mp3,.wav,.m4a,.flac,.ogg,.aac,.opus,.mp4,.webm" hidden /></label><div class="welcome-features"><span>✳ AI lyric detection</span><span>✳ Word-level sync</span><span>✳ MP4 export</span></div><button id="demoBtn" class="demo-btn">Or explore the demo editor <span>→</span></button></div><div class="welcome-decor">SM / CREATIVE TOOLS — 001</div></div>
 
     <div id="reviewOverlay" class="modal-overlay hidden"><div class="review-modal"><div class="modal-top"><span class="eyebrow">STEP 01 OF 02</span><button id="closeReview" title="Close" class="modal-close">×</button></div><div class="modal-visual"><span class="modal-icon">♪</span><span class="step-chain"><b>UPLOAD</b><i></i><b>REVIEW</b><i></i><span>CREATE</span></span></div><h2 id="reviewTitle">Review your lyrics.</h2><p id="reviewDescription">We picked up the lyrics in your song. Fix anything we missed before we sync them to the timeline.</p><div id="transcribeProgress" class="transcribe-progress hidden"><div class="loading-orbit"></div><strong>Listening to your song…</strong><span>This may take a while, especially on the first run when the model downloads.</span></div><textarea id="lyricsText" spellcheck="false" placeholder="Your lyrics will appear here. You can also type or paste lyrics manually."></textarea><div id="reviewWarning" class="review-warning hidden"></div><div class="modal-footer"><span><b>PRO TIP</b> · Put each lyric line on a new line to control how it appears on screen.</span><button id="confirmLyrics" class="primary-btn">Confirm & sync lyrics <span>→</span></button></div></div></div>
 
