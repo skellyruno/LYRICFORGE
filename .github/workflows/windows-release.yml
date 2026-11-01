@@ -18,7 +18,7 @@ jobs:
       - name: Install Python packages
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt pyinstaller pytest httpx
+          python -m pip install -r requirements.txt pyinstaller pytest httpx pywebview
       - name: Download verified FFmpeg with libass
         shell: pwsh
         run: |
@@ -83,10 +83,15 @@ jobs:
       - name: Build self-contained Windows folder
         shell: pwsh
         run: |
-          pyinstaller --noconfirm --clean --onedir --name LyricForge `
+          pyinstaller --noconfirm --clean --onedir --windowed --name LyricForge `
             --add-data "static;static" `
             --add-binary "vendor/ffmpeg/ffmpeg.exe;tools" `
             --add-binary "vendor/ffmpeg/ffprobe.exe;tools" `
+            --hidden-import clr `
+            --hidden-import webview `
+            --collect-all webview `
+            --collect-all pythonnet `
+            --collect-all clr_loader `
             --hidden-import faster_whisper `
             --collect-all faster_whisper `
             --collect-all ctranslate2 `
@@ -98,7 +103,11 @@ jobs:
         shell: pwsh
         run: |
           & dist/LyricForge/LyricForge.exe --self-test
-          if ($LASTEXITCODE -ne 0) { throw 'LYRICFORGE.exe smoke test failed' }
+          if ($LASTEXITCODE -ne 0) {
+            $log = Join-Path $env:LOCALAPPDATA 'LyricForge/logs/desktop.log'
+            if (Test-Path $log) { Get-Content $log -Tail 120 }
+            throw 'LYRICFORGE.exe smoke test failed'
+          }
       - name: Package Windows download
         shell: pwsh
         run: |
