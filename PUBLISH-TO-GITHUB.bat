@@ -1,7 +1,7 @@
 @echo off
 setlocal
 cd /d "%~dp0"
-title Publish LYRICFORGE to GitHub
+title Publish SkellyMotion to GitHub
 where git >nul 2>&1
 if errorlevel 1 (
   echo [ERROR] Install Git for Windows from https://git-scm.com/download/win first.
@@ -20,7 +20,7 @@ git add .
 if errorlevel 1 goto :fail
 git diff --cached --quiet
 if errorlevel 1 (
-  git commit -m "Set up LYRICFORGE web and Windows releases"
+  git commit -m "Set up SkellyMotion web and Windows releases"
   if errorlevel 1 goto :fail
 )
 git remote get-url origin >nul 2>&1
