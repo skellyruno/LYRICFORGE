@@ -6,7 +6,7 @@ Two distributions are included in this repository:
 
 | | Online studio | Windows portable app |
 |---|---|---|
-| Code | `server.py`, `static/` | Same app, packaged by PyInstaller |
+| Code | `server.py`, `static/` | Same app, in a native WebView2 window via PyInstaller |
 | Runs on | Railway Docker deployment | Windows x64, localhost only |
 | Login | Owner-only password over HTTPS | None, binds to `127.0.0.1` |
 | Storage | Persistent `/data` volume | `%LOCALAPPDATA%/LyricForge` |
@@ -28,6 +28,19 @@ Two distributions are included in this repository:
 - 720p / 1080p MP4 video output via FFmpeg
 
 **Limitations:** Whisper is not specialized for sung vocals, and corrected words are interpolated rather than audio-forced-aligned; some timing will need manual tweaks. The cloud site is **owner-only**. It has no multi-user accounts, rate limiting, queue persistence, billing or production-grade untrusted-media sandbox. Windows packaging is automated but must be verified on a Windows machine.
+
+
+## Windows desktop studio (v0.3)
+
+The latest portable build opens **its own Windows application window** with no Command Prompt and no external browser tab. It uses the system's Microsoft Edge WebView2 runtime and keeps the backend on a random loopback-only port. If WebView2 is unavailable, install the [Microsoft WebView2 Evergreen Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/).
+
+**Existing projects and model files are retained:** `%LOCALAPPDATA%\LyricForge\workspace` and `%LOCALAPPDATA%\LyricForge\models`. The Whisper model default is still **small**; it is not re-downloaded just because the desktop interface changed.
+
+New features: one-click Neon, Minimal, Dream and Bold looks; Zoom, Bounce and Blur Reveal lyric animations; ±0.05-second timing nudge and Alt+Left/Right shortcuts; Ctrl+S save; an optional Storage panel that removes only explicitly confirmed *old* render intermediates and MP4 exports. Songs, lyric edits, backgrounds, the open project's export and model cache are never selected for cleanup.
+
+Exports now trim overlapping caption events and omit accidental caption flashes shorter than 0.1 seconds. This reduces artifacts from ASR timings while leaving the project's editable original timing data untouched. In rare cases very short deliberate lyrics may need manual retiming.
+
+To get the upgraded application, open the **Build Windows portable app** workflow in GitHub Actions, run it on `main`, download the **LYRICFORGE-Windows-x64** artifact and extract the entire folder. You can keep your old executable as a fallback while testing. Windows builds must still be verified on GitHub's runner.
 
 ## Local development
 
