@@ -80,7 +80,7 @@ async def owner_only_http_basic(request: Request, call_next):
             valid = False
         if not valid:
             return PlainTextResponse("Sign in to SkellyMotion", status_code=401,
-                headers={"WWW-Authenticate": 'Basic realm="LYRICFORGE"', "Cache-Control": "no-store"})
+                headers={"WWW-Authenticate": 'Basic realm="SkellyMotion"', "Cache-Control": "no-store"})
         if request.method not in {"GET", "HEAD", "OPTIONS"}:
             origin = request.headers.get("origin")
             # Block credentialed cross-site writes (GitHub / Railway do not need cross-origin access).
