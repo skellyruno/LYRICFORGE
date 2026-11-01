@@ -1,9 +1,9 @@
-# Deploy LYRICFORGE — website and Windows downloads
+# Deploy SkellyMotion — website and Windows downloads
 
 This repo has **two independent delivery paths**:
 
 - **Private web editor:** Railway Docker service; FFmpeg and local Whisper run on the server; owner-only HTTP Basic login over HTTPS. No public sign-ups or separate user accounts.
-- **Windows portable download:** GitHub Actions builds a Windows `LyricForge.exe` folder (including runtime, Python packages, web assets, `ffmpeg.exe` and `ffprobe.exe`), packages it into `LYRICFORGE-Windows-x64.zip`, and attaches it to a GitHub Release after you push a version tag.
+- **Windows portable download:** GitHub Actions builds a Windows `SkellyMotion.exe` folder (including runtime, Python packages, web assets, `ffmpeg.exe` and `ffprobe.exe`), packages it into `SkellyMotion-Windows-x64.zip`, and attaches it to a GitHub Release after you push a version tag.
 
 ## 1. Create and push the GitHub repository
 
@@ -14,14 +14,14 @@ This repo has **two independent delivery paths**:
    git init
    git branch -M main
    git add .
-   git commit -m "Initial LYRICFORGE website and Windows build"
+   git commit -m "Initial SkellyMotion website and Windows build"
    git remote add origin https://github.com/skellyruno/LYRICFORGE.git
    git push -u origin main
    ```
 
    Sign in using Git Credential Manager if prompted. Do not paste a token into chat or commit it.
 
-3. Visit `https://github.com/skellyruno/LYRICFORGE/actions`. The **Test app** and **Build Windows portable app** workflows should start after the initial push. GitHub may ask you to enable Actions. A successful build has a ZIP under **Actions > Build Windows portable app > latest run > Artifacts** (the automatically uploaded artifact expires after 14 days).
+3. Visit `https://github.com/skellyruno/LYRICFORGE/actions`. The **Test app** and **Build SkellyMotion Windows app** workflows should start after the initial push. GitHub may ask you to enable Actions. A successful build has a ZIP under **Actions > Build SkellyMotion Windows app > latest run > Artifacts** (the automatically uploaded artifact expires after 14 days).
 
 4. For a permanent public download, double-click `RELEASE-WINDOWS.bat`, enter a new tag such as `v1.0.0`, and follow the prompts. Or create and push a version tag manually (PowerShell):
 
@@ -30,7 +30,7 @@ This repo has **two independent delivery paths**:
    git push origin v1.0.0
    ```
 
-   After the tagged Windows build passes, download from `https://github.com/skellyruno/LYRICFORGE/releases`. The workflow creates the Release and attaches `LYRICFORGE-Windows-x64.zip` automatically. On later updates use a new tag such as `v1.0.1`, not an already-used tag.
+   After the tagged Windows build passes, download from `https://github.com/skellyruno/LYRICFORGE/releases`. The workflow creates the Release and attaches `SkellyMotion-Windows-x64.zip` automatically. On later updates use a new tag such as `v1.0.1`, not an already-used tag.
 
    If GitHub Actions cannot create a release, check **Repo Settings > Actions > General > Workflow permissions > Read and write permissions**. Changes to settings are controlled by the repo owner. The workflow itself requests `contents: write`.
 
@@ -63,9 +63,9 @@ A basic landing page could run on GitHub Pages, but **the functioning app cannot
 
 1. Download the Windows x64 ZIP from GitHub Actions or Releases.
 2. Extract **the entire** `LyricForge` folder. Do not move only the `.exe` out of the folder; it needs the adjacent `_internal` dependencies.
-3. Double-click `LyricForge.exe` (Windows Defender/SmartScreen may warn about unsigned downloads).
-4. The editor opens at `http://127.0.0.1:8000`. The first AI transcription downloads a model to `%LOCALAPPDATA%\LyricForge\models`.
-5. Your projects save under `%LOCALAPPDATA%\LyricForge\workspace`. Exported MP4 files are accessible from the editor. Closing the console shuts down the local server.
+3. Double-click `SkellyMotion.exe` (Windows Defender/SmartScreen may warn about unsigned downloads).
+4. The editor opens in its own SkellyMotion window using Microsoft Edge WebView2. It connects to a private localhost server, and the first AI transcription (if the model isn't already cached) uses `%LOCALAPPDATA%\LyricForge\models`.
+5. Your projects save under `%LOCALAPPDATA%\LyricForge\workspace`. Exported MP4 files are accessible from the editor. Closing the SkellyMotion window shuts down the local server.
 
 The GitHub-generated EXE is **not code-signed** and has not yet been verified on a real Windows machine. After the workflow completes, test import → transcription → correction → video export on your own PC. If you want a signed Windows installer and auto-updater, that is a future feature.
 
