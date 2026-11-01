@@ -9,7 +9,7 @@
 <body>
   <div id="app" class="app">
     <header class="topbar">
-      <div class="brand"><div class="brand-symbol"><span>✳</span></div><span class="brand-name">LYRIC<span>FORGE</span></span><span class="brand-pill">BETA</span></div>
+      <div class="brand"><div class="brand-symbol"><span>✳</span></div><span class="brand-name">LYRIC<span>FORGE</span></span><span class="brand-pill">STUDIO</span></div>
       <div class="top-middle"><span id="projectTitle" class="song-title">Untitled project</span><span class="top-separator">/</span><span id="projectStatus" class="project-status">Ready to create</span></div>
       <div class="top-actions">
         <button id="newBtn" class="ghost-btn" title="Start a new song">＋ New</button>
@@ -25,6 +25,7 @@
         <button class="rail-item" data-panel="animation"><span class="rail-ico">✧</span><span>Motion</span></button>
         <button class="rail-item" data-panel="background"><span class="rail-ico">▧</span><span>Canvas</span></button>
         <button class="rail-item" data-panel="export"><span class="rail-ico">↗</span><span>Export</span></button>
+        <button class="rail-item" data-panel="storage"><span class="rail-ico">▤</span><span>Storage</span></button>
         <div class="rail-bottom">LF<span>01</span></div>
       </nav>
 
@@ -34,12 +35,19 @@
           <div class="panel-content" id="lyricsEditor">
             <div class="empty-caption"><div class="empty-caption-icon">♫</div><strong>No lyrics yet</strong><span>Upload a song to detect lyrics automatically.</span></div>
           </div>
-          <div class="panel-footer"><button id="addLineBtn" class="wide-ghost" disabled>＋ Add lyric line</button><span class="helper">Tip: select a clip to fine-tune its timing.</span></div>
+          <div class="panel-footer"><div class="nudge-tools"><span>Fine-tune selected line</span><div><button type="button" id="nudgeBack" title="Shift line 0.05 seconds earlier">− 0.05s</button><button type="button" id="nudgeForward" title="Shift line 0.05 seconds later">+ 0.05s</button></div></div><button id="addLineBtn" class="wide-ghost" disabled>＋ Add lyric line</button><span class="helper">Space = play / pause · Ctrl+S = save · Alt+←/→ = nudge</span></div>
         </div>
 
         <div class="panel hidden" id="panel-style">
           <div class="section-top"><div class="eyebrow">02 / TYPOGRAPHY</div><h2>Text styling</h2><p>One change. Every lyric.</p></div>
           <div class="panel-content form-fields">
+            <div class="preset-heading"><label class="control-head">QUICK LOOKS</label><span>Change everything in one click</span></div>
+            <div class="preset-grid" aria-label="Quick lyric video styles">
+              <button type="button" data-preset="neon"><b>✳ Neon</b><small>Skelly green</small></button>
+              <button type="button" data-preset="minimal"><b>◻ Minimal</b><small>Clean type</small></button>
+              <button type="button" data-preset="dream"><b>◌ Dream</b><small>Soft motion</small></button>
+              <button type="button" data-preset="bold"><b>✦ Bold</b><small>Big energy</small></button>
+            </div>
             <div class="control-group"><label for="font">Font family</label><select id="font"><option>Arial</option><option>DejaVu Sans</option><option>Liberation Sans</option><option>Impact</option><option>Georgia</option><option>Courier New</option></select></div>
             <div class="control-group"><div class="flex-label"><label for="fontSize">Text size</label><span id="fontSizeVal">60px</span></div><input id="fontSize" type="range" min="22" max="116" value="60" /></div>
             <div class="control-group"><div class="flex-label"><label for="position">Vertical position</label><span id="positionVal">55%</span></div><input id="position" type="range" min="15" max="85" value="55" /></div>
@@ -60,6 +68,9 @@
               <button data-animation="fade"><span>◐</span><div><b>Soft fade</b><small>Smooth & cinematic</small></div><span class="checkmark">✓</span></button>
               <button data-animation="slide"><span>↑</span><div><b>Slide up</b><small>Rise into the frame</small></div><span class="checkmark">✓</span></button>
               <button data-animation="typewriter"><span>⌨</span><div><b>Type on</b><small>Progressive text reveal</small></div><span class="checkmark">✓</span></button>
+              <button data-animation="zoom"><span>⊕</span><div><b>Zoom in</b><small>Cinematic focus</small></div><span class="checkmark">✓</span></button>
+              <button data-animation="bounce"><span>↟</span><div><b>Bounce</b><small>Overshoot & settle</small></div><span class="checkmark">✓</span></button>
+              <button data-animation="blur"><span>◉</span><div><b>Blur reveal</b><small>Dreamy focus-in</small></div><span class="checkmark">✓</span></button>
               <button data-animation="none"><span>―</span><div><b>None</b><small>Stay clean & static</small></div><span class="checkmark">✓</span></button>
             </div>
             <div class="info-note">Animations apply globally to the entire video. Type-on works best with Full line mode.</div>
@@ -97,6 +108,16 @@
             <div id="renderStatus" class="render-status hidden"></div>
             <a id="downloadBtn" class="download-btn hidden" href="#">↓ &nbsp; Download MP4</a>
             <div class="info-note">Rendering happens on your computer. Your song is not uploaded to a cloud service.</div>
+          </div>
+        </div>
+        <div class="panel hidden" id="panel-storage">
+          <div class="section-top"><div class="eyebrow">06 / DISK SPACE</div><h2>Keep it light.</h2><p>Clean generated files, not your music.</p></div>
+          <div class="panel-content form-fields">
+            <div class="storage-stats"><div><span>Project storage</span><b id="storageUsed">—</b></div><div><span>MP4 exports</span><b id="storageExports">—</b></div><div><span>Old render files</span><b id="storageReclaim">—</b></div><div><span>Saved projects</span><b id="storageProjects">—</b></div></div>
+            <button id="refreshStorage" type="button" class="wide-ghost">↻ Refresh disk usage</button>
+            <div class="info-note">Keeps your current video's export, original songs, lyric edits, backgrounds, and downloaded AI model. Only older projects' generated exports and render intermediates are eligible for cleanup.</div>
+            <button id="cleanupStorage" type="button" class="wide-ghost cleanup-btn">Clean old render files…</button>
+            <p class="storage-tip">Nothing is deleted automatically. You'll confirm before cleanup.</p>
           </div>
         </div>
       </aside>
