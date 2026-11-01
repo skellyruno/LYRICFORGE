@@ -40,12 +40,38 @@ jobs:
             Where-Object { $_.DirectoryName -like '*bin' } |
             Select-Object -First 1 -ExpandProperty FullName
           if (-not $ffmpeg -or -not $ffprobe) { throw 'Verified FFmpeg archive is missing ffmpeg.exe or ffprobe.exe' }
-          $filters = & $ffmpeg -hide_banner -filters 2>&1 | Out-String
-          if ($filters -notmatch '(?m)^\s*[.TSC]{3}\s+ass\s') {
-            throw "Bundled FFmpeg lacks the ass/libass filter: $ffmpeg"
+          # Do not parse ffmpeg -filters output: flag formatting changes between versions.
+          # Render an actual ASS subtitle into H.264 to verify BOTH libass and libx264.
+          $smokeDir = Join-Path $env:RUNNER_TEMP 'lyricforge-ass-smoke'
+          New-Item -ItemType Directory -Force -Path $smokeDir | Out-Null
+          $assText = @'
+          [Script Info]
+          ScriptType: v4.00+
+          PlayResX: 320
+          PlayResY: 180
+
+          [V4+ Styles]
+          Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+          Style: Default,Arial,34,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,1,0,5,10,10,10,1
+
+          [Events]
+          Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+          Dialogue: 0,0:00:00.00,0:00:00.40,Default,,0,0,0,,LYRICFORGE TEST
+          '@
+          Set-Content -Path (Join-Path $smokeDir 'smoke.ass') -Value $assText -Encoding utf8
+          Push-Location $smokeDir
+          try {
+            $smokeLog = & $ffmpeg -hide_banner -loglevel error -y -f lavfi -i 'color=c=black:s=320x180:r=25:d=0.5' -vf 'ass=smoke.ass' -frames:v 3 -c:v libx264 -pix_fmt yuv420p 'smoke.mp4' 2>&1 | Out-String
+            if ($LASTEXITCODE -ne 0) { throw "FFmpeg cannot render ASS lyric subtitles: $smokeLog" }
+            if (-not (Test-Path 'smoke.mp4') -or (Get-Item 'smoke.mp4').Length -lt 500) {
+              throw 'FFmpeg exited without producing a valid subtitle test video'
+            }
+            $probeResult = & $ffprobe -v error -show_entries format=duration -of 'default=noprint_wrappers=1:nokey=1' 'smoke.mp4' 2>&1 | Out-String
+            if ($LASTEXITCODE -ne 0 -or -not $probeResult.Trim()) { throw "ffprobe failed to validate the test video: $probeResult" }
+            Write-Host "FFmpeg ASS subtitle rendering and H.264 encoding passed ($probeResult seconds)."
+          } finally {
+            Pop-Location
           }
-          $encoders = & $ffmpeg -hide_banner -encoders 2>&1 | Out-String
-          if ($encoders -notmatch '\blibx264\b') { throw 'Bundled FFmpeg lacks the libx264 video encoder' }
           New-Item -ItemType Directory -Force -Path vendor/ffmpeg | Out-Null
           Copy-Item -Path $ffmpeg -Destination vendor/ffmpeg/ffmpeg.exe
           Copy-Item -Path $ffprobe -Destination vendor/ffmpeg/ffprobe.exe
