@@ -1,7 +1,7 @@
 @echo off
 setlocal
 cd /d "%~dp0"
-title LYRICFORGE Studio
+title SkellyMotion Studio
 where ffmpeg >nul 2>&1
 if errorlevel 1 (
  echo.
@@ -26,7 +26,7 @@ if not exist .venv\Scripts\python.exe (
    pause
    exit /b 1
  )
- echo Installing LyricForge dependencies (first launch only)...
+ echo Installing SkellyMotion dependencies (first launch only)...
  .venv\Scripts\python.exe -m pip install -r requirements.txt
  if errorlevel 1 (
    echo [ERROR] Python package installation failed.
@@ -35,7 +35,7 @@ if not exist .venv\Scripts\python.exe (
  )
 )
 echo.
-echo LYRICFORGE is starting at http://127.0.0.1:8000
+echo SkellyMotion development server is starting at http://127.0.0.1:8000
 echo Press Ctrl+C in this window to stop the studio.
 start "" powershell -NoProfile -WindowStyle Hidden -Command "Start-Sleep -Seconds 3; Start-Process 'http://127.0.0.1:8000'"
 .venv\Scripts\python.exe -m uvicorn server:app --host 127.0.0.1 --port 8000
