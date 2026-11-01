@@ -513,6 +513,33 @@ def animation_tags(name: str, W: int, H: int, y: int) -> str:
     return ""
 
 
+def prepare_render_lines(lines: list[dict]) -> list[dict]:
+    """Prevent overlapping ASS captions and momentary ASR flash cues.
+
+    This affects exported subtitles only: saved lyric edits remain untouched.
+    """
+    ordered = sorted((dict(item) for item in lines if item.get("text", "").strip()),
+                     key=lambda item: float(item["start"]))
+    result = []
+    for idx, item in enumerate(ordered):
+        start = max(0., float(item["start"]))
+        end = float(item["end"])
+        if idx + 1 < len(ordered):
+            end = min(end, float(ordered[idx + 1]["start"]))
+        if end - start < 0.10:
+            continue
+        item["start"], item["end"] = start, end
+        kept_words = []
+        for word in item.get("words", []):
+            ws = max(start, float(word["start"]))
+            we = min(end, float(word["end"]))
+            if we > ws + 0.01:
+                kept_words.append({**word, "start": ws, "end": we})
+        item["words"] = kept_words
+        result.append(item)
+    return result
+
+
 def create_ass(lines: list[dict], settings: dict, W: int, H: int, target: Path) -> None:
     s = settings
     font = s["font"]
@@ -536,12 +563,12 @@ Style: Main,{font},{size},{main},{accent},&H00101511,&H66000000,-1,0,0,0,100,100
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
     output = [header]
-    for line in lines:
+    for line in prepare_render_lines(lines):
         start, end = line["start"], line["end"]
         text = line["text"].upper() if s["upper"] else line["text"]
         base = rf"\an5\pos({W//2},{y})"
         tags = base + animation_tags(s["animation"], W, H, y)
-        if s["mode"] == "word":
+        if s["mode"] == "word" and line["words"]:
             for word in line["words"]:
                 wtext = word["text"].upper() if s["upper"] else word["text"]
                 output.append(ass_event(word["start"], word["end"], tags, wtext))
