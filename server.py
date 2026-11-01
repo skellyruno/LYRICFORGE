@@ -1,4 +1,4 @@
-"""LyricForge: local-first lyric video editor and renderer."""
+"""SkellyMotion: local-first lyric video editor and renderer."""
 from __future__ import annotations
 
 import difflib
@@ -51,7 +51,7 @@ model_lock = threading.Lock()
 _model: Any = None
 jobs: dict[str, dict[str, Any]] = {}
 job_lock = threading.Lock()
-app = FastAPI(title="LyricForge", version="0.2.0")
+app = FastAPI(title="SkellyMotion", version="0.3.0")
 
 
 @app.middleware("http")
@@ -79,7 +79,7 @@ async def owner_only_http_basic(request: Request, call_next):
         except (ValueError, UnicodeError):
             valid = False
         if not valid:
-            return PlainTextResponse("Sign in to LYRICFORGE", status_code=401,
+            return PlainTextResponse("Sign in to SkellyMotion", status_code=401,
                 headers={"WWW-Authenticate": 'Basic realm="LYRICFORGE"', "Cache-Control": "no-store"})
         if request.method not in {"GET", "HEAD", "OPTIONS"}:
             origin = request.headers.get("origin")
@@ -761,7 +761,7 @@ def download_export(project_id: str):
     f = project_dir(project_id) / "lyric_video.mp4"
     if not f.exists():
         raise HTTPException(404, "No exported video")
-    return FileResponse(f, media_type="video/mp4", filename="lyricforge-video.mp4")
+    return FileResponse(f, media_type="video/mp4", filename="SkellyMotion-video.mp4")
 
 
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
