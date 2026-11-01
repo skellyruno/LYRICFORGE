@@ -1,0 +1,70 @@
+name: Build Windows portable app
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install Python packages
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pyinstaller pytest httpx
+      - name: Install FFmpeg with subtitle support
+        shell: pwsh
+        run: |
+          choco install ffmpeg --yes --no-progress --limit-output
+          $ffmpeg = (Get-Command ffmpeg.exe -ErrorAction Stop).Source
+          $ffprobe = (Get-Command ffprobe.exe -ErrorAction Stop).Source
+          $filters = & $ffmpeg -hide_banner -filters 2>&1 | Out-String
+          if ($filters -notmatch '(?m)^\s*[TSC\.]{3}\s+ass\s') { throw 'FFmpeg build needs libass filter' }
+          New-Item -ItemType Directory -Force -Path vendor/ffmpeg | Out-Null
+          Copy-Item $ffmpeg vendor/ffmpeg/ffmpeg.exe
+          Copy-Item $ffprobe vendor/ffmpeg/ffprobe.exe
+      - name: Test original editor on Windows
+        run: python -m pytest tests -q
+      - name: Build self-contained Windows folder
+        shell: pwsh
+        run: |
+          pyinstaller --noconfirm --clean --onedir --name LyricForge `
+            --add-data "static;static" `
+            --add-binary "vendor/ffmpeg/ffmpeg.exe;tools" `
+            --add-binary "vendor/ffmpeg/ffprobe.exe;tools" `
+            --hidden-import faster_whisper `
+            --collect-all faster_whisper `
+            --collect-all ctranslate2 `
+            --collect-all tokenizers `
+            --collect-all av `
+            --collect-all onnxruntime `
+            desktop_launcher.py
+      - name: Smoke test portable program
+        shell: pwsh
+        run: |
+          & dist/LyricForge/LyricForge.exe --self-test
+          if ($LASTEXITCODE -ne 0) { throw 'LYRICFORGE.exe smoke test failed' }
+      - name: Package Windows download
+        shell: pwsh
+        run: |
+          Compress-Archive -Path dist/LyricForge -DestinationPath dist/LYRICFORGE-Windows-x64.zip -Force
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LYRICFORGE-Windows-x64
+          path: dist/LYRICFORGE-Windows-x64.zip
+          retention-days: 14
+          if-no-files-found: error
+      - name: Publish GitHub Release on version tags
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" dist/LYRICFORGE-Windows-x64.zip --verify-tag --title "LYRICFORGE ${{ github.ref_name }}" --generate-notes
