@@ -1,4 +1,4 @@
-"""LYRICFORGE desktop host: a native Windows window, no cmd or browser tab."""
+"""SkellyMotion desktop host: a native Windows window, no cmd or browser tab."""
 from __future__ import annotations
 
 import os
@@ -42,7 +42,7 @@ def configure() -> Path:
 def native_error(message: str) -> None:
     try:
         import ctypes
-        ctypes.windll.user32.MessageBoxW(None, message, "LYRICFORGE", 0x10)
+        ctypes.windll.user32.MessageBoxW(None, message, "SkellyMotion", 0x10)
     except Exception:
         print(message, file=sys.stderr)
 
@@ -64,7 +64,7 @@ Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour,
 Style: Main,Arial,30,&H00FFFFFF,&H00FFFFFF,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,1,0,5,10,10,10,1
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
-Dialogue: 0,0:00:00.00,0:00:00.40,Main,,0,0,0,,LYRICFORGE
+Dialogue: 0,0:00:00.00,0:00:00.40,Main,,0,0,0,,SkellyMotion
 """
         (root / "check.ass").write_text(ass, encoding="utf-8-sig")
         result = subprocess.run([ffmpeg, "-hide_banner", "-loglevel", "error", "-y",
@@ -80,7 +80,7 @@ def self_test() -> int:
     import server
     assert server.STATIC.joinpath("index.html").is_file(), "Missing editor assets"
     check_subtitle_renderer()
-    print("LYRICFORGE portable self-test passed")
+    print("SkellyMotion portable self-test passed")
     return 0
 
 
@@ -118,7 +118,7 @@ def run_desktop(home: Path) -> int:
         raise RuntimeError("The local editor server did not start. See desktop.log in " + str(home / "logs"))
 
     try:
-        webview.create_window("LYRICFORGE | Skelly lyric studio",
+        webview.create_window("SkellyMotion | Lyric video studio",
                               "http://127.0.0.1:" + str(port),
                               width=1280, height=830, min_size=(980, 650),
                               resizable=True, background_color="#090c0c")
@@ -134,7 +134,7 @@ def main() -> int:
     freeze_support()
     home = configure()
     if "--version" in sys.argv:
-        print("LYRICFORGE 0.3.0")
+        print("SkellyMotion 0.3.0")
         return 0
     if "--self-test" in sys.argv:
         return self_test()
