@@ -7,7 +7,7 @@ This repo has **two independent delivery paths**:
 
 ## 1. Create and push the GitHub repository
 
-1. Create a **new empty repository** called `LYRICFORGE` under your `skellyruno` account at <https://github.com/new>. Private is recommended until you're ready to share the source. Do **not** initialize it with a README or `.gitignore` (those are already in this project).
+1. This project already exists in the private repository `skellyruno/LYRICFORGE`. Keep that repository path for existing integrations. For a completely new fork only, create an empty GitHub repository.
 2. Extract this archive. **Easiest on Windows:** double-click `PUBLISH-TO-GITHUB.bat` inside the extracted `LYRICFORGE-GitHub` folder and follow its instructions. It requires [Git for Windows](https://git-scm.com/download/win). Alternatively, open PowerShell in that folder (containing `server.py`) and run:
 
    ```powershell
@@ -62,9 +62,9 @@ A basic landing page could run on GitHub Pages, but **the functioning app cannot
 ## 3. Using the Windows download
 
 1. Download the Windows x64 ZIP from GitHub Actions or Releases.
-2. Extract **the entire** `LyricForge` folder. Do not move only the `.exe` out of the folder; it needs the adjacent `_internal` dependencies.
+2. Extract **the entire** `SkellyMotion` folder. Do not move only the `.exe` out of the folder; it needs the adjacent `_internal` dependencies.
 3. Double-click `SkellyMotion.exe` (Windows Defender/SmartScreen may warn about unsigned downloads).
-4. The editor opens in its own SkellyMotion window using Microsoft Edge WebView2. It connects to a private localhost server, and the first AI transcription (if the model isn't already cached) uses `%LOCALAPPDATA%\LyricForge\models`.
+4. The editor opens in its own SkellyMotion window using Microsoft Edge WebView2. It connects to a private localhost server. It reuses the original downloaded AI model located at `%LOCALAPPDATA%\LyricForge\models`.
 5. Your projects save under `%LOCALAPPDATA%\LyricForge\workspace`. Exported MP4 files are accessible from the editor. Closing the SkellyMotion window shuts down the local server.
 
 The GitHub-generated EXE is **not code-signed** and has not yet been verified on a real Windows machine. After the workflow completes, test import → transcription → correction → video export on your own PC. If you want a signed Windows installer and auto-updater, that is a future feature.
