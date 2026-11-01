@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LYRICFORGE — Music visual studio</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div id="app" class="app">
+    <header class="topbar">
+      <div class="brand"><div class="brand-symbol"><span>✳</span></div><span class="brand-name">LYRIC<span>FORGE</span></span><span class="brand-pill">BETA</span></div>
+      <div class="top-middle"><span id="projectTitle" class="song-title">Untitled project</span><span class="top-separator">/</span><span id="projectStatus" class="project-status">Ready to create</span></div>
+      <div class="top-actions">
+        <button id="newBtn" class="ghost-btn" title="Start a new song">＋ New</button>
+        <button id="saveBtn" class="ghost-btn" title="Save changes" disabled>Save</button>
+        <button id="topExport" class="primary-btn" disabled><span>↗</span> Export video</button>
+      </div>
+    </header>
+
+    <div class="main-layout">
+      <nav class="rail" aria-label="Editor sections">
+        <button class="rail-item active" data-panel="lyrics"><span class="rail-ico">♬</span><span>Lyrics</span></button>
+        <button class="rail-item" data-panel="style"><span class="rail-ico">T</span><span>Text</span></button>
+        <button class="rail-item" data-panel="animation"><span class="rail-ico">✧</span><span>Motion</span></button>
+        <button class="rail-item" data-panel="background"><span class="rail-ico">▧</span><span>Canvas</span></button>
+        <button class="rail-item" data-panel="export"><span class="rail-ico">↗</span><span>Export</span></button>
+        <div class="rail-bottom">LF<span>01</span></div>
+      </nav>
+
+      <aside class="settings-panel">
+        <div class="panel" id="panel-lyrics">
+          <div class="section-top"><div class="eyebrow">01 / CONTENT</div><h2>Lyrics <span class="subtle-icon">⌄</span></h2><p>Every line. Every beat. In sync.</p></div>
+          <div class="panel-content" id="lyricsEditor">
+            <div class="empty-caption"><div class="empty-caption-icon">♫</div><strong>No lyrics yet</strong><span>Upload a song to detect lyrics automatically.</span></div>
+          </div>
+          <div class="panel-footer"><button id="addLineBtn" class="wide-ghost" disabled>＋ Add lyric line</button><span class="helper">Tip: select a clip to fine-tune its timing.</span></div>
+        </div>
+
+        <div class="panel hidden" id="panel-style">
+          <div class="section-top"><div class="eyebrow">02 / TYPOGRAPHY</div><h2>Text styling</h2><p>One change. Every lyric.</p></div>
+          <div class="panel-content form-fields">
+            <div class="control-group"><label for="font">Font family</label><select id="font"><option>Arial</option><option>DejaVu Sans</option><option>Liberation Sans</option><option>Impact</option><option>Georgia</option><option>Courier New</option></select></div>
+            <div class="control-group"><div class="flex-label"><label for="fontSize">Text size</label><span id="fontSizeVal">60px</span></div><input id="fontSize" type="range" min="22" max="116" value="60" /></div>
+            <div class="control-group"><div class="flex-label"><label for="position">Vertical position</label><span id="positionVal">55%</span></div><input id="position" type="range" min="15" max="85" value="55" /></div>
+            <div class="color-row"><div><label for="textColor">Text color</label><div class="color-field"><input id="textColor" type="color" value="#ffffff" /><span id="textColorVal">#FFFFFF</span></div></div><div><label for="accentColor">Highlight</label><div class="color-field"><input id="accentColor" type="color" value="#81ff71" /><span id="accentColorVal">#81FF71</span></div></div></div>
+            <div class="control-group"><div class="flex-label"><label for="outline">Text outline</label><span id="outlineVal">2.5</span></div><input id="outline" type="range" min="0" max="8" step="0.5" value="2.5" /></div>
+            <label class="toggle-line"><span>UPPERCASE TEXT<small>Apply to all caption clips</small></span><input type="checkbox" id="upper" /><span class="switch"></span></label>
+          </div>
+        </div>
+
+        <div class="panel hidden" id="panel-animation">
+          <div class="section-top"><div class="eyebrow">03 / MOTION</div><h2>Make it move.</h2><p>Set a motion style for every lyric.</p></div>
+          <div class="panel-content form-fields">
+            <label class="control-head">DISPLAY STYLE</label>
+            <div class="mode-grid" id="modeOptions"><button data-mode="line" class="selected"><span>≡</span>Full line</button><button data-mode="word"><span>▣</span>One word</button><button data-mode="karaoke"><span>◉</span>Karaoke</button></div>
+            <label class="control-head after-gap">ENTRANCE ANIMATION</label>
+            <div class="animation-list" id="animationOptions">
+              <button data-animation="pop" class="selected"><span>✧</span><div><b>Pop in</b><small>Energetic scale-up</small></div><span class="checkmark">✓</span></button>
+              <button data-animation="fade"><span>◐</span><div><b>Soft fade</b><small>Smooth & cinematic</small></div><span class="checkmark">✓</span></button>
+              <button data-animation="slide"><span>↑</span><div><b>Slide up</b><small>Rise into the frame</small></div><span class="checkmark">✓</span></button>
+              <button data-animation="typewriter"><span>⌨</span><div><b>Type on</b><small>Progressive text reveal</small></div><span class="checkmark">✓</span></button>
+              <button data-animation="none"><span>―</span><div><b>None</b><small>Stay clean & static</small></div><span class="checkmark">✓</span></button>
+            </div>
+            <div class="info-note">Animations apply globally to the entire video. Type-on works best with Full line mode.</div>
+          </div>
+        </div>
+
+        <div class="panel hidden" id="panel-background">
+          <div class="section-top"><div class="eyebrow">04 / BACKGROUND</div><h2>Set the scene.</h2><p>Color, image, or looping video.</p></div>
+          <div class="panel-content form-fields">
+            <label class="control-head">ATMOSPHERE</label>
+            <div class="background-grid" id="bgOptions">
+              <button data-background="midnight" class="bg-tile midnight selected"><span>Midnight</span></button>
+              <button data-background="acid" class="bg-tile acid"><span>Afterglow</span></button>
+              <button data-background="violet" class="bg-tile violet"><span>Neon haze</span></button>
+              <button data-background="crimson" class="bg-tile crimson"><span>Crimson</span></button>
+              <button data-background="ocean" class="bg-tile ocean"><span>Blue hour</span></button>
+              <button data-background="noir" class="bg-tile noir"><span>Monochrome</span></button>
+            </div>
+            <label class="control-head after-gap">YOUR OWN BACKGROUND</label>
+            <label for="backgroundFile" class="upload-background"><span>↥</span><b>Upload image or video</b><small>JPG, PNG, WebP, MP4, MOV, WebM</small></label>
+            <input id="backgroundFile" type="file" accept="image/*,video/mp4,video/quicktime,video/webm" hidden />
+            <div id="backgroundFileInfo" class="file-info hidden"></div>
+            <div class="control-group"><div class="flex-label"><label for="dim">Background dimming</label><span id="dimVal">15%</span></div><input id="dim" type="range" min="0" max="0.8" step="0.05" value="0.15" /></div>
+          </div>
+        </div>
+
+        <div class="panel hidden" id="panel-export">
+          <div class="section-top"><div class="eyebrow">05 / FINISH</div><h2>Export video.</h2><p>Your song, ready for the world.</p></div>
+          <div class="panel-content form-fields">
+            <label class="control-head">VIDEO FORMAT</label>
+            <div class="aspect-pills" id="aspectOptions"><button data-aspect="portrait" class="selected">▯ <span>9:16</span></button><button data-aspect="square">□ <span>1:1</span></button><button data-aspect="landscape">▭ <span>16:9</span></button></div>
+            <div class="control-group after-gap"><label for="resolution">Export quality</label><select id="resolution"><option value="720p">720p · HD</option><option value="1080p">1080p · Full HD</option></select></div>
+            <div class="render-info"><div><span>Format</span><b>MP4 · H.264</b></div><div><span>Frame rate</span><b>30 FPS</b></div><div><span>Audio</span><b>AAC · 192kbps</b></div><div><span>Duration</span><b id="exportDuration">—</b></div></div>
+            <button id="renderBtn" class="primary-btn render-btn" disabled>↗ &nbsp; Render lyric video</button>
+            <div id="renderStatus" class="render-status hidden"></div>
+            <a id="downloadBtn" class="download-btn hidden" href="#">↓ &nbsp; Download MP4</a>
+            <div class="info-note">Rendering happens on your computer. Your song is not uploaded to a cloud service.</div>
+          </div>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <div class="workspace-bar"><div class="workspace-heading"><span class="live-indicator"></span> LIVE PREVIEW <span class="bar-divider">|</span><span id="canvasFormat">9:16 · VERTICAL</span></div><div class="workspace-tools"><button id="previewFull" title="Full screen preview">⛶</button></div></div>
+        <div class="stage-wrap">
+          <div class="stage" id="stage"><canvas id="previewCanvas" width="450" height="800" aria-label="Lyric video preview"></canvas><div class="stage-corner tl"></div><div class="stage-corner tr"></div><div class="stage-corner bl"></div><div class="stage-corner br"></div></div>
+          <div class="stage-hint">PREVIEW · LIVE RENDER</div>
+        </div>
+        <div class="playback-bar"><div class="play-left"><button id="playButton" class="play-button" title="Play or pause">▶</button><button id="skipBack" class="transport" title="Back 5 seconds">↶</button><button id="skipAhead" class="transport" title="Forward 5 seconds">↷</button><span class="time-indicator"><span id="currentTime">00:00</span> <span class="time-muted">/</span> <span id="totalTime">00:00</span></span></div><div class="play-right"><span class="audio-symbol">♫</span><span id="trackName">No audio loaded</span><span class="quality-tag">30 FPS</span></div></div>
+      </main>
+    </div>
+
+    <section class="timeline-pane" aria-label="Lyric timeline">
+      <div class="timeline-top"><div class="timeline-label"><span class="timeline-icon">▥</span><b>TIMELINE</b><span id="clipCount" class="clip-badge">0 clips</span></div><div class="timeline-controls"><button id="zoomOut" title="Zoom out">−</button><span id="zoomDisplay">100%</span><button id="zoomIn" title="Zoom in">＋</button></div></div>
+      <div class="timeline-scroller" id="timelineScroll"><div class="timeline-inner" id="timelineInner"><div id="ruler" class="ruler"></div><div class="track"><div class="track-tag"><span>CC</span> LYRICS</div><div id="lyricTrack" class="clip-track"></div></div><div class="track audio-track"><div class="track-tag"><span>♫</span> AUDIO</div><div class="audio-wave" id="audioWave"></div></div><div class="playhead" id="playhead"><span class="playhead-top"></span></div></div></div>
+    </section>
+
+    <div class="welcome-overlay" id="welcome"><div class="welcome-grain"></div><div class="welcome-content"><div class="welcome-kicker"><span class="green-dot"></span> THE LYRIC VIDEO STUDIO</div><h1>YOUR MUSIC.<br /><em>YOUR WORDS.</em><br />YOUR VISION.</h1><p>Upload a song. Review the AI-detected lyrics. Turn every line into a lyric video that hits right on the beat.</p><label class="hero-upload" id="heroUpload"><span class="upload-glyph">↥</span><span><b>Drop a song here or click to upload</b><small>MP3, WAV, M4A, FLAC, OGG · Up to 15 min</small></span><span class="upload-arrow">↗</span><input id="audioFile" type="file" accept="audio/*,.mp3,.wav,.m4a,.flac,.ogg,.aac,.opus,.mp4,.webm" hidden /></label><div class="welcome-features"><span>✳ AI lyric detection</span><span>✳ Word-level sync</span><span>✳ MP4 export</span></div><button id="demoBtn" class="demo-btn">Or explore the demo editor <span>→</span></button></div><div class="welcome-decor">LF / CREATIVE TOOLS — 001</div></div>
+
+    <div id="reviewOverlay" class="modal-overlay hidden"><div class="review-modal"><div class="modal-top"><span class="eyebrow">STEP 01 OF 02</span><button id="closeReview" title="Close" class="modal-close">×</button></div><div class="modal-visual"><span class="modal-icon">♪</span><span class="step-chain"><b>UPLOAD</b><i></i><b>REVIEW</b><i></i><span>CREATE</span></span></div><h2 id="reviewTitle">Review your lyrics.</h2><p id="reviewDescription">We picked up the lyrics in your song. Fix anything we missed before we sync them to the timeline.</p><div id="transcribeProgress" class="transcribe-progress hidden"><div class="loading-orbit"></div><strong>Listening to your song…</strong><span>This may take a while, especially on the first run when the model downloads.</span></div><textarea id="lyricsText" spellcheck="false" placeholder="Your lyrics will appear here. You can also type or paste lyrics manually."></textarea><div id="reviewWarning" class="review-warning hidden"></div><div class="modal-footer"><span><b>PRO TIP</b> · Put each lyric line on a new line to control how it appears on screen.</span><button id="confirmLyrics" class="primary-btn">Confirm & sync lyrics <span>→</span></button></div></div></div>
+
+    <div class="toast-stack" id="toasts" aria-live="polite"></div>
+    <audio id="songAudio" preload="metadata"></audio>
+    <video id="backgroundVideo" muted loop playsinline preload="auto" class="hidden"></video>
+    <img id="backgroundImage" alt="" class="hidden" />
+  </div>
+  <script src="/static/app.js"></script>
+</body>
+</html>
