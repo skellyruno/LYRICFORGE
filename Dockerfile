@@ -1,4 +1,4 @@
-# Single-user, password-protected LYRICFORGE website (not a multi-tenant service).
+# Single-user, password-protected SkellyMotion website (not a multi-tenant service).
 FROM python:3.11-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
