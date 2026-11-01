@@ -1,7 +1,7 @@
 @echo off
 setlocal
 cd /d "%~dp0"
-title Release LYRICFORGE Windows
+title Release SkellyMotion Windows
 where git >nul 2>&1
 if errorlevel 1 (
  echo Install Git for Windows first.
