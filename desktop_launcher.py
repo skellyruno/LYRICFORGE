@@ -112,7 +112,7 @@ def run_desktop(home: Path) -> int:
     config = uvicorn.Config(server.app, host="127.0.0.1", port=port,
                             log_level="warning", access_log=False)
     api_server = uvicorn.Server(config)
-    worker = threading.Thread(target=api_server.run, name="LyricForgeAPI", daemon=True)
+    worker = threading.Thread(target=api_server.run, name="SkellyMotionAPI", daemon=True)
     worker.start()
     if not wait_until_ready(port, worker):
         raise RuntimeError("The local editor server did not start. See desktop.log in " + str(home / "logs"))
@@ -143,7 +143,7 @@ def main() -> int:
     except Exception as exc:
         print("Desktop startup error:", repr(exc), file=sys.stderr)
         native_error(
-            "LYRICFORGE couldn't open its desktop window.\n\n"
+            "SkellyMotion couldn't open its desktop window.\n\n"
             + str(exc) + "\n\n"
             "Install Microsoft Edge WebView2 Runtime if needed.\n"
             "For details see: " + str(home / "logs" / "desktop.log")
