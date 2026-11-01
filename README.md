@@ -1,4 +1,4 @@
-# LYRICFORGE — AI lyric video studio
+# SkellyMotion — AI lyric video studio
 
 **Upload a song → AI transcript → review & confirm lyrics → adjust timing → style, animate and change backgrounds → export a synced MP4.**
 
@@ -30,9 +30,9 @@ Two distributions are included in this repository:
 **Limitations:** Whisper is not specialized for sung vocals, and corrected words are interpolated rather than audio-forced-aligned; some timing will need manual tweaks. The cloud site is **owner-only**. It has no multi-user accounts, rate limiting, queue persistence, billing or production-grade untrusted-media sandbox. Windows packaging is automated but must be verified on a Windows machine.
 
 
-## Windows desktop studio (v0.3)
+## SkellyMotion Windows desktop studio (v0.3)
 
-The latest portable build opens **its own Windows application window** with no Command Prompt and no external browser tab. It uses the system's Microsoft Edge WebView2 runtime and keeps the backend on a random loopback-only port. If WebView2 is unavailable, install the [Microsoft WebView2 Evergreen Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/).
+The latest **SkellyMotion.exe** portable build opens **its own Windows application window** with no Command Prompt and no external browser tab. It uses the system's Microsoft Edge WebView2 runtime and keeps the backend on a random loopback-only port. If WebView2 is unavailable, install the [Microsoft WebView2 Evergreen Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/).
 
 **Existing projects and model files are retained:** `%LOCALAPPDATA%\LyricForge\workspace` and `%LOCALAPPDATA%\LyricForge\models`. The Whisper model default is still **small**; it is not re-downloaded just because the desktop interface changed.
 
@@ -40,7 +40,13 @@ New features: one-click Neon, Minimal, Dream and Bold looks; Zoom, Bounce and Bl
 
 Exports now trim overlapping caption events and omit accidental caption flashes shorter than 0.1 seconds. This reduces artifacts from ASR timings while leaving the project's editable original timing data untouched. In rare cases very short deliberate lyrics may need manual retiming.
 
-To get the upgraded application, open the **Build Windows portable app** workflow in GitHub Actions, run it on `main`, download the **LYRICFORGE-Windows-x64** artifact and extract the entire folder. You can keep your old executable as a fallback while testing. Windows builds must still be verified on GitHub's runner.
+To get the upgraded application, open the **Build Windows portable app** workflow in GitHub Actions, run it on `main`, download the **SkellyMotion-Windows-x64** artifact and extract the entire folder. You can keep your old executable as a fallback while testing. Windows builds must still be verified on GitHub's runner.
+
+## Rebrand compatibility
+
+The product is now named **SkellyMotion**. The GitHub repository remains `skellyruno/LYRICFORGE` to avoid breaking existing links, GitHub integrations and deployments. The on-disk folders `%LOCALAPPDATA%\\LyricForge\\workspace` and `%LOCALAPPDATA%\\LyricForge\\models`, existing `LYRICFORGE_*` environment variables and browser project key `lyricforge-last` intentionally retain their names for backwards compatibility. **Do not rename or delete these folders** to apply the new branding.
+
+The existing architecture already supports a hosted browser editor and a self-contained Windows window sharing the same backend. A mobile app is a future option, not part of this release.
 
 ## Local development
 
