@@ -99,15 +99,27 @@ jobs:
             --collect-all av `
             --collect-all onnxruntime `
             desktop_launcher.py
-      - name: Smoke test portable program
+      - name: Smoke test packaged Windows GUI program
         shell: pwsh
         run: |
-          & dist/SkellyMotion/SkellyMotion.exe --self-test
-          if ($LASTEXITCODE -ne 0) {
-            $log = Join-Path $env:LOCALAPPDATA 'LyricForge/logs/desktop.log'
-            if (Test-Path $log) { Get-Content $log -Tail 120 }
-            throw 'SkellyMotion.exe smoke test failed'
+          $ErrorActionPreference = 'Stop'
+          $exe = (Resolve-Path 'dist/SkellyMotion/SkellyMotion.exe').Path
+          $log = Join-Path $env:LOCALAPPDATA 'LyricForge/logs/desktop.log'
+          Write-Host "Running GUI executable self-test: $exe"
+          # PowerShell can launch Win32 GUI programs asynchronously with &.
+          # Start-Process -Wait -PassThru gives us the exit code of this exact process.
+          $testProcess = Start-Process -FilePath $exe -ArgumentList '--self-test' -WorkingDirectory (Split-Path $exe) -Wait -PassThru
+          $code = $testProcess.ExitCode
+          Write-Host "SkellyMotion GUI self-test exit code: $code"
+          if (Test-Path $log) {
+            Write-Host '----- SkellyMotion self-test output -----'
+            Get-Content -Path $log -Tail 120
+            Write-Host '----- end self-test output -----'
           }
+          if ($code -ne 0) {
+            throw "SkellyMotion.exe smoke test exited with code $code"
+          }
+          Write-Host 'SkellyMotion portable GUI self-test completed successfully.'
       - name: Package Windows download
         shell: pwsh
         run: |
