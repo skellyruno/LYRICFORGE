@@ -1,0 +1,22 @@
+# Local state, private songs and cached models (NEVER commit uploads)
+.venv/
+workspace/
+model-cache/
+.env
+.env.*
+!.env.example
+*.mp3
+*.wav
+*.flac
+*.m4a
+*.mp4
+*.mov
+
+__pycache__/
+.pytest_cache/
+*.py[cod]
+.DS_Store
+build/
+dist/
+*.spec
+vendor/
