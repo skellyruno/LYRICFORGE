@@ -58,3 +58,26 @@ def test_desktop_import_rejects_wrong_extension_before_creating_project(tmp_path
     with pytest.raises(ValueError, match="Choose an MP3"):
         server.import_desktop_audio_file(bad)
     assert not any(p.is_dir() for p in tmp_path.iterdir())
+
+
+def test_native_background_import_preserves_source_and_replaces_old(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+    monkeypatch.setattr(server, "DATA", tmp_path / "workspace")
+    server.DATA.mkdir()
+    project_id = "a" * 32
+    folder = server.DATA / project_id
+    folder.mkdir()
+    (folder / "project.json").write_text(
+        json.dumps({"id": project_id, "background_file": "background_old.jpg"}),
+        encoding="utf-8")
+    (folder / "background_old.jpg").write_bytes(b"old")
+    selected = tmp_path / "scene.png"
+    selected.write_bytes(b"test png fixture")
+    monkeypatch.setattr(server, "run", lambda cmd: SimpleNamespace(stdout="1280\n"))
+    result = server.import_desktop_background_file(project_id, selected)
+    assert result["name"] == "background.png"
+    assert selected.exists() and selected.read_bytes() == b"test png fixture"
+    assert (folder / "background.png").read_bytes() == selected.read_bytes()
+    assert not (folder / "background_old.jpg").exists()
+    assert not (folder / "background_pending.png").exists()
+    assert json.loads((folder / "project.json").read_text())["background_file"] == "background.png"
