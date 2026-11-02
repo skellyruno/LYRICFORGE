@@ -17,7 +17,25 @@ const toast=(msg,error=false)=>{const el=document.createElement('div');el.classN
 function api(path,options={}){return fetch(path,options).then(async response=>{if(!response.ok){let reason;try{reason=(await response.json()).detail;}catch{}throw Error(typeof reason==='string'?reason:`Request failed (${response.status})`);}return response.json();});}
 function renderTitle(){$('projectTitle').textContent=state.title;$('trackName').textContent=state.id||state.demo?state.title:'No audio loaded';$('totalTime').textContent=shortTime(state.duration);$('exportDuration').textContent=shortTime(state.duration);$('clipCount').textContent=`${state.lines.length} clip${state.lines.length===1?'':'s'}`;const enabled=!!state.id;['topExport','saveBtn','renderBtn'].forEach(x=>$(x).disabled=!enabled);$('addLineBtn').disabled=!state.id&&!state.demo;$('projectStatus').textContent=state.demo?'Demo · upload to export':state.id?'Editing':'Ready to create';}
 function panel(name){if(name==='storage')loadStorage();$$('.rail-item').forEach(b=>b.classList.toggle('active',b.dataset.panel===name));$$('.panel').forEach(p=>p.classList.toggle('hidden',p.id!==`panel-${name}`));}
-function setSetting(name,value){state.settings[name]=value;syncSettingUI();resizePreview();queueSave();}
+function setSetting(name,value){
+ if(state.settings[name]===value)return;
+ state.settings[name]=value;
+ // Do not reset every input and recalculate preview geometry on each slider
+ // tick. This avoids snapping sliders and expensive layout during dragging.
+ const labels={fontSize:['fontSizeVal',value+'px'],position:['positionVal',value+'%'],
+   outline:['outlineVal',String(value)],dim:['dimVal',Math.round(value*100)+'%'],
+   textColor:['textColorVal',String(value).toUpperCase()],
+   accentColor:['accentColorVal',String(value).toUpperCase()]};
+ if(labels[name])$(labels[name][0]).textContent=labels[name][1];
+ if(['mode','animation','background','aspect'].includes(name)){
+   $('[data-'+name+']').forEach(button=>button.classList.toggle('selected',button.dataset[name]===value));
+ }
+ if(name==='aspect'){
+   const labels={portrait:'9:16 · VERTICAL',landscape:'16:9 · HORIZONTAL',square:'1:1 · SQUARE'};
+   $('canvasFormat').textContent=labels[value];resizePreview();
+ }
+ queueSave();
+}
 
 const looks={
  neon:{mode:'karaoke',animation:'pop',font:'Impact',fontSize:65,textColor:'#FFFFFF',accentColor:'#81FF71',outline:3,background:'acid',dim:.15,upper:true},
