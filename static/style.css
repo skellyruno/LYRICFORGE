@@ -97,3 +97,17 @@ html.desktop-mode .review-modal{max-height:calc(100% - 30px);overflow:auto}
  html.desktop-mode .welcome-overlay{align-items:flex-start}
  html.desktop-mode .welcome-content h1{font-size:44px}
 }
+
+
+/* Real buttons, not invisible label click targets: native and browser safe. */
+button.hero-upload{
+  width:100%;color:var(--text);font:inherit;text-align:left;appearance:none;
+  border-style:dashed;box-sizing:border-box;
+}
+button.hero-upload:focus-visible,button.upload-background:focus-visible{
+  outline:2px solid var(--accent);outline-offset:3px;
+}
+button.upload-background{
+  width:100%;font:inherit;color:var(--text);appearance:none;
+  cursor:pointer;text-align:center;
+}
