@@ -312,6 +312,73 @@ async def create_project(file: UploadFile = File(...)):
         raise
 
 
+def import_desktop_audio_file(source: Path) -> dict:
+    """Import only the file explicitly selected in the native Windows dialog.
+
+    This is a Python-only function, not an HTTP endpoint, so a web page cannot
+    ask the local server to read arbitrary files from the user's computer.
+    """
+    source = Path(source)
+    ext = source.suffix.lower()
+    if ext not in AUDIO_EXT:
+        raise ValueError("Choose an MP3, WAV, M4A, FLAC, OGG, AAC, MP4 or WebM song")
+    if not source.is_file():
+        raise ValueError("The selected song was not found")
+    if not 0 < source.stat().st_size <= MAX_UPLOAD:
+        raise ValueError("Song must be between 1 byte and 250 MB")
+    project_id = uuid.uuid4().hex
+    p = DATA / project_id
+    p.mkdir(parents=True)
+    name = "song" + ext
+    try:
+        shutil.copyfile(source, p / name)
+        duration = media_duration(p / name)
+        if not 0.25 < duration <= MAX_DURATION:
+            raise ValueError("Audio length must be between 0.25 seconds and 15 minutes")
+        title = source.stem[:100]
+        data = {"id": project_id, "title": title, "audio_file": name,
+                "duration": duration, "status": "transcribing",
+                "draft_lyrics": "", "original_words": [], "lines": [],
+                "settings": {}, "language": None}
+        save_project(p, data)
+        executor.submit(transcribe_project, project_id)
+        return {"id": project_id, "duration": duration,
+                "status": "transcribing", "title": title}
+    except Exception:
+        shutil.rmtree(p, ignore_errors=True)
+        raise
+
+
+def import_desktop_background_file(project_id: str, source: Path) -> dict:
+    """Import a background from a native dialog without exposing file-path APIs."""
+    p = project_dir(project_id)
+    source = Path(source)
+    ext = source.suffix.lower()
+    if ext not in BG_EXT or not source.is_file():
+        raise ValueError("Choose a JPG, PNG, WebP, MP4, MOV or WebM background")
+    if not 0 < source.stat().st_size <= MAX_UPLOAD:
+        raise ValueError("Background must be between 1 byte and 250 MB")
+    dest = p / ("background" + ext)
+    # Stage to prevent destroying the existing background if probing fails.
+    staged = p / ("background_pending" + ext)
+    try:
+        shutil.copyfile(source, staged)
+        probe = run(["ffprobe", "-v", "error", "-select_streams", "v:0",
+                     "-show_entries", "stream=width", "-of", "csv=p=0", str(staged)])
+        if not probe.stdout.strip().isdigit():
+            raise ValueError("Cannot read the selected image or video")
+        staged.replace(dest)
+        d = read_project(project_id)
+        if d.get("background_file") and d["background_file"] != dest.name:
+            (p / d["background_file"]).unlink(missing_ok=True)
+        d["background_file"] = dest.name
+        save_project(p, d)
+        return {"background_url": f"/api/projects/{project_id}/background",
+                "name": dest.name}
+    finally:
+        staged.unlink(missing_ok=True)
+
+
 @app.get("/api/projects/{project_id}")
 def get_project(project_id: str):
     return read_project(project_id)
