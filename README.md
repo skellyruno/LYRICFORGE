@@ -48,6 +48,15 @@ The product is now named **SkellyMotion**. The GitHub repository remains `skelly
 
 The existing architecture already supports a hosted browser editor and a self-contained Windows window sharing the same backend. A mobile app is a future option, not part of this release.
 
+
+## Windows UI and file picker repair
+
+The SkellyMotion Windows editor now starts in **compact desktop mode**, approximately 35% smaller than the previous Windows layout. High-DPI window sizing is handled together for the header, side panels, video preview, timeline and welcome screen rather than only scaling fonts. The hosted browser editor keeps its independent responsive styling.
+
+The Windows **Upload song** and **Upload background** buttons use a native file dialog through the pywebview bridge. The website retains normal browser file inputs and drag/drop. No HTTP endpoint accepting arbitrary local paths was added. A JavaScript selector bug that prevented the editor from attaching click handlers has been fixed, with tests that check the initialization wiring.
+
+This is a source-code fix: **rebuild from GitHub Actions** to use it. Your old `SkellyMotion.exe` will not update itself. Back up any exported videos before deleting old ZIPs, and keep your existing `%LOCALAPPDATA%\LyricForge\workspace` and `models` folders. The original Whisper `small` model is unchanged.
+
 ## Local development
 
 Install Python 3.11 or 3.12 and FFmpeg (including libass), then:
