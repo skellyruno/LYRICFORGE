@@ -134,3 +134,19 @@ html.desktop-mode button,html.desktop-mode input,html.desktop-mode select{touch-
 @media (prefers-reduced-motion:reduce){
  .preset-grid button,.primary-btn,.lyric-row{transition:none!important}
 }
+
+
+/* Audio analysis: real progress, no fake ETA or indeterminate percentages. */
+.transcribe-meter{height:7px;width:min(315px,85%);border-radius:6px;background:#243629;overflow:hidden;border:1px solid #354a38}
+.transcribe-meter>div{height:100%;width:0;background:linear-gradient(90deg,#468d47,#98ff80);border-radius:6px;transition:width .3s ease}
+.transcribe-note{font-size:10px;color:#718a79;padding:0 12px 4px}
+html.desktop-mode .transcribe-progress{min-height:170px;gap:10px}
+html.desktop-mode .review-modal{max-width:min(680px,calc(100% - 24px));overflow-y:auto}
+html.desktop-mode .modal-overlay{overflow:auto}
+html.desktop-mode .settings-panel{overflow:hidden}
+html.desktop-mode .workspace-bar,html.desktop-mode .playback-bar{min-width:0}
+html.desktop-mode .stage-wrap{flex:1 1 auto;min-height:0;min-width:0}
+html.desktop-mode .stage{flex-shrink:1;aspect-ratio:9 / 16}
+html.desktop-mode .lyric-input{min-width:0}
+html.desktop-mode .panel-content{overscroll-behavior:contain}
+html.desktop-mode .topbar{white-space:nowrap}
