@@ -6,7 +6,8 @@ const defaultSettings = () => ({aspect:'portrait',resolution:'720p',mode:'line',
 const backgrounds = {midnight:['#101418','#020605','#6fff87'],acid:['#15372b','#07120f','#72ff68'],violet:['#35244a','#0e0c1c','#bb8cfa'],crimson:['#4b1d2d','#130911','#fb5d88'],ocean:['#16445d','#06121f','#6be4ff'],noir:['#282b31','#050505','#b3b8bc']};
 const state = {id:null, title:'Untitled project', duration:0, lines:[], settings:defaultSettings(), time:0, playing:false, selected:0, demo:false, zoom:1, sourceObjectUrl:null, backgroundUrl:null, pendingSave:null, backgroundIsVideo:false, waveform:[]};
 const audio=$('songAudio'), canvas=$('previewCanvas'), ctx=canvas.getContext('2d'), bgImg=$('backgroundImage'),bgVid=$('backgroundVideo');
-let lastFrame=performance.now(), pollTimer=null, backgroundVersion=0;
+let lastFrame=performance.now(), lastPreviewPaint=0, pollTimer=null, backgroundVersion=0;
+let resizeTimer=null;
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 const shortTime=(seconds)=>`${Math.floor(Math.max(0,seconds)/60).toString().padStart(2,'0')}:${Math.floor(Math.max(0,seconds)%60).toString().padStart(2,'0')}`;
 const prettyTime=(x)=>Number(x||0).toFixed(2);
@@ -81,7 +82,14 @@ function showText(t){const w=canvas.width,h=canvas.height,s=state.settings,ln=ac
  }
  ctx.restore();
 }
-function drawFrame(now){const elapsed=Math.min(.15,(now-lastFrame)/1000);lastFrame=now;
+function drawFrame(now){
+ requestAnimationFrame(drawFrame);
+ // Prefer 30 fps while playing, 12 fps while editing and 4 fps during
+ // modal/welcome screens. Keeps WebView responsive while Whisper uses the CPU.
+ const covered=!$('welcome').classList.contains('hidden')||!$('reviewOverlay').classList.contains('hidden');
+ const interval=document.hidden?250:covered?250:state.playing?33:80;
+ if(now-lastPreviewPaint<interval)return;
+ const elapsed=Math.min(.15,(now-lastFrame)/1000);lastFrame=now;lastPreviewPaint=now;
  if(state.demo&&state.playing){state.time+=elapsed;if(state.time>state.duration){state.time=0;state.playing=false;}}
  if(state.id&&state.playing&&isFinite(audio.currentTime))state.time=audio.currentTime;
  const w=canvas.width,h=canvas.height;ctx.clearRect(0,0,w,h);drawBackground(w,h,state.time);showText(state.time);
@@ -89,7 +97,6 @@ function drawFrame(now){const elapsed=Math.min(.15,(now-lastFrame)/1000);lastFra
  const duration=state.duration||1;const timelineWidth=Math.max(0,$('timelineInner').clientWidth-110);$('playhead').style.left=`${110+timelineWidth*clamp(state.time/duration,0,1)}px`;
  if(state.backgroundIsVideo&&state.playing&&bgVid.paused)bgVid.play().catch(()=>{});
  if(state.backgroundIsVideo&&!state.playing&&!bgVid.paused)bgVid.pause();
- requestAnimationFrame(drawFrame);
 }
 function seek(seconds){state.time=clamp(seconds,0,state.duration);if(state.id&&audio.readyState)audio.currentTime=state.time;if(state.backgroundIsVideo&&Number.isFinite(bgVid.duration)&&bgVid.duration>0)bgVid.currentTime=state.time%bgVid.duration;}
 function play(){if(!state.duration){toast('Upload a song to preview lyrics.');return;}state.playing=!state.playing;if(state.id){if(state.playing)audio.play().catch(e=>{state.playing=false;toast(e.message,true);});else audio.pause();}}
@@ -114,7 +121,12 @@ function renderTimeline(){const d=state.duration||1;const clips=$('lyricTrack');
  $('clipCount').textContent=`${state.lines.length} clips`;$('timelineInner').style.width=`${Math.max(100,state.zoom*100)}%`;
  const ruler=$('ruler');ruler.innerHTML='';const interval=d<45?5:d<150?15:d<360?30:60;for(let s=0;s<d;s+=interval){const tick=document.createElement('span');tick.className='tick';tick.style.left=`${s/d*100}%`;tick.textContent=shortTime(s);ruler.appendChild(tick);}
  drawWaveform();
- clips.querySelectorAll('.lyric-clip').forEach(el=>el.addEventListener('pointerdown',e=>{if(e.button!==0)return;e.preventDefault();const i=+el.dataset.index;const line=state.lines[i];state.selected=i;const trackRect=clips.getBoundingClientRect(),startX=e.clientX;const originalStart=line.start,originalEnd=line.end,originalWords=line.words.map(w=>({...w}));const resize=e.target.classList.contains('clip-grab');selectLine(i,false);const move=evt=>{const diff=(evt.clientX-startX)/trackRect.width*d;if(resize){line.start=clamp(originalStart+diff,0,line.end-.1)}else{const len=originalEnd-originalStart;line.start=clamp(originalStart+diff,0,Math.max(0,d-len));line.end=line.start+len;}retimeWords(line,originalStart,originalEnd,originalWords);renderTimeline();};const up=()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);renderLines();renderTimeline();queueSave();};window.addEventListener('pointermove',move);window.addEventListener('pointerup',up,{once:true});}));
+ clips.querySelectorAll('.lyric-clip').forEach(el=>el.addEventListener('pointerdown',e=>{if(e.button!==0)return;e.preventDefault();const i=+el.dataset.index;const line=state.lines[i];state.selected=i;const trackRect=clips.getBoundingClientRect(),startX=e.clientX;const originalStart=line.start,originalEnd=line.end,originalWords=line.words.map(w=>({...w}));const resize=e.target.classList.contains('clip-grab');selectLine(i,false);const move=evt=>{const diff=(evt.clientX-startX)/trackRect.width*d;if(resize){line.start=clamp(originalStart+diff,0,line.end-.1)}else{const len=originalEnd-originalStart;line.start=clamp(originalStart+diff,0,Math.max(0,d-len));line.end=line.start+len;}retimeWords(line,originalStart,originalEnd,originalWords);
+ // Update just the dragged clip; rebuilding hundreds of clips each pointer
+ // event causes the editor to stutter and invalidates drag targets.
+ const live=clips.querySelector('.lyric-clip[data-index="'+i+'"]');
+ if(live){live.style.left=clamp(100*line.start/d,0,100)+'%';live.style.width=clamp(100*(line.end-line.start)/d,.3,100)+'%';}
+};const up=()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);renderLines();renderTimeline();queueSave();};window.addEventListener('pointermove',move);window.addEventListener('pointerup',up,{once:true});}));
 }
 function drawWaveform(){
  const holder=$('audioWave');holder.style.backgroundImage='none';
@@ -143,12 +155,13 @@ function prepareNewSongUI(){
  $('lyricsText').value='';$('reviewTitle').textContent='Finding your lyrics…';
  $('reviewDescription').textContent='Analyzing the vocal and mapping words to timestamps.';
  $('confirmLyrics').disabled=true;$('reviewWarning').classList.add('hidden');
+ updateTranscriptProgress({transcription_stage:'queued',transcription_progress:0});
 }
 async function finishNewSong(data,title){
  state.id=data.id;state.title=title;state.duration=data.duration;state.demo=false;state.lines=[];
  state.waveform=[];state.time=0;state.settings=defaultSettings();state.backgroundUrl=null;
  state.backgroundIsVideo=false;syncSettingUI();resizePreview();configureMedia();renderTitle();
- renderTimeline();renderLines();loadWaveform();localStorage.setItem('lyricforge-last',state.id);
+ renderTimeline();renderLines();localStorage.setItem('lyricforge-last',state.id);
  await waitForTranscript(state.id);
 }
 async function startUpload(file){
@@ -177,12 +190,30 @@ async function chooseSong(){
  // Normal browser and fallback if pywebview is not initialized yet.
  $('audioFile').click();
 }
-async function waitForTranscript(projectId){for(let attempts=0;attempts<300;attempts++){if(state.id!==projectId)return;try{const project=await api(`/api/projects/${projectId}`);if(project.status==='review'||project.status==='editor'){if(project.status==='editor'){loadProjectData(project);$('reviewOverlay').classList.add('hidden');return;}$('transcribeProgress').classList.add('hidden');$('lyricsText').classList.remove('hidden');$('lyricsText').value=project.draft_lyrics||'';$('reviewTitle').textContent='Review your lyrics.';$('reviewDescription').textContent='Correct any misheard words and put each lyric line on a new line. Your edits are applied before syncing.';$('confirmLyrics').disabled=!$('lyricsText').value.trim();if(project.transcription_error){const warning=$('reviewWarning');warning.textContent='Automatic transcription was unavailable: '+project.transcription_error+'. You can still paste your lyrics and create a video, but manual timing adjustments may be needed.';warning.classList.remove('hidden');}else if(!project.draft_lyrics){const warning=$('reviewWarning');warning.textContent='No clear vocals were detected. You can paste lyrics manually, though the timing will only be an estimate.';warning.classList.remove('hidden');}return;}}catch(e){toast(e.message,true);return;}await new Promise(r=>setTimeout(r,1400));}
+function updateTranscriptProgress(project){
+ const stage=project.transcription_stage||'queued';
+ const done=Number.isFinite(project.transcription_progress)?Math.max(0,Math.min(99,project.transcription_progress)):0;
+ const label=$('transcribeProgress').querySelector('strong');
+ const detail=$('transcribeProgress').querySelector('span');
+ if(stage==='loading_model'){
+   label.textContent='Preparing your AI lyric engine…';
+   detail.textContent='Using the same Whisper model already saved on your computer.';
+ }else if(stage==='recognizing'){
+   label.textContent='Finding lyrics · '+done+'% of audio analyzed';
+   detail.textContent='Syncing words as they are recognized. Longer songs take more time.';
+ }else{
+   label.textContent='Preparing your song…';
+   detail.textContent='Your original song is safe. Transcription starts automatically.';
+ }
+ const bar=$('transcribeMeter');if(bar)bar.style.width=done+'%';
+ const progress=$('transcribeMeterTrack');if(progress)progress.setAttribute('aria-valuenow',String(done));
+}
+async function waitForTranscript(projectId){for(let attempts=0;attempts<300;attempts++){if(state.id!==projectId)return;try{const project=await api(`/api/projects/${projectId}`);if(project.status==='transcribing')updateTranscriptProgress(project);if(project.status==='review'||project.status==='editor'){if(project.status==='editor'){loadProjectData(project);$('reviewOverlay').classList.add('hidden');return;}$('transcribeProgress').classList.add('hidden');$('lyricsText').classList.remove('hidden');$('lyricsText').value=project.draft_lyrics||'';$('reviewTitle').textContent='Review your lyrics.';$('reviewDescription').textContent='Correct any misheard words and put each lyric line on a new line. Your edits are applied before syncing.';$('confirmLyrics').disabled=!$('lyricsText').value.trim();if(project.transcription_error){const warning=$('reviewWarning');warning.textContent='Automatic transcription was unavailable: '+project.transcription_error+'. You can still paste your lyrics and create a video, but manual timing adjustments may be needed.';warning.classList.remove('hidden');}else if(!project.draft_lyrics){const warning=$('reviewWarning');warning.textContent='No clear vocals were detected. You can paste lyrics manually, though the timing will only be an estimate.';warning.classList.remove('hidden');}return;}}catch(e){toast(e.message,true);return;}await new Promise(r=>setTimeout(r,1400));}
  $('transcribeProgress').classList.add('hidden');$('lyricsText').classList.remove('hidden');$('reviewTitle').textContent='Enter your lyrics.';$('confirmLyrics').disabled=false;toast('Transcription timed out. You can paste the lyrics manually.',true);
 }
 function loadProjectData(project){state.id=project.id;state.title=project.title;state.duration=project.duration;state.lines=project.lines||[];state.settings={...defaultSettings(),...(project.settings||{})};state.demo=false;state.time=0;state.selected=0;state.playing=false;state.waveform=[];state.backgroundUrl=project.background_file?`/api/projects/${state.id}/background?v=${Date.now()}`:null;state.backgroundIsVideo=!!project.background_file&&/\.(mp4|mov|webm)$/i.test(project.background_file);refreshBackgroundMedia();
  $('welcome').classList.add('hidden');$('reviewOverlay').classList.add('hidden');syncSettingUI();resizePreview();configureMedia();renderTitle();renderTimeline();renderLines();loadWaveform();}
-async function confirmLyrics(){const lyrics=$('lyricsText').value.trim();if(!lyrics){toast('Add or correct your lyrics first.',true);return;}$('confirmLyrics').disabled=true;try{const result=await api(`/api/projects/${state.id}/confirm`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lyrics})});state.lines=result.lines;state.selected=0;$('reviewOverlay').classList.add('hidden');renderTitle();renderLines();renderTimeline();queueSave();toast('Lyrics confirmed! You can edit text and timing below.');}catch(e){toast(e.message,true);}finally{$('confirmLyrics').disabled=false;}}
+async function confirmLyrics(){const lyrics=$('lyricsText').value.trim();if(!lyrics){toast('Add or correct your lyrics first.',true);return;}$('confirmLyrics').disabled=true;try{const result=await api(`/api/projects/${state.id}/confirm`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lyrics})});state.lines=result.lines;state.selected=0;$('reviewOverlay').classList.add('hidden');renderTitle();renderLines();renderTimeline();loadWaveform();queueSave();toast('Lyrics confirmed! You can edit text and timing below.');}catch(e){toast(e.message,true);}finally{$('confirmLyrics').disabled=false;}}
 function refreshBackgroundMedia(){if(!state.backgroundUrl)return;if(state.backgroundIsVideo){bgVid.src=state.backgroundUrl;bgVid.load();bgVid.currentTime=state.time;bgImg.src='';}else{bgImg.src=state.backgroundUrl;bgVid.pause();bgVid.removeAttribute('src');}}
 function applyImportedBackground(response,name){
  state.backgroundUrl=response.background_url+'?v='+Date.now();
@@ -241,6 +272,10 @@ function wireUI(){
  $('addLineBtn').addEventListener('click',()=>{let start=clamp(state.time,0,Math.max(0,state.duration-.5));let line={id:Math.random().toString(16).slice(2,12),text:'New lyric',start,end:Math.min(state.duration,start+2),words:[]};reflowWords(line);state.lines.push(line);state.lines.sort((a,b)=>a.start-b.start);selectLine(state.lines.indexOf(line),true);queueSave();});
  $('newBtn').addEventListener('click',()=>{if(state.id&&state.lines.length&&!confirm('Start a new project? Your current changes are saved locally.'))return;state.playing=false;audio.pause();state.id=null;state.demo=false;state.lines=[];state.waveform=[];state.duration=0;state.time=0;state.title='Untitled project';state.settings=defaultSettings();state.backgroundUrl=null;state.selected=0;localStorage.removeItem('lyricforge-last');$('welcome').classList.remove('hidden');syncSettingUI();resizePreview();renderTitle();renderTimeline();renderLines();});
  $('previewFull').addEventListener('click',()=>{const stage=$('stage');if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});else stage.requestFullscreen?.().catch(()=>{});});
+ window.addEventListener('resize',()=>{
+   clearTimeout(resizeTimer);
+   resizeTimer=setTimeout(()=>{resizePreview();drawWaveform();},100);
+ });
  const hero=$('heroUpload');hero.addEventListener('dragover',e=>{e.preventDefault();hero.classList.add('drag-over');});hero.addEventListener('dragleave',()=>hero.classList.remove('drag-over'));hero.addEventListener('drop',e=>{e.preventDefault();hero.classList.remove('drag-over');if(e.dataTransfer.files.length)startUpload(e.dataTransfer.files[0]);});
  audio.addEventListener('ended',()=>{state.playing=false;});audio.addEventListener('pause',()=>{if(!audio.ended)state.playing=false;});audio.addEventListener('play',()=>{state.playing=true;});
  document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.code==='KeyS'){e.preventDefault();if(state.id)save();return;}if(e.altKey&&!e.ctrlKey&&!e.metaKey&&['ArrowLeft','ArrowRight'].includes(e.code)&&!e.target.closest('input,textarea,select')){e.preventDefault();shiftSelected(e.code==='ArrowLeft'?-.05:.05);return;}if(e.code==='Space'&&!e.repeat&&!e.target.closest('input,textarea,select,button')){e.preventDefault();play();}});
