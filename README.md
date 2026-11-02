@@ -30,6 +30,19 @@ Two distributions are included in this repository:
 **Limitations:** Whisper is not specialized for sung vocals, and corrected words are interpolated rather than audio-forced-aligned; some timing will need manual tweaks. The cloud site is **owner-only**. It has no multi-user accounts, rate limiting, queue persistence, billing or production-grade untrusted-media sandbox. Windows packaging is automated but must be verified on a Windows machine.
 
 
+
+## SkellyMotion 0.4 — compact, smoother studio
+
+- Windows starts at **960 × 623** pixels (25% smaller in each dimension than the old 1280 × 830 default), can resize down to 800 × 520, and retains its native WebView2 window.
+- The desktop UI retains its existing 65%-of-original visual size. A viewport-anchored scale and flexible panels replace the old CSS zoom technique for reliable resize, scrolling, and preview layout.
+- Transcription **still uses the exact same Whisper `small` model and existing model cache**. The CPU default now uses beam size 3 (previously 5), one temperature pass, and leaves some CPU headroom for the interface. This reduces decoding work but could affect recognition of difficult singing.
+- If you prefer the prior more thorough decoding, set environment variable `SKELLYMOTION_BEAM_SIZE=5` before starting the app. This changes **decoding effort only**, not the model or saved lyrics.
+- The review screen reports real audio-position analysis progress; it does not estimate remaining minutes.
+- Waveform generation starts after lyric confirmation rather than competing with transcription. The preview paints at up to 30 FPS while playing, about 12 FPS while idle, and about 4 FPS when covered by dialogs. Timeline clips are updated directly while dragging; font and position sliders avoid unnecessary full-panel resets.
+- Projects, audio files and Whisper cache still use the original `%LOCALAPPDATA%\LyricForge` paths.
+
+To test the new Windows build, visit **Actions → Build SkellyMotion Windows app → Run workflow** on `main`, download the new `SkellyMotion-Windows-x64` artifact, and extract the whole folder. Keep the old working version until import, editing, and MP4 export pass on your computer.
+
 ## SkellyMotion Windows desktop studio (v0.3)
 
 The latest **SkellyMotion.exe** portable build opens **its own Windows application window** with no Command Prompt and no external browser tab. It uses the system's Microsoft Edge WebView2 runtime and keeps the backend on a random loopback-only port. If WebView2 is unavailable, install the [Microsoft WebView2 Evergreen Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/).
