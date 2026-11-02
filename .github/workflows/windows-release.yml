@@ -78,6 +78,8 @@ jobs:
           # Subsequent tests and tools must use the SAME FFmpeg that we package.
           Add-Content -Path $env:GITHUB_PATH -Value (Resolve-Path vendor/ffmpeg).Path
           & (Resolve-Path vendor/ffmpeg/ffmpeg.exe).Path -hide_banner -version | Select-Object -First 1
+      - name: Validate editor JavaScript syntax
+        run: node --check static/app.js
       - name: Test original editor on Windows
         run: python -m pytest tests -q
       - name: Build self-contained Windows folder
