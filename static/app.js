@@ -137,11 +137,45 @@ function queueSave(){if(!state.id)return;clearTimeout(state.pendingSave);state.p
 async function save(){if(!state.id||!state.lines.length)return;clearTimeout(state.pendingSave);try{await api(`/api/projects/${state.id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({settings:state.settings,lines:state.lines})});$('projectStatus').textContent='Changes saved';}catch(e){toast(`Save failed: ${e.message}`,true);}}
 function configureMedia(){if(state.id){audio.src=`/api/projects/${state.id}/audio`;audio.load();}else{audio.removeAttribute('src');audio.load();}
  $('totalTime').textContent=shortTime(state.duration);$('exportDuration').textContent=shortTime(state.duration);}
-async function startUpload(file){if(!file)return;if(!/\.(mp3|wav|flac|m4a|aac|ogg|opus|mp4|webm)$/i.test(file.name)){toast('Please upload an audio file (MP3, WAV, M4A, FLAC, etc.)',true);return;}
- state.playing=false;audio.pause();$('welcome').classList.add('hidden');$('reviewOverlay').classList.remove('hidden');$('transcribeProgress').classList.remove('hidden');$('lyricsText').classList.add('hidden');$('lyricsText').value='';$('reviewTitle').textContent='Finding your lyrics…';$('reviewDescription').textContent='Analyzing the vocal and mapping words to timestamps.';$('confirmLyrics').disabled=true;$('reviewWarning').classList.add('hidden');
- let data;try{const fd=new FormData();fd.append('file',file);data=await api('/api/projects',{method:'POST',body:fd});}catch(e){toast(e.message,true);$('reviewOverlay').classList.add('hidden');$('welcome').classList.remove('hidden');return;}
- state.id=data.id;state.title=file.name.replace(/\.[^.]+$/,'');state.duration=data.duration;state.demo=false;state.lines=[];state.waveform=[];state.time=0;state.settings=defaultSettings();state.backgroundUrl=null;state.backgroundIsVideo=false;syncSettingUI();resizePreview();configureMedia();renderTitle();renderTimeline();renderLines();loadWaveform();localStorage.setItem('lyricforge-last',state.id);
+function prepareNewSongUI(){
+ state.playing=false;audio.pause();$('welcome').classList.add('hidden');$('reviewOverlay').classList.remove('hidden');
+ $('transcribeProgress').classList.remove('hidden');$('lyricsText').classList.add('hidden');
+ $('lyricsText').value='';$('reviewTitle').textContent='Finding your lyrics…';
+ $('reviewDescription').textContent='Analyzing the vocal and mapping words to timestamps.';
+ $('confirmLyrics').disabled=true;$('reviewWarning').classList.add('hidden');
+}
+async function finishNewSong(data,title){
+ state.id=data.id;state.title=title;state.duration=data.duration;state.demo=false;state.lines=[];
+ state.waveform=[];state.time=0;state.settings=defaultSettings();state.backgroundUrl=null;
+ state.backgroundIsVideo=false;syncSettingUI();resizePreview();configureMedia();renderTitle();
+ renderTimeline();renderLines();loadWaveform();localStorage.setItem('lyricforge-last',state.id);
  await waitForTranscript(state.id);
+}
+async function startUpload(file){
+ if(!file)return;
+ if(!/\.(mp3|wav|flac|m4a|aac|ogg|opus|mp4|webm)$/i.test(file.name)){
+   toast('Please upload an audio file (MP3, WAV, M4A, FLAC, etc.)',true);return;
+ }
+ prepareNewSongUI();
+ let data;
+ try{const fd=new FormData();fd.append('file',file);data=await api('/api/projects',{method:'POST',body:fd});}
+ catch(e){toast('Song import failed: '+e.message,true);$('reviewOverlay').classList.add('hidden');$('welcome').classList.remove('hidden');return;}
+ await finishNewSong(data,file.name.replace(/\.[^.]+$/,''));
+}
+async function chooseSong(){
+ const bridge=window.pywebview?.api;
+ if(document.documentElement.classList.contains('desktop-mode')&&bridge?.choose_audio){
+   try{
+     const data=await bridge.choose_audio(); // Native file dialog and safe Python-side copy
+     if(!data)return; // The user cancelled
+     prepareNewSongUI();
+     await finishNewSong(data,data.title||'My song');
+   }catch(e){toast('Unable to import song: '+(e.message||String(e)),true);
+     $('reviewOverlay').classList.add('hidden');if(!state.id)$('welcome').classList.remove('hidden');}
+   return;
+ }
+ // Normal browser and fallback if pywebview is not initialized yet.
+ $('audioFile').click();
 }
 async function waitForTranscript(projectId){for(let attempts=0;attempts<300;attempts++){if(state.id!==projectId)return;try{const project=await api(`/api/projects/${projectId}`);if(project.status==='review'||project.status==='editor'){if(project.status==='editor'){loadProjectData(project);$('reviewOverlay').classList.add('hidden');return;}$('transcribeProgress').classList.add('hidden');$('lyricsText').classList.remove('hidden');$('lyricsText').value=project.draft_lyrics||'';$('reviewTitle').textContent='Review your lyrics.';$('reviewDescription').textContent='Correct any misheard words and put each lyric line on a new line. Your edits are applied before syncing.';$('confirmLyrics').disabled=!$('lyricsText').value.trim();if(project.transcription_error){const warning=$('reviewWarning');warning.textContent='Automatic transcription was unavailable: '+project.transcription_error+'. You can still paste your lyrics and create a video, but manual timing adjustments may be needed.';warning.classList.remove('hidden');}else if(!project.draft_lyrics){const warning=$('reviewWarning');warning.textContent='No clear vocals were detected. You can paste lyrics manually, though the timing will only be an estimate.';warning.classList.remove('hidden');}return;}}catch(e){toast(e.message,true);return;}await new Promise(r=>setTimeout(r,1400));}
  $('transcribeProgress').classList.add('hidden');$('lyricsText').classList.remove('hidden');$('reviewTitle').textContent='Enter your lyrics.';$('confirmLyrics').disabled=false;toast('Transcription timed out. You can paste the lyrics manually.',true);
@@ -150,7 +184,32 @@ function loadProjectData(project){state.id=project.id;state.title=project.title;
  $('welcome').classList.add('hidden');$('reviewOverlay').classList.add('hidden');syncSettingUI();resizePreview();configureMedia();renderTitle();renderTimeline();renderLines();loadWaveform();}
 async function confirmLyrics(){const lyrics=$('lyricsText').value.trim();if(!lyrics){toast('Add or correct your lyrics first.',true);return;}$('confirmLyrics').disabled=true;try{const result=await api(`/api/projects/${state.id}/confirm`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lyrics})});state.lines=result.lines;state.selected=0;$('reviewOverlay').classList.add('hidden');renderTitle();renderLines();renderTimeline();queueSave();toast('Lyrics confirmed! You can edit text and timing below.');}catch(e){toast(e.message,true);}finally{$('confirmLyrics').disabled=false;}}
 function refreshBackgroundMedia(){if(!state.backgroundUrl)return;if(state.backgroundIsVideo){bgVid.src=state.backgroundUrl;bgVid.load();bgVid.currentTime=state.time;bgImg.src='';}else{bgImg.src=state.backgroundUrl;bgVid.pause();bgVid.removeAttribute('src');}}
-async function uploadBackground(file){if(!file)return;if(!state.id){toast('Upload a song before adding a custom background.',true);return;}const form=new FormData();form.append('file',file);try{const response=await api(`/api/projects/${state.id}/background`,{method:'POST',body:form});state.backgroundUrl=response.background_url+'?v='+Date.now();state.backgroundIsVideo=/\.(mp4|mov|webm)$/i.test(response.name);$('backgroundFileInfo').classList.remove('hidden');$('backgroundFileInfo').textContent='✓ '+file.name;refreshBackgroundMedia();setSetting('background','custom');toast('Background added.');}catch(e){toast(e.message,true);}}
+function applyImportedBackground(response,name){
+ state.backgroundUrl=response.background_url+'?v='+Date.now();
+ state.backgroundIsVideo=/\.(mp4|mov|webm)$/i.test(response.name);
+ $('backgroundFileInfo').classList.remove('hidden');
+ $('backgroundFileInfo').textContent='✓ '+name;
+ refreshBackgroundMedia();setSetting('background','custom');toast('Background added.');
+}
+async function uploadBackground(file){
+ if(!file)return;
+ if(!state.id){toast('Upload a song before adding a custom background.',true);return;}
+ const form=new FormData();form.append('file',file);
+ try{
+   const response=await api('/api/projects/'+state.id+'/background',{method:'POST',body:form});
+   applyImportedBackground(response,file.name);
+ }catch(e){toast('Background import failed: '+e.message,true);}
+}
+async function chooseBackground(){
+ if(!state.id){toast('Upload a song before adding a background.',true);return;}
+ const bridge=window.pywebview?.api;
+ if(document.documentElement.classList.contains('desktop-mode')&&bridge?.choose_background){
+   try{const result=await bridge.choose_background(state.id);if(result)applyImportedBackground(result,result.name);}
+   catch(e){toast('Background import failed: '+(e.message||String(e)),true);}
+   return;
+ }
+ $('backgroundFile').click();
+}
 function loadDemo(){const texts=['I WAS LOST INSIDE THE STATIC','NOW THE CITY KNOWS MY NAME','EVERY SHADOW HAS A STORY','WATCH ME TURN IT INTO FLAMES','I CAME BACK FROM THE DARK','AND I BROUGHT THE LIGHT WITH ME'];state.id=null;state.demo=true;state.title='DEMO / AFTER DARK';state.duration=24;state.time=2;state.waveform=Array.from({length:120},(_,i)=>.14+.42*Math.abs(Math.sin(i*7.1)*Math.cos(i*.9)));state.lines=texts.map((text,i)=>{const start=i*4;const line={id:String(i),start,end:start+3.7,text,words:[]};reflowWords(line);return line;});state.settings=defaultSettings();state.selected=0;$('welcome').classList.add('hidden');syncSettingUI();resizePreview();renderTitle();renderTimeline();renderLines();toast('Demo mode — upload your own song to enable MP4 export.');}
 async function exportVideo(){if(!state.id){toast('Upload your song to export a lyric video.',true);return;}if(!state.lines.length){toast('Add some lyric lines before exporting.',true);return;}panel('export');$('renderBtn').disabled=true;$('downloadBtn').classList.add('hidden');$('renderStatus').classList.remove('hidden');$('renderStatus').textContent='Preparing video render…';
  try{const {job_id}=await api(`/api/projects/${state.id}/render`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lines:state.lines,settings:state.settings})});for(let i=0;i<900;i++){await new Promise(r=>setTimeout(r,1200));const job=await api(`/api/jobs/${job_id}`);if(job.status==='done'){$('renderStatus').textContent='✓ Render complete. Your MP4 is ready.';const dl=$('downloadBtn');dl.href=job.download;dl.classList.remove('hidden');toast('Video export finished!');return;}if(job.status==='error')throw Error(job.error||'Rendering failed');$('renderStatus').textContent=`Rendering your video… ${Math.floor((i+1)*1.2)}s elapsed`; }throw Error('Render timed out after 18 minutes.');}catch(e){$('renderStatus').textContent='Render failed: '+e.message;toast(e.message,true);}finally{$('renderBtn').disabled=false;}}
@@ -164,6 +223,8 @@ function wireUI(){
  ['font','fontSize','position','textColor','accentColor','outline','dim','resolution'].forEach(k=>$(k).addEventListener('input',e=>setSetting(k,k==='fontSize'||k==='position'||k==='outline'||k==='dim'?Number(e.target.value):e.target.value)));
  $('upper').addEventListener('change',e=>setSetting('upper',e.target.checked));
  ['mode','animation','background','aspect'].forEach(key=>$$(`[data-${key}]`).forEach(b=>b.addEventListener('click',()=>setSetting(key,b.dataset[key]))));
+ $('heroUpload').addEventListener('click',chooseSong);
+ $('backgroundUploadTrigger').addEventListener('click',chooseBackground);
  $('audioFile').addEventListener('change',e=>{startUpload(e.target.files[0]);e.target.value='';});
  $('backgroundFile').addEventListener('change',e=>{uploadBackground(e.target.files[0]);e.target.value='';});
  $('lyricsText').addEventListener('input',()=>{$('confirmLyrics').disabled=!$('lyricsText').value.trim();});
