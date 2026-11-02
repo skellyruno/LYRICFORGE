@@ -158,7 +158,8 @@ def run_desktop(home: Path) -> int:
         picker = DesktopFilePicker()
         window = webview.create_window("SkellyMotion | Lyric video studio",
                               "http://127.0.0.1:" + str(port) + "/?desktop=1",
-                              width=1280, height=830, min_size=(980, 650),
+                              # 25% smaller default window; user can resize/maximize freely.
+                              width=960, height=623, min_size=(800, 520),
                               resizable=True, background_color="#090c0c",
                               js_api=picker)
         picker.window = window
