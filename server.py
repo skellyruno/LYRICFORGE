@@ -153,7 +153,12 @@ def load_model():
             name = os.getenv("WHISPER_MODEL", "small")
             device = os.getenv("WHISPER_DEVICE", "cpu")
             compute = "float16" if device == "cuda" else "int8"
-            _model = WhisperModel(name, device=device, compute_type=compute)
+            options = {"device": device, "compute_type": compute}
+            if device == "cpu":
+                # Leave a little CPU headroom for the desktop window and FFmpeg.
+                cores = os.cpu_count() or 4
+                options["cpu_threads"] = max(2, min(8, cores - 2))
+            _model = WhisperModel(name, **options)
     return _model
 
 
@@ -241,28 +246,63 @@ def align_confirmed(lyrics: str, old_words: list[dict], duration: float) -> list
     return lines
 
 
+def transcription_beam_size() -> int:
+    """Faster decoding on the SAME Whisper small model, with an accuracy override."""
+    try:
+        return max(1, min(5, int(os.getenv("SKELLYMOTION_BEAM_SIZE", "3"))))
+    except (TypeError, ValueError):
+        return 3
+
+
+def update_transcription_stage(project_path: Path, stage: str, progress: int) -> None:
+    """Publish real audio-position progress; no invented ETA."""
+    data = json.loads((project_path / "project.json").read_text(encoding="utf-8"))
+    if data.get("status") != "transcribing":
+        return
+    data["transcription_stage"] = stage
+    data["transcription_progress"] = max(0, min(99, int(progress)))
+    save_project(project_path, data)
+
+
 def transcribe_project(project_id: str) -> None:
     p = DATA / project_id
     d = json.loads((p / "project.json").read_text(encoding="utf-8"))
     try:
+        update_transcription_stage(p, "loading_model", 0)
         model = load_model()
-        segs, info = model.transcribe(str(p / d["audio_file"]), word_timestamps=True,
-            beam_size=5, vad_filter=False, condition_on_previous_text=False)
+        update_transcription_stage(p, "recognizing", 0)
+        # Beam search 3 (previously 5), one decoding temperature and one
+        # candidate: less CPU work without changing model size, word timestamps,
+        # or the ability to correct lyrics after transcription.
+        segs, info = model.transcribe(
+            str(p / d["audio_file"]), word_timestamps=True,
+            beam_size=transcription_beam_size(), best_of=1, temperature=0,
+            vad_filter=False, condition_on_previous_text=False)
         words = []
+        duration = max(0.1, float(d.get("duration", 1)))
+        last_pct, last_update = 0, time.monotonic()
         for seg in segs:
             for w in seg.words or []:
                 word = w.word.strip()
                 if word:
                     words.append({"text": word, "start": round(float(w.start), 3),
                                   "end": round(float(w.end), 3)})
+            pct = min(99, round(max(0, float(seg.end)) / duration * 100))
+            now = time.monotonic()
+            if pct >= last_pct + 5 and now - last_update >= 0.5:
+                update_transcription_stage(p, "recognizing", pct)
+                last_pct, last_update = pct, now
         d = json.loads((p / "project.json").read_text(encoding="utf-8"))
         d["original_words"] = words
         d["draft_lyrics"] = "\n".join(ln["text"] for ln in build_lines(words))
         d["status"] = "review"
+        d["transcription_stage"] = "complete"
+        d["transcription_progress"] = 100
         d["language"] = info.language
     except Exception as exc:
         d = json.loads((p / "project.json").read_text(encoding="utf-8"))
         d["status"] = "review"
+        d["transcription_stage"] = "error"
         d["transcription_error"] = str(exc)[:600]
         d["draft_lyrics"] = ""
     save_project(p, d)
@@ -303,7 +343,8 @@ async def create_project(file: UploadFile = File(...)):
             raise HTTPException(400, "Audio length must be between 0.25 seconds and 15 minutes")
         data = {"id": project_id, "title": Path(file.filename or "My Song").stem[:100],
                 "audio_file": name, "duration": duration, "status": "transcribing",
-                "draft_lyrics": "", "original_words": [], "lines": [], "settings": {}, "language": None}
+                "draft_lyrics": "", "original_words": [], "lines": [], "settings": {}, "language": None,
+                "transcription_stage": "queued", "transcription_progress": 0}
         save_project(p, data)
         executor.submit(transcribe_project, project_id)
         return {"id": project_id, "duration": duration, "status": "transcribing"}
@@ -339,7 +380,8 @@ def import_desktop_audio_file(source: Path) -> dict:
         data = {"id": project_id, "title": title, "audio_file": name,
                 "duration": duration, "status": "transcribing",
                 "draft_lyrics": "", "original_words": [], "lines": [],
-                "settings": {}, "language": None}
+                "settings": {}, "language": None,
+                "transcription_stage": "queued", "transcription_progress": 0}
         save_project(p, data)
         executor.submit(transcribe_project, project_id)
         return {"id": project_id, "duration": duration,
