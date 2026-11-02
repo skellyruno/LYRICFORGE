@@ -15,7 +15,7 @@ const trimLine=(s)=>s.length>95?s.slice(0,92)+'…':s;
 const toast=(msg,error=false)=>{const el=document.createElement('div');el.className='toast'+(error?' error':'');el.textContent=msg;$('toasts').appendChild(el);setTimeout(()=>el.remove(),4700);};
 function api(path,options={}){return fetch(path,options).then(async response=>{if(!response.ok){let reason;try{reason=(await response.json()).detail;}catch{}throw Error(typeof reason==='string'?reason:`Request failed (${response.status})`);}return response.json();});}
 function renderTitle(){$('projectTitle').textContent=state.title;$('trackName').textContent=state.id||state.demo?state.title:'No audio loaded';$('totalTime').textContent=shortTime(state.duration);$('exportDuration').textContent=shortTime(state.duration);$('clipCount').textContent=`${state.lines.length} clip${state.lines.length===1?'':'s'}`;const enabled=!!state.id;['topExport','saveBtn','renderBtn'].forEach(x=>$(x).disabled=!enabled);$('addLineBtn').disabled=!state.id&&!state.demo;$('projectStatus').textContent=state.demo?'Demo · upload to export':state.id?'Editing':'Ready to create';}
-function panel(name){if(name==='storage')loadStorage();$('.rail-item').forEach(b=>b.classList.toggle('active',b.dataset.panel===name));$$('.panel').forEach(p=>p.classList.toggle('hidden',p.id!==`panel-${name}`));}
+function panel(name){if(name==='storage')loadStorage();$$('.rail-item').forEach(b=>b.classList.toggle('active',b.dataset.panel===name));$$('.panel').forEach(p=>p.classList.toggle('hidden',p.id!==`panel-${name}`));}
 function setSetting(name,value){state.settings[name]=value;syncSettingUI();resizePreview();queueSave();}
 
 const looks={
@@ -155,8 +155,8 @@ function loadDemo(){const texts=['I WAS LOST INSIDE THE STATIC','NOW THE CITY KN
 async function exportVideo(){if(!state.id){toast('Upload your song to export a lyric video.',true);return;}if(!state.lines.length){toast('Add some lyric lines before exporting.',true);return;}panel('export');$('renderBtn').disabled=true;$('downloadBtn').classList.add('hidden');$('renderStatus').classList.remove('hidden');$('renderStatus').textContent='Preparing video render…';
  try{const {job_id}=await api(`/api/projects/${state.id}/render`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lines:state.lines,settings:state.settings})});for(let i=0;i<900;i++){await new Promise(r=>setTimeout(r,1200));const job=await api(`/api/jobs/${job_id}`);if(job.status==='done'){$('renderStatus').textContent='✓ Render complete. Your MP4 is ready.';const dl=$('downloadBtn');dl.href=job.download;dl.classList.remove('hidden');toast('Video export finished!');return;}if(job.status==='error')throw Error(job.error||'Rendering failed');$('renderStatus').textContent=`Rendering your video… ${Math.floor((i+1)*1.2)}s elapsed`; }throw Error('Render timed out after 18 minutes.');}catch(e){$('renderStatus').textContent='Render failed: '+e.message;toast(e.message,true);}finally{$('renderBtn').disabled=false;}}
 function wireUI(){
- $('.rail-item').forEach(b=>b.addEventListener('click',()=>panel(b.dataset.panel)));
- $('[data-preset]').forEach(b=>b.addEventListener('click',()=>applyLook(b.dataset.preset)));
+ $$('.rail-item').forEach(b=>b.addEventListener('click',()=>panel(b.dataset.panel)));
+ $$('[data-preset]').forEach(b=>b.addEventListener('click',()=>applyLook(b.dataset.preset)));
  $('nudgeBack').addEventListener('click',()=>shiftSelected(-.05));
  $('nudgeForward').addEventListener('click',()=>shiftSelected(.05));
  $('refreshStorage').addEventListener('click',loadStorage);
