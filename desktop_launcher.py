@@ -119,7 +119,7 @@ def run_desktop(home: Path) -> int:
 
     try:
         webview.create_window("SkellyMotion | Lyric video studio",
-                              "http://127.0.0.1:" + str(port),
+                              "http://127.0.0.1:" + str(port) + "/?desktop=1",
                               width=1280, height=830, min_size=(980, 650),
                               resizable=True, background_color="#090c0c")
         webview.start(gui="edgechromium", debug=False, private_mode=False,
