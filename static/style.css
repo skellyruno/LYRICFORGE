@@ -9,3 +9,91 @@
 .storage-stats{border:1px solid #334637;border-radius:11px;background:#141d16;margin:0 0 18px;overflow:hidden}.storage-stats>div{display:flex;justify-content:space-between;gap:9px;padding:15px 13px;border-bottom:1px solid #2d3c30;font-size:11px}.storage-stats>div:last-child{border-bottom:0}.storage-stats span{color:#90a494}.storage-stats b{color:#e6f5e2;text-align:right}.cleanup-btn{background:#283528;margin-top:6px}.storage-tip{font-size:11px;line-height:1.55;color:#8c9f90;margin-top:14px}
 .rail-item{min-height:56px}.rail{gap:5px}.section-top{padding-top:22px;padding-bottom:17px}.section-top h2{margin-top:9px}.lyric-row{transition:border-color .14s,background .14s}.lyric-row:hover{border-color:#516b50}.stage{filter:drop-shadow(0 16px 30px #0008)}.primary-btn{transition:background .14s,transform .14s}.primary-btn:hover:not(:disabled){transform:translateY(-1px)}
 @media(max-width:760px){.rail-item{width:16.66%;font-size:9px}}
+
+
+/* SkellyMotion desktop app — intentional 65% scale on ALL interface components.
+   A zoomed, inverse-sized app maintains exactly one viewport of usable space.
+   The hosted web version is unaffected. Native mode also overrides the mobile
+   breakpoint, which otherwise switches to stacked panels on high-DPI displays. */
+html.desktop-mode, html.desktop-mode body{width:100%;height:100%;margin:0;overflow:hidden}
+html.desktop-mode .app{
+  zoom:.65;
+  width:153.846154vw;
+  height:153.846154vh;
+  min-width:0;
+  min-height:0;
+  max-height:none;
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+}
+html.desktop-mode .topbar{
+  width:100%;height:70px;min-height:70px;flex-shrink:0;
+  padding:0 24px;gap:15px;display:flex;align-items:center;
+}
+html.desktop-mode .brand{width:268px;flex-shrink:0;gap:9px}
+html.desktop-mode .brand-name{font-size:20px;white-space:nowrap;letter-spacing:-.9px}
+html.desktop-mode .brand-pill{display:inline-flex;font-size:9px}
+html.desktop-mode .top-middle{display:flex;gap:9px;min-width:0}
+html.desktop-mode .top-actions{display:flex;gap:8px;margin-left:auto}
+html.desktop-mode .top-actions .ghost-btn{display:inline-flex}
+html.desktop-mode .main-layout{display:flex;flex-direction:row;flex-wrap:nowrap;min-height:0;min-width:0;flex:1}
+html.desktop-mode .rail{
+  display:flex;flex-direction:column;order:0;flex:0 0 76px;
+  height:auto;width:76px;align-items:stretch;justify-content:flex-start;
+  padding:12px 8px;gap:6px;
+}
+html.desktop-mode .rail-item{width:100%;min-height:55px;height:55px;flex:none;gap:3px;font-size:10px}
+html.desktop-mode .rail-ico{font-size:20px}
+html.desktop-mode .rail-bottom{display:block}
+html.desktop-mode .settings-panel{
+  order:0;flex:0 0 312px;width:312px;min-width:0;
+  min-height:0;max-height:none;overflow:hidden;
+  border-right:1px solid var(--line);
+}
+html.desktop-mode .workspace{
+  order:0;display:flex;flex-direction:column;flex:1;
+  width:auto;min-width:0;height:auto;min-height:0;
+}
+html.desktop-mode .workspace-bar{flex-shrink:0}
+html.desktop-mode .stage-wrap{flex:1;min-height:0;overflow:hidden;padding:12px 16px}
+html.desktop-mode .stage{max-height:100%;max-width:100%}
+html.desktop-mode .timeline-pane{height:210px;flex:none}
+html.desktop-mode .welcome-overlay{
+  position:absolute;inset:70px 0 210px;
+  display:flex;align-items:center;justify-content:center;
+  padding:20px 30px;overflow:auto;overscroll-behavior:contain;
+  z-index:7;
+}
+html.desktop-mode .welcome-content{
+  width:min(720px,100%);max-width:720px;flex-shrink:0;
+  margin:auto;position:relative;z-index:2;
+}
+html.desktop-mode .welcome-kicker{font-size:10px;letter-spacing:2px}
+html.desktop-mode .welcome-content h1{
+  font-size:clamp(44px,4.8vw,72px);line-height:1.04;
+  letter-spacing:-2.9px;margin:13px 0 12px;
+}
+html.desktop-mode .welcome-content>p{
+  font-size:13px;line-height:1.5;margin:0 0 16px;max-width:555px;
+}
+html.desktop-mode .hero-upload{
+  max-width:560px;min-height:76px;border-radius:10px;
+  padding:12px 14px;gap:13px;
+}
+html.desktop-mode .upload-glyph{width:44px;height:44px;font-size:24px}
+html.desktop-mode .welcome-features{margin-top:14px;gap:18px;font-size:10px}
+html.desktop-mode .demo-btn{padding:12px 0;font-size:11px}
+html.desktop-mode .section-top{padding:20px 18px 15px}
+html.desktop-mode .section-top h2{font-size:23px;margin:9px 0 4px}
+html.desktop-mode .form-fields{padding:16px}
+html.desktop-mode .control-group{margin-bottom:18px}
+html.desktop-mode .panel-footer{padding:12px 15px}
+html.desktop-mode .timeline-top{height:40px}
+html.desktop-mode .modal-overlay{position:absolute;inset:0}
+html.desktop-mode .review-modal{max-height:calc(100% - 30px);overflow:auto}
+@media(max-height:590px){
+ html.desktop-mode .welcome-overlay{align-items:flex-start}
+ html.desktop-mode .welcome-content h1{font-size:44px}
+}
