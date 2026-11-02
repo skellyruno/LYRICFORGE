@@ -103,6 +103,43 @@ def wait_until_ready(port: int, server_thread: threading.Thread, timeout: float 
     return False
 
 
+
+class DesktopFilePicker:
+    """Native dialogs for the desktop only. The web site never receives file paths."""
+
+    def __init__(self):
+        self.window = None
+
+    def _open_file(self, formats):
+        import webview
+        if self.window is None:
+            raise RuntimeError("The SkellyMotion desktop window is not ready")
+        # pywebview v5/v6 use FileDialog.OPEN; support older OPEN_DIALOG too.
+        dialog = getattr(getattr(webview, "FileDialog", None), "OPEN",
+                         getattr(webview, "OPEN_DIALOG", 10))
+        picked = self.window.create_file_dialog(
+            dialog_type=dialog, allow_multiple=False, file_types=(formats,))
+        return Path(picked[0]) if picked else None
+
+    def choose_audio(self):
+        source = self._open_file(
+            "Music files (*.mp3;*.wav;*.flac;*.m4a;*.aac;*.ogg;*.opus;*.mp4;*.webm)")
+        if source is None:
+            return None
+        import server
+        return server.import_desktop_audio_file(source)
+
+    def choose_background(self, project_id):
+        if not isinstance(project_id, str):
+            raise ValueError("Choose a song before importing a background")
+        source = self._open_file(
+            "Images and video (*.jpg;*.jpeg;*.png;*.webp;*.mp4;*.mov;*.webm)")
+        if source is None:
+            return None
+        import server
+        return server.import_desktop_background_file(project_id, source)
+
+
 def run_desktop(home: Path) -> int:
     import uvicorn
     import server
@@ -118,10 +155,13 @@ def run_desktop(home: Path) -> int:
         raise RuntimeError("The local editor server did not start. See desktop.log in " + str(home / "logs"))
 
     try:
-        webview.create_window("SkellyMotion | Lyric video studio",
+        picker = DesktopFilePicker()
+        window = webview.create_window("SkellyMotion | Lyric video studio",
                               "http://127.0.0.1:" + str(port) + "/?desktop=1",
                               width=1280, height=830, min_size=(980, 650),
-                              resizable=True, background_color="#090c0c")
+                              resizable=True, background_color="#090c0c",
+                              js_api=picker)
+        picker.window = window
         webview.start(gui="edgechromium", debug=False, private_mode=False,
                       storage_path=str(home / "webview"))
     finally:
