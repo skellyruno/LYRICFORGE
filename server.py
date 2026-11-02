@@ -51,7 +51,7 @@ model_lock = threading.Lock()
 _model: Any = None
 jobs: dict[str, dict[str, Any]] = {}
 job_lock = threading.Lock()
-app = FastAPI(title="SkellyMotion", version="0.3.0")
+app = FastAPI(title="SkellyMotion", version="0.4.0")
 
 
 @app.middleware("http")
