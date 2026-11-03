@@ -7,6 +7,8 @@ on:
     paths:
       - 'desktop_launcher.py'
       - 'Repair-SkellyMotion.cmd'
+      - 'SkellyMotion-SafeMode.cmd'
+      - 'SkellyMotion-BrowserMode.cmd'
       - 'requirements.txt'
       - '.github/workflows/windows-release.yml'
     tags:
@@ -166,8 +168,15 @@ jobs:
             }
           }
           Copy-Item -LiteralPath 'Repair-SkellyMotion.cmd' -Destination (Join-Path $folder 'Repair-SkellyMotion.cmd')
+          Copy-Item -LiteralPath 'SkellyMotion-SafeMode.cmd' -Destination (Join-Path $folder 'SkellyMotion-SafeMode.cmd')
+          Copy-Item -LiteralPath 'SkellyMotion-BrowserMode.cmd' -Destination (Join-Path $folder 'SkellyMotion-BrowserMode.cmd')
           if (-not (Test-Path (Join-Path $folder 'Repair-SkellyMotion.cmd'))) {
             throw 'Trusted Windows runtime repair helper was not packaged'
+          }
+          foreach ($helper in @('SkellyMotion-SafeMode.cmd', 'SkellyMotion-BrowserMode.cmd')) {
+            if (-not (Test-Path (Join-Path $folder $helper))) {
+              throw "Missing recovery mode launcher: $helper"
+            }
           }
           $exe = Join-Path $folder 'SkellyMotion.exe'
           $log = Join-Path $env:LOCALAPPDATA 'LyricForge/logs/desktop.log'
