@@ -3,7 +3,7 @@
 This repo has **two independent delivery paths**:
 
 - **Private web editor:** Railway Docker service; FFmpeg and local Whisper run on the server; owner-only HTTP Basic login over HTTPS. No public sign-ups or separate user accounts.
-- **Windows portable download:** GitHub Actions builds a Windows `SkellyMotion.exe` folder (including runtime, Python packages, web assets, `ffmpeg.exe` and `ffprobe.exe`), packages it into `SkellyMotion-Windows-x64.zip`, and attaches it to a GitHub Release after you push a version tag.
+- **Windows portable download:** GitHub Actions builds a Windows `SkellyMotion.exe` folder (including the runtime and bundled FFmpeg). Actions artifacts now contain the program directly for **one extraction**. Tagged releases separately publish a standalone `SkellyMotion-Windows-x64.zip`.
 
 ## 1. Create and push the GitHub repository
 
@@ -21,7 +21,7 @@ This repo has **two independent delivery paths**:
 
    Sign in using Git Credential Manager if prompted. Do not paste a token into chat or commit it.
 
-3. Visit `https://github.com/skellyruno/LYRICFORGE/actions`. The **Test app** and **Build SkellyMotion Windows app** workflows should start after the initial push. GitHub may ask you to enable Actions. A successful build has a ZIP under **Actions > Build SkellyMotion Windows app > latest run > Artifacts** (the automatically uploaded artifact expires after 14 days).
+3. Visit `https://github.com/skellyruno/LYRICFORGE/actions`. **Test app** runs on pushes. To create a Windows download, select **Build SkellyMotion Windows app → Run workflow** on `main`. GitHub may ask you to enable Actions. After success, download `SkellyMotion-Windows-x64` under **Artifacts** (artifacts expire after 14 days). Extract **once** to find `SkellyMotion.exe` and `_internal` side by side.
 
 4. For a permanent public download, double-click `RELEASE-WINDOWS.bat`, enter a new tag such as `v1.0.0`, and follow the prompts. Or create and push a version tag manually (PowerShell):
 
@@ -62,7 +62,7 @@ A basic landing page could run on GitHub Pages, but **the functioning app cannot
 ## 3. Using the Windows download
 
 1. Download the Windows x64 ZIP from GitHub Actions or Releases.
-2. Extract **the entire** `SkellyMotion` folder. Do not move only the `.exe` out of the folder; it needs the adjacent `_internal` dependencies.
+2. From **GitHub Actions**, extract the artifact ZIP **once** into a new folder: `SkellyMotion.exe` and `_internal` should be next to each other. From a **GitHub Release**, extract its ZIP once and open the contained `SkellyMotion` folder. Do not move only the `.exe` out of the folder; it needs the adjacent `_internal` dependencies.
 3. Double-click `SkellyMotion.exe` (Windows Defender/SmartScreen may warn about unsigned downloads).
 4. The editor opens in its own SkellyMotion window using Microsoft Edge WebView2. It connects to a private localhost server. It reuses the original downloaded AI model located at `%LOCALAPPDATA%\LyricForge\models`.
 5. Your projects save under `%LOCALAPPDATA%\LyricForge\workspace`. Exported MP4 files are accessible from the editor. Closing the SkellyMotion window shuts down the local server.
