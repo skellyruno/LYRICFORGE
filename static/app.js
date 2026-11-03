@@ -592,7 +592,7 @@ function prepareNewSongUI(){
  $('transcribeProgress').classList.remove('hidden');$('lyricsText').classList.add('hidden');
  $('lyricsText').value='';$('reviewTitle').textContent='Finding your lyrics…';
  $('reviewDescription').textContent='Analyzing the vocal and mapping words to timestamps.';
- $('confirmLyrics').disabled=true;$('reviewWarning').classList.add('hidden');
+ $('confirmLyrics').disabled=true;$('reviewWarning').classList.add('hidden');$('uncertainReview').classList.add('hidden');
  updateTranscriptProgress({transcription_stage:'queued',transcription_progress:0});
 }
 async function finishNewSong(data,title){resetEditHistory();
@@ -634,6 +634,73 @@ async function chooseSong(){
  // Normal browser and fallback if pywebview is not initialized yet.
  $('audioFile').click();
 }
+function showUncertainReview(project){
+ const words=Array.isArray(project.review_uncertain)?project.review_uncertain:[];
+ const review=$('uncertainReview'),list=$('uncertainWordList');
+ $('refineStatus').textContent='';
+ $('refineSuggestions').classList.add('hidden');
+ $('applyRefineBtn').classList.add('hidden');
+ if(!words.length){review.classList.add('hidden');return;}
+ review.classList.remove('hidden');
+ list.innerHTML=words.slice(0,24).map(w=>{
+   const at=Math.max(0,Number(w.start)||0);
+   return '<button type="button" data-review-time="'+at.toFixed(3)+'" title="Listen near this word">'+
+     '<b>'+safe(w.text)+'</b><span>'+shortTime(at)+' · check pronunciation</span></button>';
+ }).join('');
+ list.querySelectorAll('[data-review-time]').forEach(button=>button.addEventListener('click',()=>{
+  const at=Math.max(0,Number(button.dataset.reviewTime)||0);
+  if(!state.id)return;
+  audio.currentTime=Math.max(0,at-.7);
+  audio.play().catch(()=>{});
+ }));
+ $('refineLyricsBtn').disabled=false;
+}
+async function refineUncertainLyrics(){
+ if(!state.id)return;
+ const id=state.id;
+ const button=$('refineLyricsBtn');button.disabled=true;
+ $('refineStatus').textContent='Rechecking uncertain sections with the same Whisper model…';
+ try{
+  const {job_id}=await api('/api/projects/'+id+'/refine',{method:'POST'});
+  for(let i=0;i<600;i++){
+   await new Promise(resolve=>setTimeout(resolve,1200));
+   if(state.id!==id)return;
+   const job=await api('/api/jobs/'+job_id);
+   if(job.status==='error')throw Error(job.error||'Refinement failed');
+   if(job.status==='done'){
+    const options=job.suggestions||[];
+    $('refineStatus').textContent=options.length?
+     options.length+' second-pass suggestion(s) ready. Review before applying.':
+     'No clear alternative lyrics were found. Your original draft is unchanged.';
+    const holder=$('refineSuggestions');
+    holder.innerHTML=options.map((entry,i)=>'<div class="refine-option">'+
+      '<b>Section '+(i+1)+' · '+shortTime(entry.start)+'</b>'+
+      '<span>Original: '+safe(entry.before)+'</span>'+
+      '<strong>Suggested: '+safe(entry.suggested)+'</strong></div>').join('');
+    holder.classList.toggle('hidden',!options.length);
+    $('applyRefineBtn').classList.toggle('hidden',!options.length);
+    return;
+   }
+   $('refineStatus').textContent='Refining… '+Math.max(0,Math.min(99,job.progress||0))+
+    '% · This may take longer than the first pass.';
+  }
+  throw Error('Refinement took too long');
+ }catch(e){$('refineStatus').textContent='Refinement unavailable: '+e.message;}
+ finally{button.disabled=false;}
+}
+async function applyRefinement(){
+ if(!state.id)return;
+ if(!confirm('Replace the current unconfirmed lyric draft with the reviewed second-pass result? Unsaved edits in this textbox will be replaced.'))return;
+ try{
+  const response=await api('/api/projects/'+state.id+'/refine/apply',{method:'POST'});
+  $('lyricsText').value=response.draft_lyrics||'';
+  $('confirmLyrics').disabled=!$('lyricsText').value.trim();
+  $('refineStatus').textContent='Suggestions applied. Please review and correct the lyrics before syncing.';
+  $('refineSuggestions').classList.add('hidden');$('applyRefineBtn').classList.add('hidden');
+  showUncertainReview({review_uncertain:response.review_uncertain||[]});
+  $('refineStatus').textContent='Suggestions applied. Please review and correct before confirming.';
+ }catch(e){toast('Could not apply suggestions: '+e.message,true);}
+}
 function updateTranscriptProgress(project){
  const stage=project.transcription_stage||'queued';
  const done=Number.isFinite(project.transcription_progress)?Math.max(0,Math.min(99,project.transcription_progress)):0;
@@ -652,7 +719,7 @@ function updateTranscriptProgress(project){
  const bar=$('transcribeMeter');if(bar)bar.style.width=done+'%';
  const progress=$('transcribeMeterTrack');if(progress)progress.setAttribute('aria-valuenow',String(done));
 }
-async function waitForTranscript(projectId){for(let attempts=0;attempts<300;attempts++){if(state.id!==projectId)return;try{const project=await api(`/api/projects/${projectId}`);if(project.status==='transcribing')updateTranscriptProgress(project);if(project.status==='review'||project.status==='editor'){if(project.status==='editor'){loadProjectData(project);$('reviewOverlay').classList.add('hidden');return;}$('transcribeProgress').classList.add('hidden');$('lyricsText').classList.remove('hidden');$('lyricsText').value=project.draft_lyrics||'';$('reviewTitle').textContent='Review your lyrics.';$('reviewDescription').textContent='Correct any misheard words and put each lyric line on a new line. Your edits are applied before syncing.';$('confirmLyrics').disabled=!$('lyricsText').value.trim();if(project.transcription_error){const warning=$('reviewWarning');warning.textContent='Automatic transcription was unavailable: '+project.transcription_error+'. You can still paste your lyrics and create a video, but manual timing adjustments may be needed.';warning.classList.remove('hidden');}else if(!project.draft_lyrics){const warning=$('reviewWarning');warning.textContent='No clear vocals were detected. You can paste lyrics manually, though the timing will only be an estimate.';warning.classList.remove('hidden');}return;}}catch(e){toast(e.message,true);return;}await new Promise(r=>setTimeout(r,1400));}
+async function waitForTranscript(projectId){for(let attempts=0;attempts<300;attempts++){if(state.id!==projectId)return;try{const project=await api(`/api/projects/${projectId}`);if(project.status==='transcribing')updateTranscriptProgress(project);if(project.status==='review'||project.status==='editor'){if(project.status==='editor'){loadProjectData(project);$('reviewOverlay').classList.add('hidden');return;}$('transcribeProgress').classList.add('hidden');$('lyricsText').classList.remove('hidden');$('lyricsText').value=project.draft_lyrics||'';$('reviewTitle').textContent='Review your lyrics.';$('reviewDescription').textContent='Correct any misheard words and put each lyric line on a new line. Your edits are applied before syncing.';showUncertainReview(project);$('confirmLyrics').disabled=!$('lyricsText').value.trim();if(project.transcription_error){const warning=$('reviewWarning');warning.textContent='Automatic transcription was unavailable: '+project.transcription_error+'. You can still paste your lyrics and create a video, but manual timing adjustments may be needed.';warning.classList.remove('hidden');}else if(!project.draft_lyrics){const warning=$('reviewWarning');warning.textContent='No clear vocals were detected. You can paste lyrics manually, though the timing will only be an estimate.';warning.classList.remove('hidden');}return;}}catch(e){toast(e.message,true);return;}await new Promise(r=>setTimeout(r,1400));}
  $('transcribeProgress').classList.add('hidden');$('lyricsText').classList.remove('hidden');$('reviewTitle').textContent='Enter your lyrics.';$('confirmLyrics').disabled=false;toast('Transcription timed out. You can paste the lyrics manually.',true);
 }
 function loadProjectData(project){resetEditHistory();state.id=project.id;state.title=project.title;state.duration=project.duration;state.lines=project.lines||[];state.settings={...defaultSettings(),...(project.settings||{})};state.demo=false;state.time=0;state.selected=0;state.playing=false;state.waveform=[];state.backgroundUrl=project.background_file?`/api/projects/${state.id}/background?v=${Date.now()}`:null;state.backgroundIsVideo=!!project.background_file&&/\.(mp4|mov|webm)$/i.test(project.background_file);refreshBackgroundMedia();
@@ -799,6 +866,13 @@ function wireUI(){
  $('refreshStorage').addEventListener('click',loadStorage);
  $('refreshPerformance').addEventListener('click',()=>loadPerformance(false));
  $('checkGPU').addEventListener('click',()=>loadPerformance(true));
+ $('refineLyricsBtn').addEventListener('click',refineUncertainLyrics);
+ $('applyRefineBtn').addEventListener('click',applyRefinement);
+ $('startupPerformance').addEventListener('change',e=>{
+  if(['eco','balanced','turbo'].includes(e.target.value)){
+   try{localStorage.setItem('skellymotion-perf-mode',e.target.value)}catch{}
+  }
+ });
  $('renderPreviewBtn').addEventListener('click',previewVideo);
  $('cleanupStorage').addEventListener('click',cleanupStorage);
  ['font','fontSize','position','textColor','accentColor','outline','dim','resolution','renderSpeed','fps','performanceMode','encoder'].forEach(k=>$(k).addEventListener('input',e=>setSetting(k,k==='fontSize'||k==='position'||k==='outline'||k==='dim'||k==='fps'?Number(e.target.value):e.target.value)));
@@ -853,5 +927,10 @@ function wireUI(){
  });
 }
 async function restore(){const last=localStorage.getItem('lyricforge-last');if(!last)return;try{const p=await api(`/api/projects/${last}`);if(p.status==='editor'&&p.lines?.length){loadProjectData(p);}else if(p.status==='review'||p.status==='transcribing'){state.id=p.id;state.title=p.title;state.duration=p.duration;configureMedia();renderTitle();$('welcome').classList.add('hidden');$('reviewOverlay').classList.remove('hidden');$('transcribeProgress').classList.remove('hidden');$('lyricsText').classList.add('hidden');$('confirmLyrics').disabled=true;waitForTranscript(p.id);}}catch{localStorage.removeItem('lyricforge-last');}}
-restoreLayout();wireUI();syncSettingUI();syncClipInspector();resizePreview();renderTimeline();updateEditButtons();requestAnimationFrame(drawFrame);restore();
+restoreLayout();
+try{const savedMode=localStorage.getItem('skellymotion-perf-mode');
+ if(['eco','balanced','turbo'].includes(savedMode)){
+  $('startupPerformance').value=savedMode;state.settings.performanceMode=savedMode;
+ }}catch{}
+wireUI();syncSettingUI();syncClipInspector();resizePreview();renderTimeline();updateEditButtons();requestAnimationFrame(drawFrame);restore();
 })();
