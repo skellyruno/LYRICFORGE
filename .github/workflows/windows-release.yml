@@ -6,6 +6,9 @@ on:
       - main
     paths:
       - 'desktop_launcher.py'
+      - 'server.py'
+      - 'studio_performance.py'
+      - 'static/**'
       - 'Repair-SkellyMotion.cmd'
       - 'SkellyMotion-SafeMode.cmd'
       - 'SkellyMotion-BrowserMode.cmd'
@@ -190,6 +193,27 @@ jobs:
             throw "Packaged Python.NET or WebView2 managed DLL failed to load. Exit code: $($process.ExitCode)"
           }
           Write-Host "Packaged Python.NET and WebView2 managed assembly self-test passed"
+      - name: Test real WebView2 window responsiveness
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $folder = (Resolve-Path 'dist/SkellyMotion').Path
+          $exe = Join-Path $folder 'SkellyMotion.exe'
+          $log = Join-Path $env:LOCALAPPDATA 'LyricForge/logs/desktop.log'
+          Write-Host 'Opening the actual packaged WebView2 editor window'
+          $process = Start-Process -FilePath $exe -ArgumentList '--window-self-test' -WorkingDirectory $folder -PassThru
+          if (-not $process.WaitForExit(45000)) {
+            Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+            throw 'Windows GUI smoke timed out: editor may be frozen'
+          }
+          Write-Host "Window GUI self-test exit code: $($process.ExitCode)"
+          if (Test-Path $log) {
+            Get-Content -Path $log -Tail 35
+          }
+          if ($process.ExitCode -ne 0) {
+            throw "Packaged WebView2 window failed to load or became unresponsive. Exit code $($process.ExitCode)"
+          }
+          Write-Host 'Real WebView2 editor window passed the responsiveness check'
       # The release page needs a standalone ZIP. Manual Actions downloads
       # already arrive as an archive, so skip the redundant compression there.
       - name: Package GitHub Release ZIP
