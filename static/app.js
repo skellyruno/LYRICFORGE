@@ -578,6 +578,7 @@ function wireUI(){
  $('confirmLyrics').addEventListener('click',confirmLyrics);
  $('closeReview').addEventListener('click',()=>{$('reviewOverlay').classList.add('hidden');if(!state.lines.length)$('welcome').classList.remove('hidden');});
  $('demoBtn').addEventListener('click',loadDemo);
+ $('openProjectsWelcome').addEventListener('click',()=>{$('welcome').classList.add('hidden');panel('library');});
  $('playButton').addEventListener('click',play);$('skipBack').addEventListener('click',()=>seek(state.time-5));$('skipAhead').addEventListener('click',()=>seek(state.time+5));
  $('zoomIn').addEventListener('click',()=>{state.zoom=clamp(state.zoom+.25,1,5);$('zoomDisplay').textContent=`${Math.round(state.zoom*100)}%`;renderTimeline();});
  $('zoomOut').addEventListener('click',()=>{state.zoom=clamp(state.zoom-.25,1,5);$('zoomDisplay').textContent=`${Math.round(state.zoom*100)}%`;renderTimeline();});
