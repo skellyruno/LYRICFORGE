@@ -706,10 +706,15 @@ def get_waveform(project_id: str):
     cache = p / "waveform.json"
     if cache.exists():
         return json.loads(cache.read_text(encoding="utf-8"))
-    cmd = ["ffmpeg", "-v", "error", "-i", str(p / d["audio_file"]),
+    # Waveform display is nonessential work: limit decode threads to one
+    # and deprioritize the worker so it cannot saturate CPU during UI startup.
+    cmd = ["ffmpeg", "-hide_banner", "-nostdin", "-v", "error", "-threads", "1",
+           "-i", str(p / d["audio_file"]),
            "-vn", "-ac", "1", "-ar", "1000", "-f", "f32le", "pipe:1"]
     try:
-        proc = subprocess.run(cmd, capture_output=True, timeout=120, **silent_subprocess_flags())
+        proc = subprocess.run(cmd, capture_output=True, timeout=120,
+                              stdin=subprocess.DEVNULL,
+                              **perf.windows_child_options(low_priority=True))
         if proc.returncode:
             raise RuntimeError((proc.stderr or b"FFmpeg failed").decode("utf-8", "replace")[-350:])
         raw = array("f")
