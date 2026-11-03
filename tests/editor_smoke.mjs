@@ -77,7 +77,8 @@ for (const match of html.matchAll(/<(?:button|div|nav)\b([^>]*)>/g)) {
   }
 }
 const doc = {
-  hidden: false, body: element('body'), listeners: Object.create(null),
+  hidden: false, body: element('body'), documentElement: element('html'),
+  listeners: Object.create(null),
   getElementById(id) {
     assert.ok(nodes[id], 'Missing UI ID: ' + id);
     return nodes[id];
@@ -177,6 +178,14 @@ assert.ok(parseFloat(nodes.app.style['--timeline-height'])>210, 'Timeline should
 assert.ok(storage.get('skellymotion-layout-v1'), 'Custom layout should be remembered');
 assert.ok(nodes.refreshProjects.callbacks.click?.length, 'Projects library refresh must be wired');
 assert.ok(nodes.openProjectsWelcome.callbacks.click?.length, 'Welcome screen must link to saved projects');
+assert.ok(nodes.selectAllProjects.callbacks.change?.length, 'Bulk project select-all must be wired');
+assert.ok(nodes.deleteSelectedProjects.callbacks.click?.length, 'Checked-only delete action must be wired');
+assert.ok(nodes.downloadBtn.callbacks.click?.length, 'Full MP4 Save As action must be wired');
+assert.ok(nodes.previewDownloadBtn.callbacks.click?.length, 'Preview MP4 Save As action must be wired');
+assert.ok(nodes.exitBtn.callbacks.click?.length, 'Explicit close/save workflow must be wired');
+assert.ok(nodes.checkUpdateBtn.callbacks.click?.length, 'Opt-in updater control must be wired');
+assert.ok(nodes.updateLater.callbacks.click?.length, 'Update prompt has a Later action');
+
 assert.ok(nodes.renderPreviewBtn.callbacks.click?.length, '15-second test render must be wired');
 assert.ok(nodes.checkGPU.callbacks.click?.length, 'Hardware compatibility button must be wired');
 assert.ok(nodes.refreshPerformance.callbacks.click?.length, 'Performance metrics refresh must be wired');
