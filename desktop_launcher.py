@@ -259,6 +259,8 @@ class DesktopFilePicker:
         self.active_project = False
         self.allow_close = False
         self._saving_video = threading.Lock()
+        self._updating = threading.Lock()
+        self._prepared_update = None
 
     def session_active(self, active):
         self.active_project = bool(active)
@@ -313,6 +315,35 @@ class DesktopFilePicker:
             return {"status": "saved", "path": str(target)}
         finally:
             self._saving_video.release()
+
+    def check_updates(self):
+        import studio_updater
+        return studio_updater.check_for_updates()
+
+    def prepare_update(self, version):
+        if not self._updating.acquire(blocking=False):
+            return {"status": "busy"}
+        try:
+            import studio_updater
+            home = Path(os.environ.get("LOCALAPPDATA", str(Path.home()))) / "LyricForge"
+            result = studio_updater.prepare_update(home, str(version))
+            self._prepared_update = Path(result["prepared_dir"])
+            return {"status": "ready", "version": result["version"]}
+        finally:
+            self._updating.release()
+
+    def install_prepared_update(self):
+        if self._prepared_update is None:
+            raise RuntimeError("Please download and verify an update first")
+        import studio_updater
+        home = Path(os.environ.get("LOCALAPPDATA", str(Path.home()))) / "LyricForge"
+        studio_updater.schedule_install(
+            self._prepared_update, Path(sys.executable).resolve().parent,
+            runtime_dir() / "update_apply.ps1", home)
+        self.allow_close = True
+        if self.window is not None:
+            self.window.destroy()
+        return {"status": "restarting"}
 
     def _open_file(self, formats):
         import webview
@@ -501,7 +532,7 @@ def main() -> int:
     freeze_support()
     home = configure()
     if "--version" in sys.argv:
-        print("SkellyMotion 0.8.3")
+        print("SkellyMotion 0.9.0")
         return 0
     if "--self-test" in sys.argv:
         return self_test()
