@@ -567,7 +567,8 @@ def sanitize_settings(d: dict) -> dict:
     color = lambda key, fallback: d.get(key, fallback) if re.fullmatch(r"#[0-9a-fA-F]{6}", str(d.get(key, ""))) else fallback
     return {
         "aspect": d.get("aspect") if d.get("aspect") in SIZES else "portrait",
-        "resolution": "1080p" if d.get("resolution") == "1080p" else "720p",
+        "resolution": d.get("resolution") if d.get("resolution") in {"540p", "720p", "1080p"} else "720p",
+        "renderSpeed": d.get("renderSpeed") if d.get("renderSpeed") in {"fast", "balanced", "quality"} else "balanced",
         "mode": d.get("mode") if d.get("mode") in MODES else "line",
         "animation": d.get("animation") if d.get("animation") in ANIMATIONS else "pop",
         "font": d.get("font") if d.get("font") in FONTS else "Arial",
@@ -789,6 +790,8 @@ def render_project(project_id: str, job_id: str, settings: dict, lines: list[dic
         w, h = SIZES[settings["aspect"]]
         if settings["resolution"] == "1080p":
             w, h = round(w * 1.5), round(h * 1.5)
+        elif settings["resolution"] == "540p":
+            w, h = round(w * .75), round(h * .75)
         ass_file = p / "captions.ass"
         create_ass(lines, settings, w, h, ass_file)
         bg_file = None
@@ -807,10 +810,16 @@ def render_project(project_id: str, job_id: str, settings: dict, lines: list[dic
                    f"eq=brightness={-settings['dim'] * .45:.3f},ass=captions.ass[v]")
         background_input = (["-stream_loop", "-1", "-i", str(bg_file)] if use_bg_video
                             else ["-loop", "1", "-framerate", "30", "-i", str(bg_file)])
+        speed = settings.get("renderSpeed", "balanced")
+        preset, crf = {
+            "fast": ("superfast", "22"),
+            "balanced": ("veryfast", "21"),
+            "quality": ("medium", "19"),
+        }.get(speed, ("veryfast", "21"))
         args = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", *background_input,
                 "-i", str(audio), "-filter_complex", filters, "-map", "[v]", "-map", "1:a:0",
-                "-t", str(d["duration"]), "-r", "30", "-c:v", "libx264", "-preset", "veryfast",
-                "-crf", "21", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k",
+                "-t", str(d["duration"]), "-r", "30", "-c:v", "libx264", "-preset", preset,
+                "-crf", crf, "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k",
                 "-movflags", "+faststart", str(output)]
         proc = subprocess.run(args, cwd=p, capture_output=True, text=True, timeout=1800, **silent_subprocess_flags())
         if proc.returncode:
