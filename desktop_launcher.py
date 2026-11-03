@@ -289,8 +289,15 @@ class DesktopFilePicker:
         return server.import_desktop_background_file(project_id, source)
 
 
-def run_desktop(home: Path) -> int:
+def run_desktop(home: Path, safe_mode: bool = False) -> int:
     started = time.monotonic()
+    if safe_mode:
+        # Opt-in diagnostic only. Normal WebView2 keeps GPU acceleration.
+        flags = os.environ.get("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", "")
+        os.environ["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"] = (
+            flags + " --disable-gpu --disable-gpu-compositing").strip()
+    profile = home / ("webview_safe" if safe_mode else "webview")
+    profile.mkdir(parents=True, exist_ok=True)
 
     def log_stage(stage: str) -> None:
         # Startup diagnostics let us distinguish Python import delay from
@@ -298,7 +305,8 @@ def run_desktop(home: Path) -> int:
         print(f"[startup] {stage}: {time.monotonic() - started:.2f}s",
               file=sys.stderr, flush=True)
 
-    log_stage("begin")
+    log_stage("begin" + (" (safe WebView2 profile, software rendering)" if safe_mode else ""))
+    log_stage("user data folder: " + str(profile))
     if offer_download_marker_repair():
         log_stage("user approved bundled CLR DLL download-marker repair")
     import uvicorn
@@ -327,15 +335,59 @@ def run_desktop(home: Path) -> int:
                               resizable=True, background_color="#090c0c",
                               js_api=picker)
         picker.window = window
+        try:
+            window.events.shown += lambda: log_stage("native window shown")
+            window.events.loaded += lambda: log_stage("editor document loaded")
+        except (AttributeError, TypeError) as exc:
+            log_stage("window event hooks unavailable: " + str(exc))
         log_stage("native window created; initializing WebView2")
         webview.start(gui="edgechromium", debug=False, private_mode=False,
-                      storage_path=str(home / "webview"))
+                      storage_path=str(profile))
     finally:
         log_stage("native window closed or initialization ended")
         api_server.should_exit = True
         worker.join(timeout=5)
     return 0
 
+
+
+def run_browser_mode(home: Path) -> int:
+    """Use the same local studio without Python.NET/WebView2 window hosting.
+
+    Fallback is intentionally user-initiated. The visible exit dialog keeps
+    the local API alive and lets the user shut it down cleanly.
+    """
+    import uvicorn
+    import server
+    import webbrowser
+    port = available_port()
+    config = uvicorn.Config(server.app, host="127.0.0.1", port=port,
+                            log_level="warning", access_log=False)
+    instance = uvicorn.Server(config)
+    thread = threading.Thread(target=instance.run, name="SkellyMotionBrowserAPI",
+                              daemon=True)
+    thread.start()
+    try:
+        if not wait_until_ready(port, thread):
+            raise RuntimeError("The local editor server could not start")
+        address = "http://127.0.0.1:" + str(port) + "/"
+        print("[browser-fallback] local editor at " + address, file=sys.stderr,
+              flush=True)
+        opened = webbrowser.open(address, new=1)
+        if not opened:
+            print("[browser-fallback] The default browser did not confirm opening",
+                  file=sys.stderr, flush=True)
+        native_notice(
+            "SkellyMotion is running in your default browser.\n\n"
+            "Use the browser tab to edit your lyric videos. Your songs and AI "
+            "model are unchanged.\n\n"
+            "When you finish, close the browser tab and click OK here to stop "
+            "the local SkellyMotion server."
+        )
+    finally:
+        instance.should_exit = True
+        thread.join(timeout=5)
+    return 0
 
 def main() -> int:
     freeze_support()
@@ -364,7 +416,9 @@ def main() -> int:
                       "No other files were modified.", error=True)
         return 3
     try:
-        return run_desktop(home)
+        if "--browser-mode" in sys.argv:
+            return run_browser_mode(home)
+        return run_desktop(home, safe_mode="--safe-mode" in sys.argv)
     except Exception as exc:
         print("Desktop startup error:", repr(exc), file=sys.stderr)
         native_error(
