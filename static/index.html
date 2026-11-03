@@ -143,10 +143,17 @@
           <div class="panel-content form-fields">
             <label class="control-head">VIDEO FORMAT</label>
             <div class="aspect-pills" id="aspectOptions"><button data-aspect="portrait" class="selected">▯ <span>9:16</span></button><button data-aspect="square">□ <span>1:1</span></button><button data-aspect="landscape">▭ <span>16:9</span></button></div>
-            <div class="control-group after-gap"><label for="resolution">Export quality</label><select id="resolution"><option value="720p">720p · HD</option><option value="1080p">1080p · Full HD</option></select></div>
+            <div class="control-group after-gap"><label for="resolution">Export quality</label><select id="resolution"><option value="540p">540p · Quick proof</option><option value="720p">720p · HD</option><option value="1080p">1080p · Full HD</option></select></div>
+            <div class="control-group"><label for="renderSpeed">Rendering speed</label>
+              <select id="renderSpeed"><option value="fast">Fast · Quick encoding</option>
+              <option value="balanced" selected>Balanced · Recommended</option>
+              <option value="quality">Quality · Smaller file / higher detail</option></select>
+              <p class="motion-hint">Fast generally exports quicker, but may produce a larger file. Export speed still depends on your computer.</p></div>
             <div class="render-info"><div><span>Format</span><b>MP4 · H.264</b></div><div><span>Frame rate</span><b>30 FPS</b></div><div><span>Audio</span><b>AAC · 192kbps</b></div><div><span>Duration</span><b id="exportDuration">—</b></div></div>
             <button id="renderBtn" class="primary-btn render-btn" disabled>↗ &nbsp; Render lyric video</button>
-            <div id="renderStatus" class="render-status hidden"></div>
+            <div id="renderStatus" class="render-status hidden" role="status"></div>
+            <div id="renderProgressTrack" class="render-meter hidden" role="progressbar" aria-label="Render progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+              <div id="renderProgressFill"></div></div>
             <a id="downloadBtn" class="download-btn hidden" href="#">↓ &nbsp; Download MP4</a>
             <div class="info-note">Rendering happens on your computer. Your song is not uploaded to a cloud service.</div>
           </div>
