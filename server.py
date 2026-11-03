@@ -935,7 +935,9 @@ def rgb(hex_color: str) -> tuple[int, int, int]:
 
 def create_gradient(name: str, target: Path) -> None:
     top, bottom, glow = [rgb(h) for h in PRESETS[name]]
-    w, h = 720, 1280
+    # Render a smooth, low-frequency gradient at half resolution then upscale.
+    # This cuts per-pixel Python math ~4x without changing final MP4 dimensions.
+    w, h = 360, 640
     img = Image.new("RGB", (w, h))
     px = img.load()
     for y in range(h):
@@ -944,7 +946,7 @@ def create_gradient(name: str, target: Path) -> None:
             radial = max(0.0, 1 - math.sqrt(((x-w*.48)/(w*.75))**2 + ((y-h*.32)/(h*.58))**2))
             a = min(1, radial * .42)
             px[x,y] = tuple(int((top[k]*(1-t) + bottom[k]*t)*(1-a) + glow[k]*a) for k in range(3))
-    img.save(target)
+    img.resize((720, 1280), Image.Resampling.LANCZOS).save(target)
 
 
 def ffmpeg_seconds(value: str) -> float:
