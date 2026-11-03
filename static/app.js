@@ -995,6 +995,40 @@ async function chooseBackground(){
  $('backgroundFile').click();
 }
 function loadDemo(){resetEditHistory();const texts=['I WAS LOST INSIDE THE STATIC','NOW THE CITY KNOWS MY NAME','EVERY SHADOW HAS A STORY','WATCH ME TURN IT INTO FLAMES','I CAME BACK FROM THE DARK','AND I BROUGHT THE LIGHT WITH ME'];state.id=null;state.demo=true;state.title='DEMO / AFTER DARK';state.duration=24;state.time=2;state.waveform=Array.from({length:120},(_,i)=>.14+.42*Math.abs(Math.sin(i*7.1)*Math.cos(i*.9)));state.lines=texts.map((text,i)=>{const start=i*4;const line={id:String(i),start,end:start+3.7,text,words:[]};reflowWords(line);return line;});state.settings=defaultSettings();state.selected=0;$('welcome').classList.add('hidden');syncSettingUI();resizePreview();renderTitle();renderTimeline();renderLines();toast('Demo mode — upload your own song to enable MP4 export.');}
+async function downloadVideo(e,preview=false){
+ const el=preview?$('previewDownloadBtn'):$('downloadBtn');
+ if(downloadBusy){e.preventDefault();return;}
+ if(!state.id||el.classList.contains('hidden')||!el.getAttribute('href')||
+      el.getAttribute('href')==='#'){e.preventDefault();return;}
+ const bridge=window.pywebview?.api;
+ if(bridge?.save_video){
+  // pywebview's embedded Edge does not reliably handle attachment downloads.
+  // Use native Save As and stream the file server-side, outside the renderer.
+  e.preventDefault();downloadBusy=true;el.classList.add('is-busy');
+  el.setAttribute('aria-disabled','true');$('downloadStatus').textContent='Opening Save As…';
+  try{
+   const result=await bridge.save_video(state.id,preview);
+   if(result?.status==='saved'){
+    $('downloadStatus').textContent='✓ MP4 saved to '+result.path;
+    toast('Video saved successfully.');
+   }else if(result?.status==='cancelled'){
+    $('downloadStatus').textContent='Save cancelled. Your render remains available.';
+   }else{
+    $('downloadStatus').textContent='Another download is already running.';
+   }
+  }catch(err){
+   $('downloadStatus').textContent='Could not save MP4: '+(err.message||String(err));
+   toast($('downloadStatus').textContent,true);
+  }finally{downloadBusy=false;el.classList.remove('is-busy');
+   el.removeAttribute('aria-disabled');}
+ }else{
+  // Normal browsers download the FileResponse as an MP4 attachment.
+  // No fetch/blob buffering of large video files in JS memory.
+  downloadBusy=true;el.classList.add('is-busy');
+  $('downloadStatus').textContent='Your browser is saving the MP4…';
+  setTimeout(()=>{downloadBusy=false;el.classList.remove('is-busy');},2200);
+ }
+}
 async function runVideoExport(preview=false){
  if(!state.id){toast('Upload a song to export a video.',true);return;}
  if(!state.lines.length){toast('Add lyric lines before exporting.',true);return;}
@@ -1123,6 +1157,8 @@ function wireUI(){
   }
  });
  $('renderPreviewBtn').addEventListener('click',previewVideo);
+ $('downloadBtn').addEventListener('click',e=>downloadVideo(e,false));
+ $('previewDownloadBtn').addEventListener('click',e=>downloadVideo(e,true));
  $('cleanupStorage').addEventListener('click',cleanupStorage);
  ['font','fontSize','position','textColor','accentColor','outline','dim','resolution','renderSpeed','fps','performanceMode','encoder'].forEach(k=>$(k).addEventListener('input',e=>setSetting(k,k==='fontSize'||k==='position'||k==='outline'||k==='dim'||k==='fps'?Number(e.target.value):e.target.value)));
  $('upper').addEventListener('change',e=>setSetting('upper',e.target.checked));
