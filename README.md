@@ -50,6 +50,7 @@ If there is **no Unblock option**, don't force it. Check that the whole artifact
 - Windows CI pins \`pythonnet==3.0.5\` and \`clr-loader==0.2.7.post0\` and validates the actual bundled Python.Runtime.dll file.
 - A new \`--native-self-test\` launches the packaged executable and **imports CLR/.NET**, not just FFmpeg. A failing native runtime now fails the Windows build.
 - The onedir distribution retains its single-extraction GitHub Actions artifact and logs native initialization failures with targeted repair guidance.
+- When Windows has applied the downloaded-file security marker to the **one bundled Python.Runtime.dll**, startup shows an explicit Yes/No consent prompt before removing that marker. Declining changes nothing. This does not disable Windows security or unblock unrelated files.
 - Bundled \`Repair-SkellyMotion.cmd\` is not an installer or a generic security bypass. It only checks and, if explicitly approved, removes the download marker from the specified DLL.
 
 ## SkellyMotion 0.8.1 — faster opening and ONE extraction on Windows
