@@ -313,13 +313,68 @@ function syncSettingUI(){const s=state.settings;
  const labels={portrait:'9:16 · VERTICAL',landscape:'16:9 · HORIZONTAL',square:'1:1 · SQUARE'};$('canvasFormat').textContent=labels[s.aspect];
 }
 function resizePreview(){const shapes={portrait:[450,800],landscape:[800,450],square:[650,650]};const [w,h]=shapes[state.settings.aspect];if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;}const stage=$('stage');stage.style.aspectRatio=`${w}/${h}`;stage.style.height='min(100%, 660px)';}
-function drawBackground(w,h,t){const s=state.settings;ctx.fillStyle='#060b07';ctx.fillRect(0,0,w,h);
- if(s.background==='custom'&&state.backgroundUrl){const media=state.backgroundIsVideo?bgVid:bgImg;const ready=state.backgroundIsVideo?media.readyState>=2:media.complete&&media.naturalWidth;if(ready){const mw=state.backgroundIsVideo?media.videoWidth:media.naturalWidth,mh=state.backgroundIsVideo?media.videoHeight:media.naturalHeight;const scale=Math.max(w/mw,h/mh);const W=mw*scale,H=mh*scale;try{ctx.drawImage(media,(w-W)/2,(h-H)/2,W,H);}catch{}}}
- else {const colors=backgrounds[s.background]||backgrounds.midnight;const g=ctx.createLinearGradient(0,0,w*.8,h);g.addColorStop(0,colors[0]);g.addColorStop(1,colors[1]);ctx.fillStyle=g;ctx.fillRect(0,0,w,h);const radial=ctx.createRadialGradient(w*.48,h*.32,0,w*.48,h*.32,h*.66);radial.addColorStop(0,colors[2]+'45');radial.addColorStop(1,'#00000000');ctx.fillStyle=radial;ctx.fillRect(0,0,w,h);}
- ctx.fillStyle=`rgba(0,0,0,${clamp(s.dim*.7,0,.6)})`;ctx.fillRect(0,0,w,h);
- const vignette=ctx.createRadialGradient(w/2,h*.45,h*.03,w/2,h*.45,Math.max(w,h)*.78);vignette.addColorStop(0,'#00000000');vignette.addColorStop(1,'#00000066');ctx.fillStyle=vignette;ctx.fillRect(0,0,w,h);
+let cachedBackgroundKey='', cachedBackgroundCanvas=null;
+function presetBackgroundSurface(w,h,s){
+ const key=[w,h,s.background,s.dim].join('|');
+ if(cachedBackgroundCanvas&&cachedBackgroundKey===key)return cachedBackgroundCanvas;
+ const surface=document.createElement('canvas');surface.width=w;surface.height=h;
+ const paint=surface.getContext('2d');
+ const colors=backgrounds[s.background]||backgrounds.midnight;
+ const linear=paint.createLinearGradient(0,0,w*.8,h);
+ linear.addColorStop(0,colors[0]);linear.addColorStop(1,colors[1]);
+ paint.fillStyle=linear;paint.fillRect(0,0,w,h);
+ const glow=paint.createRadialGradient(w*.48,h*.32,0,w*.48,h*.32,h*.66);
+ glow.addColorStop(0,colors[2]+'45');glow.addColorStop(1,'#00000000');
+ paint.fillStyle=glow;paint.fillRect(0,0,w,h);
+ paint.fillStyle='rgba(0,0,0,'+clamp(s.dim*.7,0,.6)+')';paint.fillRect(0,0,w,h);
+ const vignette=paint.createRadialGradient(w/2,h*.45,h*.03,w/2,h*.45,Math.max(w,h)*.78);
+ vignette.addColorStop(0,'#00000000');vignette.addColorStop(1,'#00000066');
+ paint.fillStyle=vignette;paint.fillRect(0,0,w,h);
+ cachedBackgroundKey=key;cachedBackgroundCanvas=surface;
+ return surface;
+}
+function drawBackground(w,h,t){
+ const s=state.settings;
+ if(s.background!=='custom'||!state.backgroundUrl){
+   ctx.drawImage(presetBackgroundSurface(w,h,s),0,0,w,h);
+   return;
+ }
+ ctx.fillStyle='#060b07';ctx.fillRect(0,0,w,h);
+ const media=state.backgroundIsVideo?bgVid:bgImg;
+ const ready=state.backgroundIsVideo?media.readyState>=2:media.complete&&media.naturalWidth;
+ if(ready){
+  const mw=state.backgroundIsVideo?media.videoWidth:media.naturalWidth;
+  const mh=state.backgroundIsVideo?media.videoHeight:media.naturalHeight;
+  if(mw>0&&mh>0){
+   const scale=Math.max(w/mw,h/mh),W=mw*scale,H=mh*scale;
+   try{ctx.drawImage(media,(w-W)/2,(h-H)/2,W,H)}catch{}
+  }
+ }
+ ctx.fillStyle='rgba(0,0,0,'+clamp(s.dim*.7,0,.6)+')';ctx.fillRect(0,0,w,h);
+ const vignette=ctx.createRadialGradient(w/2,h*.45,h*.03,w/2,h*.45,Math.max(w,h)*.78);
+ vignette.addColorStop(0,'#00000000');vignette.addColorStop(1,'#00000066');
+ ctx.fillStyle=vignette;ctx.fillRect(0,0,w,h);
 }
 function wrapWords(words,maxWidth,makeFont){let rows=[[]];for(const word of words){const current=rows[rows.length-1];const probe=[...current,word].join(' ');if(current.length&&ctx.measureText(probe).width>maxWidth){rows.push([word]);}else current.push(word);}return rows;}
+
+const lyricLayoutCache=new Map();
+function measureLyricLayout(words,nominal,maxWidth,font){
+ const key=font+'|'+nominal+'|'+maxWidth+'|'+words.join('\u001f');
+ const old=lyricLayoutCache.get(key);if(old)return old;
+ let fs=nominal,rows=[];
+ for(;fs>Math.max(15,nominal*.66);fs-=2){
+  ctx.font='800 '+fs+'px "'+font+'",Arial,sans-serif';
+  rows=wrapWords(words,maxWidth);
+  if(rows.length<=2)break;
+ }
+ if(!rows.length)rows=wrapWords(words,maxWidth);
+ const maxRow=rows.reduce((m,row)=>Math.max(m,ctx.measureText(row.join(' ')).width),0);
+ if(maxRow>maxWidth)fs*=maxWidth/maxRow;
+ const item={fontSize:fs,rows};
+ lyricLayoutCache.set(key,item);
+ if(lyricLayoutCache.size>160)lyricLayoutCache.delete(lyricLayoutCache.keys().next().value);
+ return item;
+}
 function activeLyric(t){
  // One linear pass avoids allocating and sorting the entire lyric list every frame.
  let current=null;
@@ -453,13 +508,12 @@ function showText(t){const w=canvas.width,h=canvas.height,s=state.settings,ln=ac
  let words=(ln.words||[]).length?ln.words.map(x=>({...x,text:s.upper?x.text.toUpperCase():x.text})):text.split(/\s+/).map(x=>({text:x,start:ln.start,end:ln.end}));
  if(s.mode==='word') {let active=words.find(x=>x.start<=t&&x.end>t)||words.find(x=>x.start<=t)||words[0];if(!active)return;text=active.text;words=[active];}
  if(anim==='typewriter'&&s.mode==='line')text=text.split(/\s+/).slice(0,Math.max(1,Math.ceil(progress*text.split(/\s+/).length))).join(' ');
- const nominal=Math.round(s.fontSize*w/720);let fs=nominal;const margin=w*.09;
- ctx.save();ctx.font=`800 ${fs}px "${s.font}",Arial,sans-serif`;
+ const nominal=Math.round(s.fontSize*w/720),margin=w*.09;
+ ctx.save();
  const rawWords=s.mode==='karaoke'?words.map(x=>x.text):text.split(/\s+/);
- for(;fs>Math.max(15,nominal*.66);fs-=2){ctx.font=`800 ${fs}px "${s.font}",Arial,sans-serif`;if(wrapWords(rawWords,w-margin*2).length<=2)break;}
- const rows=wrapWords(rawWords,w-margin*2);
- let maxRow=rows.reduce((m,row)=>Math.max(m,ctx.measureText(row.join(' ')).width),0);
- if(maxRow>w-margin*2){fs*= (w-margin*2)/maxRow;ctx.font=`800 ${fs}px "${s.font}",Arial,sans-serif`;}
+ const layout=measureLyricLayout(rawWords,nominal,w-margin*2,s.font);
+ const fs=layout.fontSize,rows=layout.rows;
+ ctx.font=`800 ${fs}px "${s.font}",Arial,sans-serif`;
  ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineJoin='round';ctx.lineWidth=Math.max(0,s.outline*w/720*2);ctx.strokeStyle='rgba(5,10,8,.94)';ctx.shadowColor='rgba(0,0,0,.58)';ctx.shadowBlur=fs*.22;
  ctx.globalAlpha=alpha;
  if(anim==='blur')ctx.filter='blur('+((1-easing(clamp((t-ln.start)/duration,0,1)))*Math.max(2,fs*.09))+'px)';
