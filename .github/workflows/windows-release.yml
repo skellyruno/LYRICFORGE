@@ -13,6 +13,7 @@ on:
       - 'SkellyMotion-SafeMode.cmd'
       - 'SkellyMotion-BrowserMode.cmd'
       - 'requirements.txt'
+      - 'tests/**'
       - '.github/workflows/windows-release.yml'
     tags:
       - 'v*'
