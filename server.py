@@ -1264,7 +1264,9 @@ def derived_files(keep_project_id: str | None = None) -> list[Path]:
             continue
         if directory.name == keep_project_id or not (directory / "project.json").is_file():
             continue
-        for filename in ("lyric_video.mp4", "captions.ass", "generated_bg.png"):
+        for filename in ("lyric_video.mp4", "lyric_preview.mp4",
+                         "captions.ass", "preview_captions.ass",
+                         "generated_bg.png", "generated_bg.palette", "render_cache.json"):
             candidate = directory / filename
             if candidate.is_file() and not candidate.is_symlink():
                 results.append(candidate)
@@ -1285,7 +1287,7 @@ def storage_overview(keep_project_id: str | None = None) -> dict:
                 if path.is_file() and not path.is_symlink():
                     size = path.stat().st_size
                     workspace_bytes += size
-                    if path.name == "lyric_video.mp4":
+                    if path.name in {"lyric_video.mp4", "lyric_preview.mp4"}:
                         exports_bytes += size
     candidates = derived_files(keep_project_id)
     return {"projects": project_count, "workspace_bytes": workspace_bytes,
