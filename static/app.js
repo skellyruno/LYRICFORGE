@@ -796,7 +796,10 @@ async function waitForTranscript(projectId){for(let attempts=0;attempts<300;atte
  $('transcribeProgress').classList.add('hidden');$('lyricsText').classList.remove('hidden');$('reviewTitle').textContent='Enter your lyrics.';$('confirmLyrics').disabled=false;toast('Transcription timed out. You can paste the lyrics manually.',true);
 }
 function loadProjectData(project){resetEditHistory();state.id=project.id;state.title=project.title;state.duration=project.duration;state.lines=project.lines||[];state.settings={...defaultSettings(),...(project.settings||{})};state.demo=false;state.time=0;state.selected=0;state.playing=false;state.waveform=[];state.backgroundUrl=project.background_file?`/api/projects/${state.id}/background?v=${Date.now()}`:null;state.backgroundIsVideo=!!project.background_file&&/\.(mp4|mov|webm)$/i.test(project.background_file);refreshBackgroundMedia();
- $('welcome').classList.add('hidden');$('reviewOverlay').classList.add('hidden');syncSettingUI();resizePreview();configureMedia();renderTitle();renderTimeline();renderLines();loadWaveform();}
+ $('welcome').classList.add('hidden');$('reviewOverlay').classList.add('hidden');syncSettingUI();resizePreview();configureMedia();renderTitle();renderTimeline();renderLines();
+ // Allow the window and timeline to paint before asking FFmpeg for waveform data.
+ // The request stays asynchronous and cancels naturally when another song opens.
+ setTimeout(()=>{if(state.id===project.id)loadWaveform();},450);}
 async function confirmLyrics(){const lyrics=$('lyricsText').value.trim();if(!lyrics){toast('Add or correct your lyrics first.',true);return;}$('confirmLyrics').disabled=true;try{const result=await api(`/api/projects/${state.id}/confirm`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lyrics})});state.lines=result.lines;state.selected=0;$('reviewOverlay').classList.add('hidden');renderTitle();renderLines();renderTimeline();loadWaveform();queueSave();toast('Lyrics confirmed! You can edit text and timing below.');}catch(e){toast(e.message,true);}finally{$('confirmLyrics').disabled=false;}}
 function refreshBackgroundMedia(){if(!state.backgroundUrl)return;if(state.backgroundIsVideo){bgVid.src=state.backgroundUrl;bgVid.load();bgVid.currentTime=state.time;bgImg.src='';}else{bgImg.src=state.backgroundUrl;bgVid.pause();bgVid.removeAttribute('src');}}
 function applyImportedBackground(response,name){
@@ -1042,6 +1045,6 @@ $('resumeLastBtn').classList.toggle('hidden',!lastSession);
 // Windows startup should display a responsive editor immediately. Restoring a
 // large song can decode audio, generate waveforms and populate many lyric clips.
 // The user can explicitly resume in one click; browser sessions still restore.
-if(!document.documentElement.classList.contains('desktop-mode')&&lastSession)
+if(lastSession&&!document.documentElement.classList.contains('desktop-mode'))
  setTimeout(()=>restore(false),350);
 })();
