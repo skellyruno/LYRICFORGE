@@ -19,14 +19,14 @@ def test_frontend_selectors_and_file_picker_wiring():
     assert "$$('[data-preset]').forEach" in js
     assert "$('heroUpload').addEventListener('click',chooseSong)" in js
     assert "$('backgroundUploadTrigger').addEventListener('click',chooseBackground)" in js
-    assert "bridge.choose_audio()" in js
+    assert "bridge.choose_audio(" in js
     assert "bridge.choose_background(state.id)" in js
     assert '<button type="button" class="hero-upload" id="heroUpload">' in html
     assert 'id="audioFile" type="file"' in html
     assert 'id="backgroundUploadTrigger"' in html
     assert 'id="backgroundFile" type="file"' in html
     assert "desktop-mode" in html
-    assert "zoom:.65" in css
+    assert "transform:scale(.65)" in css
 
 
 def test_desktop_import_keeps_original_source_and_creates_project(tmp_path, monkeypatch):
@@ -35,7 +35,7 @@ def test_desktop_import_keeps_original_source_and_creates_project(tmp_path, monk
     monkeypatch.setattr(server, "media_duration", lambda path: 3.75)
     # Do not launch an actual Whisper job in this focused import test.
     submitted = []
-    monkeypatch.setattr(server.executor, "submit", lambda fn, *args: submitted.append((fn, args)))
+    monkeypatch.setattr(server.ai_executor, "submit", lambda fn, *args: submitted.append((fn, args)))
     source = tmp_path / "My demo song.mp3"
     source.write_bytes(b"dummy audio bytes")
     new_song = server.import_desktop_audio_file(source)
