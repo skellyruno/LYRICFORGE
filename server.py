@@ -783,6 +783,52 @@ def create_gradient(name: str, target: Path) -> None:
     img.save(target)
 
 
+def ffmpeg_seconds(value: str) -> float:
+    """Parse FFmpeg's HH:MM:SS output clock; no frame-rate assumptions."""
+    try:
+        h, m, sec = value.split(":")
+        return max(0.0, int(h) * 3600 + int(m) * 60 + float(sec))
+    except (ValueError, AttributeError):
+        return 0.0
+
+
+def render_with_progress(args: list[str], folder: Path, job_id: str, duration: float) -> None:
+    """Read incremental FFmpeg progress, keeping stderr diagnostics and no CMD popups."""
+    process = subprocess.Popen(args, cwd=folder, stdout=subprocess.PIPE,
+                               stderr=subprocess.STDOUT, text=True, bufsize=1,
+                               **silent_subprocess_flags())
+    watchdog = threading.Timer(1800, process.kill)
+    watchdog.daemon = True
+    watchdog.start()
+    progress_seconds = 0.0
+    error_tail = []
+    try:
+        assert process.stdout is not None
+        for line in process.stdout:
+            row = line.strip()
+            if row.startswith("out_time="):
+                progress_seconds = ffmpeg_seconds(row.partition("=")[2])
+            elif row.startswith("progress="):
+                percent = max(0, min(99, int(progress_seconds / max(.1, duration) * 100)))
+                with job_lock:
+                    if job_id in jobs:
+                        jobs[job_id].update(stage="encoding", progress=percent)
+            elif row:
+                error_tail.append(row)
+                if len(error_tail) > 25:
+                    error_tail.pop(0)
+        code = process.wait()
+        if code:
+            raise RuntimeError("FFmpeg exited with code " + str(code) +
+                               ": " + " | ".join(error_tail)[-1400:])
+    finally:
+        watchdog.cancel()
+        if process.poll() is None:
+            process.kill()
+        if process.stdout:
+            process.stdout.close()
+
+
 def render_project(project_id: str, job_id: str, settings: dict, lines: list[dict]):
     p = project_dir(project_id)
     try:
@@ -816,16 +862,23 @@ def render_project(project_id: str, job_id: str, settings: dict, lines: list[dic
             "balanced": ("veryfast", "21"),
             "quality": ("medium", "19"),
         }.get(speed, ("veryfast", "21"))
-        args = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", *background_input,
+        args = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-nostats",
+                "-stats_period", "0.5", "-progress", "pipe:1", "-y", *background_input,
                 "-i", str(audio), "-filter_complex", filters, "-map", "[v]", "-map", "1:a:0",
                 "-t", str(d["duration"]), "-r", "30", "-c:v", "libx264", "-preset", preset,
                 "-crf", crf, "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k",
                 "-movflags", "+faststart", str(output)]
-        proc = subprocess.run(args, cwd=p, capture_output=True, text=True, timeout=1800, **silent_subprocess_flags())
-        if proc.returncode:
-            raise RuntimeError((proc.stderr or "FFmpeg error")[-1600:])
+        # A failed render must never overwrite the previously completed MP4.
+        temporary = p / ("render-" + job_id + ".mp4")
+        args[-1] = str(temporary)
+        try:
+            render_with_progress(args, p, job_id, float(d["duration"]))
+            temporary.replace(output)
+        finally:
+            temporary.unlink(missing_ok=True)
         with job_lock:
-            jobs[job_id].update(status="done", download=f"/api/projects/{project_id}/export")
+            jobs[job_id].update(status="done", stage="complete", progress=100,
+                                download=f"/api/projects/{project_id}/export")
     except Exception as exc:
         with job_lock:
             jobs[job_id].update(status="error", error=str(exc)[:1800])
@@ -841,7 +894,8 @@ def render(project_id: str, body: RenderRequest):
     save_project(project_dir(project_id), d)
     job_id = uuid.uuid4().hex
     with job_lock:
-        jobs[job_id] = {"id": job_id, "status": "rendering", "created": time.time()}
+        jobs[job_id] = {"id": job_id, "status": "rendering", "stage": "preparing",
+                        "progress": 0, "created": time.time()}
     executor.submit(render_project, project_id, job_id, settings, lines)
     return {"job_id": job_id}
 
