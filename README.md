@@ -31,6 +31,22 @@ Two distributions are included in this repository:
 
 
 
+## SkellyMotion 0.8.3 — fix unresponsive desktop window
+
+A visible editor with **"(Not Responding)" in the title bar** is different from the DLL errors. That means the native Windows host or embedded WebView2 renderer may be stalled; it is not proof that Whisper/FFmpeg is busy. The last-project auto-load is already disabled on native startup.
+
+The latest download includes three ways to launch the same local editor:
+
+- **`SkellyMotion.exe`** — normal native Windows window, GPU acceleration retained.
+- **`SkellyMotion-SafeMode.cmd`** — native window using a separate WebView2 profile under `%LOCALAPPDATA%\LyricForge\webview_safe` and temporary software rendering. This bypasses some corrupted-profile/GPU-driver startup issues. Rendering videos still uses the configured FFmpeg encoder, and no original WebView2 profile is deleted.
+- **`SkellyMotion-BrowserMode.cmd`** — open the studio in the default web browser, not in the embedded WebView2 window. It runs the same local FastAPI backend on `127.0.0.1`, preserving songs, projects, Whisper `small`, and exports. After editing, close the tab and click OK in SkellyMotion's exit dialog to stop the local server.
+
+The startup path also skips idle canvas compositing behind the welcome overlay, and logs native window **shown** and document **loaded** events to `%LOCALAPPDATA%\LyricForge\logs\desktop.log`.
+
+**Suggested order:** Try normal mode; if the window becomes gray or unresponsive, use Safe Mode. If Safe Mode also freezes, use Browser Mode to edit immediately and send `desktop.log` for deeper debugging. These are recovery options; exact WebView2 hangs vary with the Windows installation, driver, and runtime version. We have not established that every affected computer will respond to Safe Mode.
+
+For a new build, open GitHub Actions → **Build SkellyMotion Windows app** and download the latest `SkellyMotion-Windows-x64` artifact. Extract it once; keep the EXE, `_internal`, and both recovery scripts together.
+
 ## Windows runtime fix — blocked Python.NET or WebView2 DLLs
 
 On some Windows machines, Explorer marks DLLs extracted from a downloaded ZIP as Internet-originated. The .NET Framework may then refuse to load `Python.Runtime.dll` or `Microsoft.Web.WebView2.Core.dll` with error **0x80131515**. This is different from a missing WebView2 Runtime installation.
