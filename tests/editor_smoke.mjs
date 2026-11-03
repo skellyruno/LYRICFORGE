@@ -147,6 +147,21 @@ nodes.closeShortcuts.click();
 assert.equal(nodes.shortcutsOverlay.classList.contains('hidden'), true);
 nodes.exportSrtBtn.click();
 
+assert.ok(nodes.effectsTrack.innerHTML.includes('fx-clip'), 'FX lane must render with lyric clips');
+nodes.clipAnimation.value='bounce';
+assert.ok(nodes.clipAnimation.callbacks.change?.length, 'Per-clip animation selector must be wired');
+nodes.clipAnimation.callbacks.change[0]({target:nodes.clipAnimation});
+assert.ok(nodes.effectsTrack.innerHTML.includes('Bounce'), 'FX lane must show selected animation');
+nodes.clipPosX.value='72';
+nodes.clipPosX.callbacks.input[0]({target:nodes.clipPosX});
+assert.equal(nodes.clipPosXVal.textContent,'72%', 'Per-clip X position should update without rerendering all clips');
+nodes.undoBtn.click();
+nodes.redoBtn.click();
+assert.ok(nodes.effectsTrack.innerHTML.includes('Bounce'), 'FX override should survive undo and redo');
+assert.ok(nodes.recognitionMode.id==='recognitionMode' && nodes.languageHint.id==='languageHint',
+ 'Same-model recognition controls should be available');
+assert.ok(nodes.renderProgressTrack.id==='renderProgressTrack', 'Export progress widget should exist');
+
 // Resizing must update only layout sizes without breaking editor actions.
 const side = nodes.panelResizer;
 assert.ok(side.callbacks.pointerdown?.length, 'Panel must have a pointer resize handler');
