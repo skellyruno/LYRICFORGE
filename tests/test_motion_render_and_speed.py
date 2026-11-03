@@ -103,7 +103,7 @@ def test_upload_passes_fast_mode_and_language_hint(tmp_path, monkeypatch):
     import json
     monkeypatch.setattr(server, "DATA", tmp_path)
     monkeypatch.setattr(server, "media_duration", lambda path: 8.5)
-    monkeypatch.setattr(server.executor, "submit", lambda *args: None)
+    monkeypatch.setattr(server.ai_executor, "submit", lambda *args: None)
     response = TestClient(server.app).post(
         "/api/projects",
         files={"file": ("song.wav", b"dummy audio", "audio/wav")},
