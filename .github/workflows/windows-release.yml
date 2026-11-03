@@ -119,6 +119,30 @@ jobs:
             --collect-all av `
             --collect-all onnxruntime `
             desktop_launcher.py
+      - name: Measure bundle size and identify large dependencies
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = (Resolve-Path 'dist/SkellyMotion').Path
+          $all = @(Get-ChildItem -LiteralPath $root -Recurse -File)
+          $total = ($all | Measure-Object -Property Length -Sum).Sum
+          Write-Host ("BUNDLE_SIZE_MB={0:N2}" -f ($total / 1MB))
+          Write-Host 'Largest bundled files:'
+          $all | Sort-Object Length -Descending | Select-Object -First 30 |
+            ForEach-Object {
+              $relative = $_.FullName.Substring($root.Length + 1)
+              Write-Host ("  {0,8:N2} MB  {1}" -f ($_.Length / 1MB), $relative)
+            }
+          Write-Host 'Top-level internal dependency sizes:'
+          $internal = Join-Path $root '_internal'
+          Get-ChildItem -LiteralPath $internal | ForEach-Object {
+            $bytes = if ($_.PSIsContainer) {
+              (Get-ChildItem -LiteralPath $_.FullName -Recurse -File |
+                Measure-Object -Property Length -Sum).Sum
+            } else { $_.Length }
+            [PSCustomObject]@{Name=$_.Name; MB=[math]::Round($bytes/1MB,2)}
+          } | Sort-Object MB -Descending | Select-Object -First 30 |
+            Format-Table -AutoSize | Out-String | Write-Host
       - name: Smoke test packaged Windows GUI program
         shell: pwsh
         run: |
