@@ -31,6 +31,41 @@ Two distributions are included in this repository:
 
 
 
+## SkellyMotion 0.6 — clip motion, faster exports and cleaner Windows operation
+
+This upgrade keeps the **same Whisper \`small\` model**, project location, local AI model cache, existing songs and saved lyric edits. Nothing is deleted or renamed in \`%LOCALAPPDATA%\LyricForge\`.
+
+### Motion editor: independent effects on individual lines
+
+- Open **Motion**, select a lyric clip, and set that clip's own animation: Pop, Fade, Slide, Zoom, Bounce, Blur, Type-on or None. Empty/inherited selection uses the project's global effect.
+- Set a clip's entrance duration (120–650 ms), horizontal position (8–92%) and vertical position (8–92%).
+- **Drag lyrics inside the video preview** to reposition the active line. A green positioning guide appears while paused.
+- An **FX lane** in the timeline shows which clips inherit the global effect and which have an override. Click a badge to select and edit its lyric.
+- Preview selected motion, reset one clip or apply a selected clip's motion to all. The clip overrides are stored in the original project manifest, so reopening projects retains them.
+- The FFmpeg ASS subtitle renderer uses the same per-clip animation and position, including avoiding conflicting \`\\pos\` + \`\\move\` tags for slide effects.
+- Older projects without clip overrides still inherit the original global effect. Undo/redo and autosave include clip effects.
+
+### Rendering improvements
+
+- FFmpeg and FFprobe child processes launch without separate command windows on Windows (including file checks, waveform extraction, desktop self-test and exports).
+- Added **540p Quick proof** alongside 720p and 1080p, plus three H.264 encoder settings: **Fast**, **Balanced** (original default) and **Quality**. Fast trades compression efficiency for speed and can make bigger files; Quality uses a slower preset and typically preserves more detail.
+- Export panel reports actual progress from FFmpeg, not just elapsed time.
+- Failed renders don't overwrite an earlier successful MP4: output is encoded into a temporary file then swapped in only when complete.
+- Video processing still depends on CPU, source format and clip count. Hardware GPU encoding is not yet enabled. A long 1080p burn-in may still take longer than the song.
+
+### Faster versus more accurate lyric detection
+
+- Before uploading, choose **Fast** (beam 1), **Balanced** (beam 3 by default), or **Accurate** (beam 5). They use exactly the same Whisper \`small\` model and word-level timestamps. More beam search can take longer and can sometimes improve transcription, but is not a guarantee for music vocals.
+- Optionally select the known song language. Otherwise SkellyMotion auto-detects. Choosing the correct language can avoid wrong detections, especially if the track starts with instrumental audio.
+- Whisper recognition still needs human review; automatic sung-lyric timing is approximate. No additional large AI model is downloaded for these choices.
+- \`SKELLYMOTION_BEAM_SIZE\` continues to override the default Balanced beam if you configured it previously.
+
+### Testing
+
+Windows and test workflows run the zero-dependency editor smoke test and Python backend tests, including per-clip ASS timing, recognition options and progress parsing. Changes must still be validated on a GitHub Windows runner and in a real MP4/Whisper session on your computer.
+
+To get this release: go to **Actions → Build SkellyMotion Windows app → Run workflow** on \`main\`, then download \`SkellyMotion-Windows-x64\` under Artifacts. Extract the whole folder; don't replace your old working folder until song upload, transcription, preview and export succeed.
+
 ## SkellyMotion 0.5 — editing workspace upgrade
 
 This version builds on the working v0.4 desktop app. **It does not change the Whisper model, song data, saved projects, or AI cache paths.** The current Windows executable still needs to be rebuilt from GitHub Actions.
