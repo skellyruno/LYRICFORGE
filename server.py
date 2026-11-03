@@ -542,6 +542,17 @@ class SaveRequest(BaseModel):
     settings: dict
 
 
+class RecoveryRequest(BaseModel):
+    lines: list[dict] = []
+    settings: dict = {}
+    draft_lyrics: str = ""
+
+
+class BulkDeleteRequest(BaseModel):
+    project_ids: list[str]
+    confirm: bool = False
+
+
 class RenderRequest(BaseModel):
     settings: dict
     lines: list[dict]
@@ -554,10 +565,14 @@ def index():
 
 @app.get("/api/projects")
 def list_saved_projects():
-    """Show locally saved projects without exposing their files or model cache."""
-    recent = []
+    """Only explicitly saved projects go in the main library.
+
+    New uploads live as recoverable drafts until Save is pressed. Old
+    projects with no save_state are treated as saved for compatibility.
+    """
+    recent, drafts = [], []
     if not DATA.exists():
-        return {"projects": []}
+        return {"projects": [], "drafts": []}
     for folder in DATA.iterdir():
         if not folder.is_dir() or folder.is_symlink() or not re.fullmatch(r"[0-9a-f]{32}", folder.name):
             continue
@@ -566,18 +581,102 @@ def list_saved_projects():
             continue
         try:
             data = json.loads(manifest.read_text(encoding="utf-8"))
-            recent.append({
+            recovery = folder / "recovery.json"
+            item = {
                 "id": folder.name,
                 "title": str(data.get("title") or "Untitled project")[:100],
                 "duration": float(data.get("duration") or 0),
                 "status": str(data.get("status") or "unknown")[:30],
-                "updated_at": manifest.stat().st_mtime,
+                "updated_at": max(manifest.stat().st_mtime,
+                                  recovery.stat().st_mtime if recovery.is_file() else 0),
                 "lines": len(data.get("lines") or []),
-            })
+                "save_state": "draft" if data.get("save_state") == "draft" else "saved",
+                "has_recovery": recovery.is_file(),
+            }
+            (drafts if item["save_state"] == "draft" else recent).append(item)
         except (OSError, ValueError, TypeError, AttributeError):
             continue
     recent.sort(key=lambda item: item["updated_at"], reverse=True)
-    return {"projects": recent[:100]}
+    drafts.sort(key=lambda item: item["updated_at"], reverse=True)
+    return {"projects": recent[:250], "drafts": drafts[:250]}
+
+
+def recovery_file(project_id: str) -> Path:
+    return project_dir(project_id) / "recovery.json"
+
+
+@app.get("/api/projects/{project_id}/recovery")
+def read_recovery(project_id: str):
+    record = recovery_file(project_id)
+    if not record.is_file() or record.is_symlink():
+        raise HTTPException(404, "No crash-recovery draft")
+    try:
+        value = json.loads(record.read_text(encoding="utf-8"))
+        if not isinstance(value, dict):
+            raise ValueError("Not a recovery draft")
+        return value
+    except (ValueError, OSError):
+        raise HTTPException(422, "Recovery draft is unreadable")
+
+
+@app.put("/api/projects/{project_id}/recovery")
+def store_recovery(project_id: str, body: RecoveryRequest):
+    """Crash protection ONLY; never commits saved project content."""
+    data = read_project(project_id)
+    values = {
+        "lines": validate_lines(body.lines, data["duration"]),
+        "settings": sanitize_settings(body.settings),
+        "draft_lyrics": body.draft_lyrics[:60000],
+        "updated_at": time.time(),
+    }
+    path = recovery_file(project_id)
+    staging = path.with_suffix(".tmp")
+    staging.write_text(json.dumps(values, ensure_ascii=False), encoding="utf-8")
+    staging.replace(path)
+    return {"recovered": True, "saved": False}
+
+
+def assert_can_delete_project(project_id: str) -> Path:
+    folder = project_dir(project_id)
+    if folder.is_symlink():
+        raise HTTPException(400, "Cannot delete linked project folders")
+    with job_lock:
+        if any(job.get("project_id") == project_id
+               and job.get("status") in {"rendering", "refining"} for job in jobs.values()):
+            raise HTTPException(409, "Finish the active render/refinement before deleting")
+    # Transcription may still have files open; keep the draft until AI finishes.
+    if read_project(project_id).get("status") == "transcribing":
+        raise HTTPException(409, "Finish lyric detection before deleting this draft")
+    return folder
+
+
+@app.post("/api/projects/bulk-delete")
+def bulk_delete_projects(body: BulkDeleteRequest):
+    if not body.confirm:
+        raise HTTPException(400, "Confirm deletion of the selected projects")
+    ids = body.project_ids
+    if not ids or len(ids) > 250 or len(ids) != len(set(ids)):
+        raise HTTPException(400, "Select between 1 and 250 unique projects")
+    folders = [assert_can_delete_project(i) for i in ids]
+    for path in folders:
+        try:
+            shutil.rmtree(path)
+        except OSError as exc:
+            raise HTTPException(500, "Could not delete " + path.name + ": " + str(exc))
+    return {"deleted_ids": ids, "count": len(ids),
+            "model_cache_untouched": True}
+
+
+@app.post("/api/projects/{project_id}/discard")
+def discard_working_project(project_id: str):
+    data = read_project(project_id)
+    if data.get("save_state") == "draft":
+        folder = assert_can_delete_project(project_id)
+        shutil.rmtree(folder)
+        return {"deleted": True, "kept_saved_project": False}
+    # Don't Save on a previously saved project retains its last Save.
+    recovery_file(project_id).unlink(missing_ok=True)
+    return {"deleted": False, "kept_saved_project": True}
 
 
 @app.post("/api/projects")
@@ -600,6 +699,7 @@ async def create_project(file: UploadFile = File(...), recognition: str = Form("
                 "audio_file": name, "duration": duration, "status": "transcribing",
                 "draft_lyrics": "", "original_words": [], "lines": [], "settings": {}, "language": None,
                 "transcription_stage": "queued", "transcription_progress": 0,
+                "save_state": "draft",
                 **recognition_options(recognition, language, vocabulary, performance_mode)}
         reused = lookup_transcript(data, p / name)
         save_project(p, data)
@@ -643,6 +743,7 @@ def import_desktop_audio_file(source: Path, recognition: str = "balanced",
                 "draft_lyrics": "", "original_words": [], "lines": [],
                 "settings": {}, "language": None,
                 "transcription_stage": "queued", "transcription_progress": 0,
+                "save_state": "draft",
                 **recognition_options(recognition, language, vocabulary, performance_mode)}
         reused = lookup_transcript(data, p / name)
         save_project(p, data)
@@ -688,7 +789,10 @@ def import_desktop_background_file(project_id: str, source: Path) -> dict:
 
 @app.get("/api/projects/{project_id}")
 def get_project(project_id: str):
-    return read_project(project_id)
+    data = read_project(project_id)
+    data["save_state"] = "draft" if data.get("save_state") == "draft" else "saved"
+    data["has_recovery"] = recovery_file(project_id).is_file()
+    return data
 
 
 @app.get("/api/projects/{project_id}/audio")
@@ -751,8 +855,10 @@ def save_edit(project_id: str, body: SaveRequest):
     d = read_project(project_id)
     d["lines"] = validate_lines(body.lines, d["duration"])
     d["settings"] = sanitize_settings(body.settings)
+    d["save_state"] = "saved"
     save_project(project_dir(project_id), d)
-    return {"saved": True}
+    recovery_file(project_id).unlink(missing_ok=True)
+    return {"saved": True, "save_state": "saved"}
 
 
 @app.post("/api/projects/{project_id}/background")
@@ -1209,10 +1315,7 @@ def queue_render(project_id: str, body: RenderRequest, preview: bool = False) ->
                         "status": "rendering", "stage": "preparing", "progress": 0,
                         "created": time.time(), "encoder_used": None,
                         "performance_mode": settings["performanceMode"]}
-    if not preview:
-        d["settings"] = settings
-        d["lines"] = lines
-        save_project(project_dir(project_id), d)
+    # Exporting must never silently Save changes to an editable project.
     executor.submit(render_project, project_id, job_id, settings, lines, preview)
     return {"job_id": job_id, "preview": preview}
 
