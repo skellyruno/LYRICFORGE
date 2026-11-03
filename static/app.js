@@ -547,9 +547,12 @@ function showText(t){const w=canvas.width,h=canvas.height,s=state.settings,ln=ac
 }
 function drawFrame(now){
  requestAnimationFrame(drawFrame);
- // Prefer 30 fps while playing, 12 fps while editing and 4 fps during
- // modal/welcome screens. Keeps WebView responsive while Whisper uses the CPU.
+ // Don't paint or read timeline layout behind the welcome overlay. On Windows,
+ // startup competes with WebView2 GPU/process initialization and no media is
+ // playing yet. Keep the entire idle welcome view static.
  const covered=!$('welcome').classList.contains('hidden')||!$('reviewOverlay').classList.contains('hidden');
+ if(covered&&!state.playing&&!state.lines.length)return;
+ // Prefer 30 fps while playing, 12 fps while editing and 4 fps during modal.
  const interval=document.hidden?250:covered?250:state.playing?(state.settings.performanceMode==='eco'?67:33):120;
  if(now-lastPreviewPaint<interval)return;
  const elapsed=Math.min(.15,(now-lastFrame)/1000);lastFrame=now;lastPreviewPaint=now;
