@@ -589,7 +589,10 @@ async function startUpload(file){
  }
  prepareNewSongUI();
  let data;
- try{const fd=new FormData();fd.append('file',file);data=await api('/api/projects',{method:'POST',body:fd});}
+ try{const fd=new FormData();fd.append('file',file);
+   fd.append('recognition',$('recognitionMode').value);
+   fd.append('language',$('languageHint').value);
+   data=await api('/api/projects',{method:'POST',body:fd});}
  catch(e){toast('Song import failed: '+e.message,true);$('reviewOverlay').classList.add('hidden');$('welcome').classList.remove('hidden');return;}
  await finishNewSong(data,file.name.replace(/\.[^.]+$/,''));
 }
@@ -597,7 +600,7 @@ async function chooseSong(){
  const bridge=window.pywebview?.api;
  if(document.documentElement.classList.contains('desktop-mode')&&bridge?.choose_audio){
    try{
-     const data=await bridge.choose_audio(); // Native file dialog and safe Python-side copy
+     const data=await bridge.choose_audio($('recognitionMode').value,$('languageHint').value); // Native file dialog; original Whisper model retained
      if(!data)return; // The user cancelled
      prepareNewSongUI();
      await finishNewSong(data,data.title||'My song');
