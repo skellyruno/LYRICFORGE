@@ -31,6 +31,21 @@ Two distributions are included in this repository:
 
 
 
+## Smaller Windows portable package (November 2026)
+
+The Windows portable app now uses the already-bundled **PyAV** library to read song durations and validate image/video backgrounds. This removes the duplicate 100 MB `ffprobe.exe` while retaining the verified FFmpeg `ffmpeg.exe` needed for lyric rendering and H.264 exports. Whisper `small`, native WebView2, supported media imports and existing project/model storage remain unchanged.
+
+Measured GitHub Windows build results (same workflow and compression settings):
+
+| Size | Previous build | Reduced build | Saved |
+| --- | ---: | ---: | ---: |
+| GitHub artifact ZIP | 197.22 MB | 157.66 MB | 39.56 MB (about 20%) |
+| Extracted Windows folder | 473.97 MiB | 373.62 MiB | 100.35 MiB |
+
+The **launcher EXE** itself is approximately 17.21 MiB; most disk usage is its adjacent `_internal` folder. Extract the entire artifact once, keep `SkellyMotion.exe` with `_internal`, and do not delete bundled libraries individually.
+
+Windows CI checks the actual portable EXE by rendering ASS captions with FFmpeg, probing that video via PyAV, initializing the Python.NET/WebView2 DLLs and opening its native window. Source tests also check real WAV/PNG/JPEG metadata parsing.
+
 ## SkellyMotion 0.8.3 — fix unresponsive desktop window
 
 A visible editor with **"(Not Responding)" in the title bar** is different from the DLL errors. That means the native Windows host or embedded WebView2 renderer may be stalled; it is not proof that Whisper/FFmpeg is busy. The last-project auto-load is already disabled on native startup.
