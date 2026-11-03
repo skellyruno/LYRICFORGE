@@ -119,8 +119,16 @@ def save_project(p: Path, data: dict) -> None:
     tmp.replace(p / "project.json")
 
 
+def silent_subprocess_flags() -> dict:
+    """Never show cmd/FFmpeg windows from the packaged Windows GUI app."""
+    if os.name == "nt":
+        return {"creationflags": subprocess.CREATE_NO_WINDOW}
+    return {}
+
+
 def run(cmd: list[str]) -> subprocess.CompletedProcess[str]:
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=1800)
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=1800,
+                            **silent_subprocess_flags())
     if result.returncode:
         raise RuntimeError((result.stderr or result.stdout)[-1200:])
     return result
@@ -471,7 +479,7 @@ def get_waveform(project_id: str):
     cmd = ["ffmpeg", "-v", "error", "-i", str(p / d["audio_file"]),
            "-vn", "-ac", "1", "-ar", "1000", "-f", "f32le", "pipe:1"]
     try:
-        proc = subprocess.run(cmd, capture_output=True, timeout=120)
+        proc = subprocess.run(cmd, capture_output=True, timeout=120, **silent_subprocess_flags())
         if proc.returncode:
             raise RuntimeError((proc.stderr or b"FFmpeg failed").decode("utf-8", "replace")[-350:])
         raw = array("f")
@@ -804,7 +812,7 @@ def render_project(project_id: str, job_id: str, settings: dict, lines: list[dic
                 "-t", str(d["duration"]), "-r", "30", "-c:v", "libx264", "-preset", "veryfast",
                 "-crf", "21", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k",
                 "-movflags", "+faststart", str(output)]
-        proc = subprocess.run(args, cwd=p, capture_output=True, text=True, timeout=1800)
+        proc = subprocess.run(args, cwd=p, capture_output=True, text=True, timeout=1800, **silent_subprocess_flags())
         if proc.returncode:
             raise RuntimeError((proc.stderr or "FFmpeg error")[-1600:])
         with job_lock:
