@@ -103,6 +103,49 @@ def native_runtime_self_test() -> int:
     return 0
 
 
+def offer_download_marker_repair() -> bool:
+    """Ask before unblocking exactly the bundled pythonnet DLL, never a folder.
+
+    Windows Explorer may propagate the ZIP's Mark-of-the-Web to extracted
+    assemblies. Python.NET cannot initialize a .NET assembly with that marker
+    on some Windows configurations. Do not remove download markers silently.
+    """
+    if os.name != "nt" or not getattr(sys, "frozen", False):
+        return False
+    dll = bundled_python_runtime()
+    if not dll.is_file():
+        return False
+    marker = str(dll) + ":Zone.Identifier"
+    try:
+        with open(marker, "r", encoding="utf-8", errors="replace") as stream:
+            zone = stream.read(1024)
+    except OSError:
+        return False
+    if "ZoneId=3" not in zone and "ZoneId=4" not in zone:
+        return False
+    import ctypes
+    response = ctypes.windll.user32.MessageBoxW(
+        None,
+        "Windows marked SkellyMotion's bundled Python.Runtime.dll as a "
+        "downloaded file. This may prevent the native window from opening.\n\n"
+        "Only continue if you downloaded SkellyMotion from your trusted "
+        "GitHub repository.\n\n"
+        "Remove the download block from this ONE DLL and continue?",
+        "SkellyMotion - Windows DLL download block",
+        0x04 | 0x30,  # MB_YESNO | MB_ICONWARNING
+    )
+    if response != 6:  # IDYES
+        return False
+    try:
+        os.remove(marker)
+        print("Removed the user-approved download marker on bundled Python.Runtime.dll",
+              file=sys.stderr)
+        return True
+    except OSError as exc:
+        print("Could not unblock bundled Python.Runtime.dll:", exc, file=sys.stderr)
+        return False
+
+
 def desktop_runtime_error(exc: Exception) -> str:
     details = str(exc)
     if "Python.Runtime.Loader.Initialize" not in details and "Python.Runtime.dll" not in details:
@@ -196,6 +239,8 @@ def run_desktop(home: Path) -> int:
               file=sys.stderr, flush=True)
 
     log_stage("begin")
+    if offer_download_marker_repair():
+        log_stage("user approved bundled CLR DLL download-marker repair")
     import uvicorn
     log_stage("uvicorn imported")
     import server
