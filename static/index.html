@@ -74,11 +74,36 @@
         </div>
 
         <div class="panel hidden" id="panel-animation">
-          <div class="section-top"><div class="eyebrow">03 / MOTION</div><h2>Make it move.</h2><p>Set a motion style for every lyric.</p></div>
+          <div class="section-top"><div class="eyebrow">03 / MOTION</div><h2>Motion editor.</h2><p>Pick a lyric, then customize its animation and position.</p></div>
           <div class="panel-content form-fields">
-            <label class="control-head">DISPLAY STYLE</label>
+            <section id="clipMotionInspector" class="clip-motion-inspector" aria-label="Selected lyric motion">
+              <div class="clip-motion-top"><span class="control-head">SELECTED LYRIC</span><button id="previewClipMotion" type="button" title="Preview selected lyric animation">▶ Preview</button></div>
+              <div id="clipMotionName" class="selected-motion-name">Select a lyric from the timeline</div>
+              <label for="clipAnimation" class="control-head">CLIP ANIMATION</label>
+              <select id="clipAnimation" disabled>
+                <option value="">Inherit global animation</option>
+                <option value="pop">Pop in</option><option value="fade">Fade</option>
+                <option value="slide">Slide up</option><option value="zoom">Zoom in</option>
+                <option value="bounce">Bounce</option><option value="blur">Blur reveal</option>
+                <option value="typewriter">Type-on</option><option value="none">No animation</option>
+              </select>
+              <div class="control-group"><div class="flex-label"><label for="clipEffectMs">Entrance duration</label><span id="clipEffectMsVal">230 ms</span></div>
+                <input type="range" id="clipEffectMs" min="120" max="650" step="10" value="230" disabled /></div>
+              <div class="clip-position-grid">
+                <div><div class="flex-label"><label for="clipPosX">Horizontal</label><span id="clipPosXVal">50%</span></div>
+                  <input id="clipPosX" type="range" min="8" max="92" step="1" value="50" disabled /></div>
+                <div><div class="flex-label"><label for="clipPosY">Vertical</label><span id="clipPosYVal">55%</span></div>
+                  <input id="clipPosY" type="range" min="8" max="92" step="1" value="55" disabled /></div>
+              </div>
+              <div class="clip-motion-actions">
+                <button type="button" id="resetClipMotion">↺ Reset clip</button>
+                <button type="button" id="applyClipMotionAll">Apply to all clips</button>
+              </div>
+              <p class="motion-hint">Drag the lyric text inside the preview to reposition it. Each clip keeps its own effect and coordinates in the exported MP4.</p>
+            </section>
+            <label class="control-head">GLOBAL DEFAULT · DISPLAY STYLE</label>
             <div class="mode-grid" id="modeOptions"><button data-mode="line" class="selected"><span>≡</span>Full line</button><button data-mode="word"><span>▣</span>One word</button><button data-mode="karaoke"><span>◉</span>Karaoke</button></div>
-            <label class="control-head after-gap">ENTRANCE ANIMATION</label>
+            <label class="control-head after-gap">GLOBAL DEFAULT · ENTRANCE ANIMATION</label>
             <div class="animation-list" id="animationOptions">
               <button data-animation="pop" class="selected"><span>✧</span><div><b>Pop in</b><small>Energetic scale-up</small></div><span class="checkmark">✓</span></button>
               <button data-animation="fade"><span>◐</span><div><b>Soft fade</b><small>Smooth & cinematic</small></div><span class="checkmark">✓</span></button>
@@ -89,7 +114,7 @@
               <button data-animation="blur"><span>◉</span><div><b>Blur reveal</b><small>Dreamy focus-in</small></div><span class="checkmark">✓</span></button>
               <button data-animation="none"><span>―</span><div><b>None</b><small>Stay clean & static</small></div><span class="checkmark">✓</span></button>
             </div>
-            <div class="info-note">Animations apply globally to the entire video. Type-on works best with Full line mode.</div>
+            <div class="info-note">Global motion applies to every lyric unless that clip has its own override. Type-on works best in Full line mode.</div>
           </div>
         </div>
 
@@ -153,7 +178,7 @@
         <div class="workspace-bar"><div class="workspace-heading"><span class="live-indicator"></span> LIVE PREVIEW <span class="bar-divider">|</span><span id="canvasFormat">9:16 · VERTICAL</span></div><div class="workspace-tools"><button id="previewFull" title="Full screen preview">⛶</button></div></div>
         <div class="stage-wrap">
           <div class="stage" id="stage"><canvas id="previewCanvas" width="450" height="800" aria-label="Lyric video preview"></canvas><div class="stage-corner tl"></div><div class="stage-corner tr"></div><div class="stage-corner bl"></div><div class="stage-corner br"></div></div>
-          <div class="stage-hint">PREVIEW · LIVE RENDER</div>
+          <div class="stage-hint" id="stageHint">PREVIEW · DRAG LYRIC TEXT TO MOVE IT</div>
         </div>
         <div class="playback-bar"><div class="play-left"><button id="playButton" class="play-button" title="Play or pause">▶</button><button id="skipBack" class="transport" title="Back 5 seconds">↶</button><button id="skipAhead" class="transport" title="Forward 5 seconds">↷</button><span class="time-indicator"><span id="currentTime">00:00</span> <span class="time-muted">/</span> <span id="totalTime">00:00</span></span></div><div class="play-right"><span class="audio-symbol">♫</span><span id="trackName">No audio loaded</span><span class="quality-tag">30 FPS</span></div></div>
       </main>
@@ -171,7 +196,7 @@
           <button id="zoomFit" class="timeline-toggle" title="Fit timeline width">Fit</button>
           <button id="shortcutsBtn" class="timeline-toggle" title="Keyboard shortcuts">?</button>
         </div></div>
-      <div class="timeline-scroller" id="timelineScroll"><div class="timeline-inner" id="timelineInner"><div id="ruler" class="ruler"></div><div class="track"><div class="track-tag"><span>CC</span> LYRICS</div><div id="lyricTrack" class="clip-track"></div></div><div class="track audio-track"><div class="track-tag"><span>♫</span> AUDIO</div><div class="audio-wave" id="audioWave"></div></div><div class="playhead" id="playhead"><span class="playhead-top"></span></div></div></div>
+      <div class="timeline-scroller" id="timelineScroll"><div class="timeline-inner" id="timelineInner"><div id="ruler" class="ruler"></div><div class="track"><div class="track-tag"><span>CC</span> LYRICS</div><div id="lyricTrack" class="clip-track"></div></div><div class="track effects-track"><div class="track-tag"><span>✧</span> FX</div><div id="effectsTrack" class="effects-clip-track"></div></div><div class="track audio-track"><div class="track-tag"><span>♫</span> AUDIO</div><div class="audio-wave" id="audioWave"></div></div><div class="playhead" id="playhead"><span class="playhead-top"></span></div></div></div>
     </section>
 
     <div class="welcome-overlay" id="welcome"><div class="welcome-grain"></div><div class="welcome-content"><div class="welcome-kicker"><span class="green-dot"></span> SKELLYMOTION / LYRIC VIDEO STUDIO</div><h1>YOUR MUSIC.<br /><em>YOUR WORDS.</em><br />YOUR VISION.</h1><p>Upload a song. Review the AI-detected lyrics. Turn every line into a lyric video that hits right on the beat.</p><button type="button" class="hero-upload" id="heroUpload"><span class="upload-glyph">↥</span><span><b>Drop a song here or click to upload</b><small>MP3, WAV, M4A, FLAC, OGG · Up to 15 min</small></span><span class="upload-arrow">↗</span></button><input id="audioFile" type="file" accept="audio/*,.mp3,.wav,.m4a,.flac,.ogg,.aac,.opus,.mp4,.webm" hidden /><div class="welcome-features"><span>✳ AI lyric detection</span><span>✳ Word-level sync</span><span>✳ MP4 export</span></div><div class="welcome-secondary-actions"><button id="openProjectsWelcome" class="demo-btn" type="button">▦ Open a saved project <span>→</span></button><button id="demoBtn" class="demo-btn">Or explore the demo editor <span>→</span></button></div></div><div class="welcome-decor">SM / CREATIVE TOOLS — 001</div></div>
