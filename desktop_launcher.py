@@ -144,9 +144,21 @@ class DesktopFilePicker:
 
 
 def run_desktop(home: Path) -> int:
+    started = time.monotonic()
+
+    def log_stage(stage: str) -> None:
+        # Startup diagnostics let us distinguish Python import delay from
+        # WebView2 initialization or project-level media loading.
+        print(f"[startup] {stage}: {time.monotonic() - started:.2f}s",
+              file=sys.stderr, flush=True)
+
+    log_stage("begin")
     import uvicorn
+    log_stage("uvicorn imported")
     import server
+    log_stage("local API loaded (Whisper model remains lazy)")
     import webview
+    log_stage("native WebView module imported")
 
     port = available_port()
     config = uvicorn.Config(server.app, host="127.0.0.1", port=port,
@@ -156,6 +168,7 @@ def run_desktop(home: Path) -> int:
     worker.start()
     if not wait_until_ready(port, worker):
         raise RuntimeError("The local editor server did not start. See desktop.log in " + str(home / "logs"))
+    log_stage("API accepting connections")
 
     try:
         picker = DesktopFilePicker()
@@ -166,9 +179,11 @@ def run_desktop(home: Path) -> int:
                               resizable=True, background_color="#090c0c",
                               js_api=picker)
         picker.window = window
+        log_stage("native window created; initializing WebView2")
         webview.start(gui="edgechromium", debug=False, private_mode=False,
                       storage_path=str(home / "webview"))
     finally:
+        log_stage("native window closed or initialization ended")
         api_server.should_exit = True
         worker.join(timeout=5)
     return 0
