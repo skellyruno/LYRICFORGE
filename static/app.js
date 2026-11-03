@@ -317,18 +317,26 @@ function renderTimeline(){const d=state.duration||1;const clips=$('lyricTrack');
  $('clipCount').textContent=`${state.lines.length} clips`;$('timelineInner').style.width=`${Math.max(100,state.zoom*100)}%`;
  const ruler=$('ruler');ruler.innerHTML='';const interval=d<45?5:d<150?15:d<360?30:60;for(let s=0;s<d;s+=interval){const tick=document.createElement('span');tick.className='tick';tick.style.left=`${s/d*100}%`;tick.textContent=shortTime(s);ruler.appendChild(tick);}
  drawWaveform();
- clips.querySelectorAll('.lyric-clip').forEach(el=>el.addEventListener('pointerdown',e=>{if(e.button!==0)return;e.preventDefault();const i=+el.dataset.index;const line=state.lines[i];state.selected=i;const trackRect=clips.getBoundingClientRect(),startX=e.clientX;const originalStart=line.start,originalEnd=line.end,originalWords=line.words.map(w=>({...w}));const resize=e.target.classList.contains('clip-grab');selectLine(i,false);const move=evt=>{const diff=(evt.clientX-startX)/trackRect.width*d;if(resize){line.start=clamp(originalStart+diff,0,line.end-.1)}else{const len=originalEnd-originalStart;line.start=clamp(originalStart+diff,0,Math.max(0,d-len));line.end=line.start+len;}retimeWords(line,originalStart,originalEnd,originalWords);
+ clips.querySelectorAll('.lyric-clip').forEach(el=>el.addEventListener('pointerdown',e=>{if(e.button!==0)return;e.preventDefault();const i=+el.dataset.index;const line=state.lines[i];state.selected=i;const trackRect=clips.getBoundingClientRect(),startX=e.clientX;const originalStart=line.start,originalEnd=line.end,originalWords=line.words.map(w=>({...w}));const resize=e.target.classList.contains('clip-grab');let moved=false;selectLine(i,false);const move=evt=>{
+ const diff=(evt.clientX-startX)/trackRect.width*d;
+ if(Math.abs(diff)<.004&&!moved)return;
+ if(!moved){recordEdit('drag');moved=true;}
+ if(resize){line.start=clamp(snapTime(originalStart+diff),0,line.end-.1)}
+ else{const len=originalEnd-originalStart;line.start=clamp(snapTime(originalStart+diff),0,Math.max(0,d-len));line.end=line.start+len;}
+ retimeWords(line,originalStart,originalEnd,originalWords);
  // Update just the dragged clip; rebuilding hundreds of clips each pointer
  // event causes the editor to stutter and invalidates drag targets.
  const live=clips.querySelector('.lyric-clip[data-index="'+i+'"]');
  if(live){live.style.left=clamp(100*line.start/d,0,100)+'%';live.style.width=clamp(100*(line.end-line.start)/d,.3,100)+'%';}
-};const up=()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);renderLines();renderTimeline();queueSave();};window.addEventListener('pointermove',move);window.addEventListener('pointerup',up,{once:true});}));
+};const up=()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);renderLines();renderTimeline();if(moved)queueSave();};window.addEventListener('pointermove',move);window.addEventListener('pointerup',up,{once:true});}));
 }
 function drawWaveform(){
  const holder=$('audioWave');holder.style.backgroundImage='none';
  let wave=holder.querySelector('canvas');if(!wave){wave=document.createElement('canvas');holder.appendChild(wave);}
- const W=Math.max(1,Math.floor(holder.clientWidth||1000)),H=62,dpr=1;
- wave.width=W*dpr;wave.height=H*dpr;wave.style.width='100%';wave.style.height='62px';
+ const W=Math.max(1,Math.floor(holder.clientWidth||1000)),H=62;
+ if(wave.width===W&&wave.height===H&&wave._lastPeaks===state.waveform)return;
+ wave.width=W;wave.height=H;wave._lastPeaks=state.waveform;
+ wave.style.width='100%';wave.style.height='62px';
  const c=wave.getContext('2d');c.clearRect(0,0,W,H);
  const peaks=state.waveform||[];if(!peaks.length)return;
  c.fillStyle='rgba(15,44,24,.65)';c.fillRect(0,0,W,H);
@@ -341,8 +349,30 @@ function drawWaveform(){
  c.globalAlpha=1;
 }
 async function loadWaveform(){if(!state.id)return;const id=state.id;try{const result=await api(`/api/projects/${id}/waveform`);if(state.id===id){state.waveform=result.peaks||[];drawWaveform();}}catch{}}
-function queueSave(){if(!state.id)return;clearTimeout(state.pendingSave);state.pendingSave=setTimeout(()=>save(),950);}
-async function save(){if(!state.id||!state.lines.length)return;clearTimeout(state.pendingSave);try{await api(`/api/projects/${state.id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({settings:state.settings,lines:state.lines})});$('projectStatus').textContent='Changes saved';}catch(e){toast(`Save failed: ${e.message}`,true);}}
+function queueSave(){
+ if(!state.id)return;
+ editRevision++;
+ $('projectStatus').textContent='Unsaved changes';
+ clearTimeout(state.pendingSave);state.pendingSave=setTimeout(save,900);
+}
+async function save(){
+ if(!state.id||!state.lines.length)return;
+ clearTimeout(state.pendingSave);
+ const id=state.id,revision=editRevision;
+ const payload=JSON.stringify({settings:state.settings,lines:state.lines});
+ $('projectStatus').textContent='Saving…';
+ // Serialize writes: older slow requests cannot overwrite newer edits.
+ saveSerial=saveSerial.catch(()=>{}).then(()=>api('/api/projects/'+id,{
+  method:'PUT',headers:{'Content-Type':'application/json'},body:payload
+ }));
+ try{
+  await saveSerial;
+  if(state.id===id&&revision===editRevision)$('projectStatus').textContent='Saved';
+ }catch(e){
+  if(state.id===id)$('projectStatus').textContent='Save failed';
+  toast('Save failed: '+e.message,true);
+ }
+}
 function configureMedia(){if(state.id){audio.src=`/api/projects/${state.id}/audio`;audio.load();}else{audio.removeAttribute('src');audio.load();}
  $('totalTime').textContent=shortTime(state.duration);$('exportDuration').textContent=shortTime(state.duration);}
 function prepareNewSongUI(){
@@ -492,7 +522,28 @@ function wireUI(){
  });
  const hero=$('heroUpload');hero.addEventListener('dragover',e=>{e.preventDefault();hero.classList.add('drag-over');});hero.addEventListener('dragleave',()=>hero.classList.remove('drag-over'));hero.addEventListener('drop',e=>{e.preventDefault();hero.classList.remove('drag-over');if(e.dataTransfer.files.length)startUpload(e.dataTransfer.files[0]);});
  audio.addEventListener('ended',()=>{state.playing=false;});audio.addEventListener('pause',()=>{if(!audio.ended)state.playing=false;});audio.addEventListener('play',()=>{state.playing=true;});
- document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.code==='KeyS'){e.preventDefault();if(state.id)save();return;}if(e.altKey&&!e.ctrlKey&&!e.metaKey&&['ArrowLeft','ArrowRight'].includes(e.code)&&!e.target.closest('input,textarea,select')){e.preventDefault();shiftSelected(e.code==='ArrowLeft'?-.05:.05);return;}if(e.code==='Space'&&!e.repeat&&!e.target.closest('input,textarea,select,button')){e.preventDefault();play();}});
+ document.addEventListener('keydown',e=>{
+  const ctrl=e.ctrlKey||e.metaKey;
+  const typing=!!e.target.closest('input,textarea,select,[contenteditable="true"]');
+  if(e.key==='Escape'&&!$('shortcutsOverlay').classList.contains('hidden')){e.preventDefault();showShortcuts(false);return;}
+  if(ctrl&&e.code==='KeyS'){e.preventDefault();save();return;}
+  if(typing)return; // Preserve OS text editing, selection and accessibility shortcuts.
+  if(ctrl&&e.code==='KeyZ'){e.preventDefault();if(e.shiftKey)redoEdit();else undoEdit();return;}
+  if(ctrl&&(e.code==='KeyY')){e.preventDefault();redoEdit();return;}
+  if(ctrl&&e.code==='KeyD'){e.preventDefault();duplicateSelected();return;}
+  if(ctrl||e.shiftKey||e.repeat)return;
+  if(e.altKey&&['ArrowLeft','ArrowRight'].includes(e.code)){
+   e.preventDefault();shiftSelected(e.code==='ArrowLeft'?-.05:.05);return;
+  }
+  if(e.altKey)return;
+  if(e.code==='Space'&&!e.target.closest('button')){e.preventDefault();play();return;}
+  if(e.code==='KeyS'){e.preventDefault();splitSelected();return;}
+  if(e.code==='KeyN'){e.preventDefault();toggleSnap();return;}
+  if(e.code==='Delete'||e.code==='Backspace'){e.preventDefault();deleteAt(state.selected);return;}
+  if(e.code==='ArrowUp'){e.preventDefault();jumpClip(-1);return;}
+  if(e.code==='ArrowDown'){e.preventDefault();jumpClip(1);return;}
+  if(e.key==='?'||e.code==='Slash'){e.preventDefault();showShortcuts(true);}
+ });
 }
 async function restore(){const last=localStorage.getItem('lyricforge-last');if(!last)return;try{const p=await api(`/api/projects/${last}`);if(p.status==='editor'&&p.lines?.length){loadProjectData(p);}else if(p.status==='review'||p.status==='transcribing'){state.id=p.id;state.title=p.title;state.duration=p.duration;configureMedia();renderTitle();$('welcome').classList.add('hidden');$('reviewOverlay').classList.remove('hidden');$('transcribeProgress').classList.remove('hidden');$('lyricsText').classList.add('hidden');$('confirmLyrics').disabled=true;waitForTranscript(p.id);}}catch{localStorage.removeItem('lyricforge-last');}}
 wireUI();syncSettingUI();resizePreview();renderTimeline();updateEditButtons();requestAnimationFrame(drawFrame);restore();
