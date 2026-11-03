@@ -289,7 +289,8 @@ class DesktopFilePicker:
         return server.import_desktop_background_file(project_id, source)
 
 
-def run_desktop(home: Path, safe_mode: bool = False) -> int:
+def run_desktop(home: Path, safe_mode: bool = False,
+                smoke_test: bool = False) -> int:
     started = time.monotonic()
     if safe_mode:
         # Opt-in diagnostic only. Normal WebView2 keeps GPU acceleration.
@@ -326,6 +327,19 @@ def run_desktop(home: Path, safe_mode: bool = False) -> int:
         raise RuntimeError("The local editor server did not start. See desktop.log in " + str(home / "logs"))
     log_stage("API accepting connections")
 
+    smoke_loaded = threading.Event()
+    watchdog = None
+    if smoke_test:
+        # The packaged GUI must open, render and exit cleanly in CI.
+        # A blocked native window cannot stall GitHub Actions indefinitely.
+        def expired():
+            print("[window-smoke] TIMEOUT: editor window did not close",
+                  file=sys.stderr, flush=True)
+            os._exit(4)
+        watchdog = threading.Timer(35, expired)
+        watchdog.daemon = True
+        watchdog.start()
+
     try:
         picker = DesktopFilePicker()
         window = webview.create_window("SkellyMotion | Lyric video studio",
@@ -337,16 +351,40 @@ def run_desktop(home: Path, safe_mode: bool = False) -> int:
         picker.window = window
         try:
             window.events.shown += lambda: log_stage("native window shown")
-            window.events.loaded += lambda: log_stage("editor document loaded")
+            def on_loaded():
+                log_stage("editor document loaded")
+                if smoke_test and not smoke_loaded.is_set():
+                    smoke_loaded.set()
+                    def check_window_and_close():
+                        # A real Windows UI thread that stops processing OS
+                        # messages is marked Not Responding by IsHungAppWindow.
+                        import ctypes
+                        if os.name == "nt":
+                            hwnd = ctypes.windll.user32.FindWindowW(
+                                None, "SkellyMotion | Lyric video studio")
+                            if hwnd and ctypes.windll.user32.IsHungAppWindow(hwnd):
+                                print("[window-smoke] WinForms window is NOT RESPONDING",
+                                      file=sys.stderr, flush=True)
+                                os._exit(5)
+                        log_stage("editor window remained responsive during smoke test")
+                        window.destroy()
+                    timer = threading.Timer(4, check_window_and_close)
+                    timer.daemon = True
+                    timer.start()
+            window.events.loaded += on_loaded
         except (AttributeError, TypeError) as exc:
             log_stage("window event hooks unavailable: " + str(exc))
         log_stage("native window created; initializing WebView2")
         webview.start(gui="edgechromium", debug=False, private_mode=False,
                       storage_path=str(profile))
     finally:
+        if watchdog is not None:
+            watchdog.cancel()
         log_stage("native window closed or initialization ended")
         api_server.should_exit = True
         worker.join(timeout=5)
+    if smoke_test and not smoke_loaded.is_set():
+        raise RuntimeError("Packaged WebView2 editor never finished loading")
     return 0
 
 
@@ -418,7 +456,8 @@ def main() -> int:
     try:
         if "--browser-mode" in sys.argv:
             return run_browser_mode(home)
-        return run_desktop(home, safe_mode="--safe-mode" in sys.argv)
+        return run_desktop(home, safe_mode="--safe-mode" in sys.argv,
+                           smoke_test="--window-self-test" in sys.argv)
     except Exception as exc:
         print("Desktop startup error:", repr(exc), file=sys.stderr)
         native_error(
