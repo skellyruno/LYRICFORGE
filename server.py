@@ -5,6 +5,7 @@ import difflib
 import gc
 import base64
 import secrets
+import tempfile
 import sys
 from urllib.parse import urlsplit
 from array import array
@@ -49,6 +50,7 @@ ANIMATIONS = {"fade", "pop", "slide", "typewriter", "zoom", "bounce", "blur", "n
 MODES = {"line", "word", "karaoke"}
 SIZES = {"portrait": (720, 1280), "landscape": (1280, 720), "square": (720, 720)}
 executor = ThreadPoolExecutor(max_workers=2)
+ai_executor = ThreadPoolExecutor(max_workers=1)  # Do not run two CPU-heavy AI passes at once.
 model_lock = threading.Lock()
 model_request = threading.local()  # First model load uses the selected CPU profile.
 _model: Any = None
@@ -354,6 +356,121 @@ def transcribe_project(project_id: str) -> None:
     save_project(p, d)
 
 
+def refine_uncertain_project(project_id: str, job_id: str) -> None:
+    """Optional targeted second Whisper pass, with NO automatic changes to lyrics."""
+    started = time.monotonic()
+    try:
+        p = project_dir(project_id)
+        data = read_project(project_id)
+        if data.get("status") != "review":
+            raise ValueError("Refinement is only available before you confirm lyrics")
+        original = data.get("original_words") or []
+        regions = perf.uncertain_windows(original, float(data["duration"]), max_regions=4)
+        if not regions:
+            with job_lock:
+                jobs[job_id].update(status="done", progress=100, suggestions=[],
+                                    elapsed_seconds=0, stage="no_uncertainty")
+            return
+        model_request.profile = data.get("performanceMode", "balanced")
+        model = load_model()  # Same already downloaded Whisper small model.
+        vocabulary = str(data.get("vocabulary_hint") or "")[:300]
+        language = data.get("language_hint")
+        source = p / data["audio_file"]
+        proposals = []
+        all_words = list(original)
+        with tempfile.TemporaryDirectory(prefix="lyric-refine-", dir=p) as folder:
+            folder_path = Path(folder)
+            for index, (start, end) in enumerate(regions):
+                extracted = folder_path / f"region-{index}.wav"
+                run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-nostdin", "-y",
+                     "-ss", f"{start:.3f}", "-t", f"{end - start:.3f}",
+                     "-i", str(source), "-vn", "-ac", "1", "-ar", "16000",
+                     "-c:a", "pcm_s16le", str(extracted)])
+                segments, _ = model.transcribe(
+                    str(extracted), beam_size=5, best_of=1, temperature=0,
+                    word_timestamps=True, vad_filter=False,
+                    condition_on_previous_text=False,
+                    language=language if language in RECOGNITION_LANGUAGES and language != "auto" else None,
+                    hotwords=vocabulary or None)
+                candidates = []
+                for segment in segments:
+                    for word in segment.words or []:
+                        text = word.word.strip()
+                        if not text:
+                            continue
+                        ws = round(max(start, start + float(word.start)), 3)
+                        we = round(min(end, start + float(word.end)), 3)
+                        if we <= ws:
+                            continue
+                        item = {"text": text, "start": ws, "end": we}
+                        confidence = getattr(word, "probability", None)
+                        if isinstance(confidence, (float, int)) and math.isfinite(confidence):
+                            item["probability"] = round(float(confidence), 3)
+                        candidates.append(item)
+                if candidates:
+                    baseline = [w for w in original
+                                if start <= (float(w["start"]) + float(w["end"])) / 2 <= end]
+                    proposals.append({"start": round(start, 2), "end": round(end, 2),
+                                      "before": " ".join(w["text"] for w in baseline),
+                                      "suggested": " ".join(w["text"] for w in candidates)})
+                    all_words = [w for w in all_words
+                                 if not start <= (float(w["start"]) + float(w["end"])) / 2 <= end]
+                    all_words.extend(candidates)
+                with job_lock:
+                    jobs[job_id].update(progress=round((index + 1) / len(regions) * 99),
+                                        stage="refining")
+        if read_project(project_id).get("status") != "review":
+            raise ValueError("Lyrics were confirmed before refinement finished")
+        all_words.sort(key=lambda w: (float(w["start"]), float(w["end"])))
+        data = read_project(project_id)
+        data["refinement_proposal"] = {
+            "words": all_words,
+            "draft": "\n".join(ln["text"] for ln in build_lines(all_words)),
+            "suggestions": proposals,
+        }
+        save_project(p, data)
+        with job_lock:
+            jobs[job_id].update(status="done", stage="complete", progress=100,
+                                suggestions=proposals,
+                                elapsed_seconds=round(time.monotonic() - started, 2))
+    except Exception as exc:
+        with job_lock:
+            jobs[job_id].update(status="error", stage="error", error=str(exc)[:500])
+
+
+@app.post("/api/projects/{project_id}/refine")
+def request_refine(project_id: str):
+    data = read_project(project_id)
+    if data.get("status") != "review":
+        raise HTTPException(409, "Refinement is available before confirming lyrics")
+    with job_lock:
+        if any(j.get("project_id") == project_id and j.get("status") == "refining"
+               for j in jobs.values()):
+            raise HTTPException(409, "Refinement is already running")
+        job_id = uuid.uuid4().hex
+        jobs[job_id] = {"id": job_id, "project_id": project_id, "status": "refining",
+                        "stage": "queued", "progress": 0, "created": time.time()}
+    ai_executor.submit(refine_uncertain_project, project_id, job_id)
+    return {"job_id": job_id}
+
+
+@app.post("/api/projects/{project_id}/refine/apply")
+def accept_refine(project_id: str):
+    data = read_project(project_id)
+    proposal = data.get("refinement_proposal")
+    if data.get("status") != "review" or not isinstance(proposal, dict):
+        raise HTTPException(409, "No refinement proposal awaiting review")
+    if not proposal.get("words"):
+        raise HTTPException(409, "No refined words to apply")
+    data["original_words"] = proposal["words"]
+    data["review_uncertain"] = perf.uncertain_words(proposal["words"])
+    data["draft_lyrics"] = proposal["draft"]
+    del data["refinement_proposal"]
+    save_project(project_dir(project_id), data)
+    return {"draft_lyrics": data["draft_lyrics"],
+            "review_uncertain": data["review_uncertain"], "applied": True}
+
+
 class ConfirmRequest(BaseModel):
     lyrics: str = Field(min_length=1, max_length=30000)
 
@@ -423,7 +540,7 @@ async def create_project(file: UploadFile = File(...), recognition: str = Form("
                 "transcription_stage": "queued", "transcription_progress": 0,
                 **recognition_options(recognition, language, vocabulary, performance_mode)}
         save_project(p, data)
-        executor.submit(transcribe_project, project_id)
+        ai_executor.submit(transcribe_project, project_id)
         return {"id": project_id, "duration": duration, "status": "transcribing"}
     except Exception:
         shutil.rmtree(p, ignore_errors=True)
