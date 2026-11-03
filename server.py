@@ -261,8 +261,8 @@ RECOGNITION_LANGUAGES = {"auto", "en", "es", "fr", "pt", "de", "it", "ja", "ko"}
 def recognition_options(mode: str, language: str) -> dict:
     """User-selectable decoding effort without downloading or changing the model."""
     return {
-        "recognition_mode": mode if mode in RECOGNITION_MODES else "balanced",
-        "language_hint": language if language in RECOGNITION_LANGUAGES else "auto",
+        "recognition_mode": mode if isinstance(mode, str) and mode in RECOGNITION_MODES else "balanced",
+        "language_hint": language if isinstance(language, str) and language in RECOGNITION_LANGUAGES else "auto",
     }
 
 
