@@ -4,10 +4,14 @@ const $ = (id) => document.getElementById(id);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 const defaultSettings = () => ({aspect:'portrait',resolution:'720p',mode:'line',animation:'pop',font:'Arial',fontSize:60,textColor:'#FFFFFF',accentColor:'#81FF71',outline:2.5,position:55,background:'midnight',dim:.15,upper:false});
 const backgrounds = {midnight:['#101418','#020605','#6fff87'],acid:['#15372b','#07120f','#72ff68'],violet:['#35244a','#0e0c1c','#bb8cfa'],crimson:['#4b1d2d','#130911','#fb5d88'],ocean:['#16445d','#06121f','#6be4ff'],noir:['#282b31','#050505','#b3b8bc']};
-const state = {id:null, title:'Untitled project', duration:0, lines:[], settings:defaultSettings(), time:0, playing:false, selected:0, demo:false, zoom:1, sourceObjectUrl:null, backgroundUrl:null, pendingSave:null, backgroundIsVideo:false, waveform:[]};
+const state = {id:null, title:'Untitled project', duration:0, lines:[], settings:defaultSettings(), time:0, playing:false, selected:0, demo:false, zoom:1, snap:false, sourceObjectUrl:null, backgroundUrl:null, pendingSave:null, backgroundIsVideo:false, waveform:[]};
 const audio=$('songAudio'), canvas=$('previewCanvas'), ctx=canvas.getContext('2d'), bgImg=$('backgroundImage'),bgVid=$('backgroundVideo');
 let lastFrame=performance.now(), lastPreviewPaint=0, pollTimer=null, backgroundVersion=0;
 let resizeTimer=null;
+let saveSerial=Promise.resolve(), editRevision=0;
+const undoHistory=[],redoHistory=[];
+let lastEditKind='',lastEditAt=0;
+
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 const shortTime=(seconds)=>`${Math.floor(Math.max(0,seconds)/60).toString().padStart(2,'0')}:${Math.floor(Math.max(0,seconds)%60).toString().padStart(2,'0')}`;
 const prettyTime=(x)=>Number(x||0).toFixed(2);
@@ -15,10 +19,54 @@ const safe=(s)=>String(s??'').replaceAll('&','&amp;').replaceAll('<','&lt;').rep
 const trimLine=(s)=>s.length>95?s.slice(0,92)+'…':s;
 const toast=(msg,error=false)=>{const el=document.createElement('div');el.className='toast'+(error?' error':'');el.textContent=msg;$('toasts').appendChild(el);setTimeout(()=>el.remove(),4700);};
 function api(path,options={}){return fetch(path,options).then(async response=>{if(!response.ok){let reason;try{reason=(await response.json()).detail;}catch{}throw Error(typeof reason==='string'?reason:`Request failed (${response.status})`);}return response.json();});}
-function renderTitle(){$('projectTitle').textContent=state.title;$('trackName').textContent=state.id||state.demo?state.title:'No audio loaded';$('totalTime').textContent=shortTime(state.duration);$('exportDuration').textContent=shortTime(state.duration);$('clipCount').textContent=`${state.lines.length} clip${state.lines.length===1?'':'s'}`;const enabled=!!state.id;['topExport','saveBtn','renderBtn'].forEach(x=>$(x).disabled=!enabled);$('addLineBtn').disabled=!state.id&&!state.demo;$('projectStatus').textContent=state.demo?'Demo · upload to export':state.id?'Editing':'Ready to create';}
+function renderTitle(){updateEditButtons();$('projectTitle').textContent=state.title;$('trackName').textContent=state.id||state.demo?state.title:'No audio loaded';$('totalTime').textContent=shortTime(state.duration);$('exportDuration').textContent=shortTime(state.duration);$('clipCount').textContent=`${state.lines.length} clip${state.lines.length===1?'':'s'}`;const enabled=!!state.id;['topExport','saveBtn','renderBtn'].forEach(x=>$(x).disabled=!enabled);$('addLineBtn').disabled=!state.id&&!state.demo;$('projectStatus').textContent=state.demo?'Demo · upload to export':state.id?'Editing':'Ready to create';}
 function panel(name){if(name==='storage')loadStorage();$$('.rail-item').forEach(b=>b.classList.toggle('active',b.dataset.panel===name));$$('.panel').forEach(p=>p.classList.toggle('hidden',p.id!==`panel-${name}`));}
+
+function snapshotEdit(){return JSON.stringify({lines:state.lines,settings:state.settings,selected:state.selected});}
+function updateEditButtons(){
+ $('undoBtn').disabled=!undoHistory.length;
+ $('redoBtn').disabled=!redoHistory.length;
+ ['splitLineBtn','duplicateLineBtn','deleteLineBtn'].forEach(id=>$(id).disabled=!state.lines.length);
+ $('exportSrtBtn').disabled=!state.lines.length;
+}
+function resetEditHistory(){
+ undoHistory.length=0;redoHistory.length=0;lastEditKind='';lastEditAt=0;
+ updateEditButtons();
+}
+function recordEdit(kind='edit'){
+ if(!state.lines.length&&!state.demo&&!state.id)return;
+ const now=Date.now();
+ if(kind!==lastEditKind||now-lastEditAt>700){
+   undoHistory.push(snapshotEdit());
+   if(undoHistory.length>60)undoHistory.shift();
+ }
+ lastEditKind=kind;lastEditAt=now;
+ redoHistory.length=0;updateEditButtons();
+}
+function restoreEdit(value){
+ const previous=JSON.parse(value);
+ state.lines=previous.lines;
+ state.settings=previous.settings;
+ state.selected=clamp(previous.selected,0,Math.max(0,state.lines.length-1));
+ syncSettingUI();resizePreview();renderLines();renderTimeline();queueSave();
+ updateEditButtons();
+}
+function undoEdit(){
+ if(!undoHistory.length)return;
+ redoHistory.push(snapshotEdit());
+ const snapshot=undoHistory.pop();lastEditKind='';lastEditAt=0;
+ restoreEdit(snapshot);toast('Undid last change');
+}
+function redoEdit(){
+ if(!redoHistory.length)return;
+ undoHistory.push(snapshotEdit());
+ const snapshot=redoHistory.pop();lastEditKind='';lastEditAt=0;
+ restoreEdit(snapshot);toast('Redid change');
+}
+
 function setSetting(name,value){
  if(state.settings[name]===value)return;
+ recordEdit('setting:'+name);
  state.settings[name]=value;
  // Do not reset every input and recalculate preview geometry on each slider
  // tick. This avoids snapping sliders and expensive layout during dragging.
@@ -43,8 +91,41 @@ const looks={
  dream:{mode:'line',animation:'blur',font:'Georgia',fontSize:57,textColor:'#FFFFFF',accentColor:'#BB8CFA',outline:2,background:'violet',dim:.16,upper:false},
  bold:{mode:'line',animation:'bounce',font:'Impact',fontSize:78,textColor:'#FFFFFF',accentColor:'#FB5D88',outline:4,background:'crimson',dim:.23,upper:true}
 };
-function applyLook(name){if(!looks[name])return;state.settings={...state.settings,...looks[name]};syncSettingUI();resizePreview();queueSave();toast('Applied '+name+' look to all lyrics');}
-function shiftSelected(delta){const line=state.lines[state.selected];if(!line)return;const originalStart=line.start,originalEnd=line.end;const duration=originalEnd-originalStart;const moved=clamp(originalStart+delta,0,Math.max(0,state.duration-duration));line.start=moved;line.end=moved+duration;retimeWords(line,originalStart,originalEnd);renderLines();renderTimeline();queueSave();}
+function applyLook(name){if(!looks[name])return;recordEdit('look');state.settings={...state.settings,...looks[name]};syncSettingUI();resizePreview();queueSave();toast('Applied '+name+' look to all lyrics');}
+
+const savedStyleKey='skellymotion-my-look-v1';
+const styleFields=['mode','animation','font','fontSize','textColor','accentColor','outline','position','background','dim','upper'];
+function saveCurrentLook(){
+ try{
+   const selected={};
+   styleFields.forEach(k=>{selected[k]=state.settings[k]});
+   if(selected.background==='custom')selected.background='midnight';
+   localStorage.setItem(savedStyleKey,JSON.stringify(selected));
+   toast('Your look was saved on this device.');
+ }catch{toast('Could not save look in this browser.',true);}
+}
+function loadSavedLook(){
+ try{
+   const raw=localStorage.getItem(savedStyleKey);
+   if(!raw){toast('Save a look first using ☆ Save my look.');return;}
+   const stored=JSON.parse(raw);
+   const sanitized={...defaultSettings(),...stored};
+   // Only use keys we support, never a raw prototype or unrelated app setting.
+   const next={...state.settings};
+   styleFields.forEach(k=>{if(Object.prototype.hasOwnProperty.call(stored,k)&&
+     Object.prototype.hasOwnProperty.call(sanitized,k))next[k]=sanitized[k]});
+   recordEdit('look');
+   state.settings=next;syncSettingUI();resizePreview();queueSave();
+   toast('Applied your saved look.');
+ }catch{toast('Saved look could not be read.',true);}
+}
+function resetCurrentLook(){
+ recordEdit('look');
+ state.settings={...defaultSettings(),aspect:state.settings.aspect,resolution:state.settings.resolution};
+ syncSettingUI();resizePreview();queueSave();toast('Reset visual styling.');
+}
+
+function shiftSelected(delta){const line=state.lines[state.selected];if(!line)return;recordEdit('nudge');const originalStart=line.start,originalEnd=line.end;const duration=originalEnd-originalStart;const moved=clamp(originalStart+delta,0,Math.max(0,state.duration-duration));line.start=moved;line.end=moved+duration;retimeWords(line,originalStart,originalEnd);renderLines();renderTimeline();queueSave();}
 const fileSize=bytes=>bytes>=1024**3?(bytes/1024**3).toFixed(2)+' GB':bytes>=1024**2?(bytes/1024**2).toFixed(1)+' MB':bytes>=1024?(bytes/1024).toFixed(1)+' KB':bytes+' B';
 async function loadStorage(){try{const params=state.id?'?keep_project_id='+encodeURIComponent(state.id):'';const d=await api('/api/storage'+params);$('storageUsed').textContent=fileSize(d.workspace_bytes);$('storageExports').textContent=fileSize(d.exports_bytes);$('storageReclaim').textContent=fileSize(d.cleanup_bytes)+' · '+d.cleanup_files+' files';$('storageProjects').textContent=d.projects;}catch(e){toast('Storage info unavailable: '+e.message,true);}}
 async function cleanupStorage(){try{const params=state.id?'?keep_project_id='+encodeURIComponent(state.id):'';const data=await api('/api/storage'+params);if(!data.cleanup_files){toast('No old render files to clean.');return;}if(!confirm('Delete '+data.cleanup_files+' generated files from OTHER projects and free about '+fileSize(data.cleanup_bytes)+'? Original songs, edits, backgrounds, the current video, and AI models are kept.'))return;const result=await api('/api/storage/cleanup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({keep_project_id:state.id,confirm:true})});toast('Cleaned '+result.removed_files+' files · Freed '+fileSize(result.freed_bytes));loadStorage();}catch(e){toast('Cleanup failed: '+e.message,true);}}
@@ -175,7 +256,7 @@ function prepareNewSongUI(){
  $('confirmLyrics').disabled=true;$('reviewWarning').classList.add('hidden');
  updateTranscriptProgress({transcription_stage:'queued',transcription_progress:0});
 }
-async function finishNewSong(data,title){
+async function finishNewSong(data,title){resetEditHistory();
  state.id=data.id;state.title=title;state.duration=data.duration;state.demo=false;state.lines=[];
  state.waveform=[];state.time=0;state.settings=defaultSettings();state.backgroundUrl=null;
  state.backgroundIsVideo=false;syncSettingUI();resizePreview();configureMedia();renderTitle();
@@ -229,7 +310,7 @@ function updateTranscriptProgress(project){
 async function waitForTranscript(projectId){for(let attempts=0;attempts<300;attempts++){if(state.id!==projectId)return;try{const project=await api(`/api/projects/${projectId}`);if(project.status==='transcribing')updateTranscriptProgress(project);if(project.status==='review'||project.status==='editor'){if(project.status==='editor'){loadProjectData(project);$('reviewOverlay').classList.add('hidden');return;}$('transcribeProgress').classList.add('hidden');$('lyricsText').classList.remove('hidden');$('lyricsText').value=project.draft_lyrics||'';$('reviewTitle').textContent='Review your lyrics.';$('reviewDescription').textContent='Correct any misheard words and put each lyric line on a new line. Your edits are applied before syncing.';$('confirmLyrics').disabled=!$('lyricsText').value.trim();if(project.transcription_error){const warning=$('reviewWarning');warning.textContent='Automatic transcription was unavailable: '+project.transcription_error+'. You can still paste your lyrics and create a video, but manual timing adjustments may be needed.';warning.classList.remove('hidden');}else if(!project.draft_lyrics){const warning=$('reviewWarning');warning.textContent='No clear vocals were detected. You can paste lyrics manually, though the timing will only be an estimate.';warning.classList.remove('hidden');}return;}}catch(e){toast(e.message,true);return;}await new Promise(r=>setTimeout(r,1400));}
  $('transcribeProgress').classList.add('hidden');$('lyricsText').classList.remove('hidden');$('reviewTitle').textContent='Enter your lyrics.';$('confirmLyrics').disabled=false;toast('Transcription timed out. You can paste the lyrics manually.',true);
 }
-function loadProjectData(project){state.id=project.id;state.title=project.title;state.duration=project.duration;state.lines=project.lines||[];state.settings={...defaultSettings(),...(project.settings||{})};state.demo=false;state.time=0;state.selected=0;state.playing=false;state.waveform=[];state.backgroundUrl=project.background_file?`/api/projects/${state.id}/background?v=${Date.now()}`:null;state.backgroundIsVideo=!!project.background_file&&/\.(mp4|mov|webm)$/i.test(project.background_file);refreshBackgroundMedia();
+function loadProjectData(project){resetEditHistory();state.id=project.id;state.title=project.title;state.duration=project.duration;state.lines=project.lines||[];state.settings={...defaultSettings(),...(project.settings||{})};state.demo=false;state.time=0;state.selected=0;state.playing=false;state.waveform=[];state.backgroundUrl=project.background_file?`/api/projects/${state.id}/background?v=${Date.now()}`:null;state.backgroundIsVideo=!!project.background_file&&/\.(mp4|mov|webm)$/i.test(project.background_file);refreshBackgroundMedia();
  $('welcome').classList.add('hidden');$('reviewOverlay').classList.add('hidden');syncSettingUI();resizePreview();configureMedia();renderTitle();renderTimeline();renderLines();loadWaveform();}
 async function confirmLyrics(){const lyrics=$('lyricsText').value.trim();if(!lyrics){toast('Add or correct your lyrics first.',true);return;}$('confirmLyrics').disabled=true;try{const result=await api(`/api/projects/${state.id}/confirm`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lyrics})});state.lines=result.lines;state.selected=0;$('reviewOverlay').classList.add('hidden');renderTitle();renderLines();renderTimeline();loadWaveform();queueSave();toast('Lyrics confirmed! You can edit text and timing below.');}catch(e){toast(e.message,true);}finally{$('confirmLyrics').disabled=false;}}
 function refreshBackgroundMedia(){if(!state.backgroundUrl)return;if(state.backgroundIsVideo){bgVid.src=state.backgroundUrl;bgVid.load();bgVid.currentTime=state.time;bgImg.src='';}else{bgImg.src=state.backgroundUrl;bgVid.pause();bgVid.removeAttribute('src');}}
@@ -259,11 +340,16 @@ async function chooseBackground(){
  }
  $('backgroundFile').click();
 }
-function loadDemo(){const texts=['I WAS LOST INSIDE THE STATIC','NOW THE CITY KNOWS MY NAME','EVERY SHADOW HAS A STORY','WATCH ME TURN IT INTO FLAMES','I CAME BACK FROM THE DARK','AND I BROUGHT THE LIGHT WITH ME'];state.id=null;state.demo=true;state.title='DEMO / AFTER DARK';state.duration=24;state.time=2;state.waveform=Array.from({length:120},(_,i)=>.14+.42*Math.abs(Math.sin(i*7.1)*Math.cos(i*.9)));state.lines=texts.map((text,i)=>{const start=i*4;const line={id:String(i),start,end:start+3.7,text,words:[]};reflowWords(line);return line;});state.settings=defaultSettings();state.selected=0;$('welcome').classList.add('hidden');syncSettingUI();resizePreview();renderTitle();renderTimeline();renderLines();toast('Demo mode — upload your own song to enable MP4 export.');}
+function loadDemo(){resetEditHistory();const texts=['I WAS LOST INSIDE THE STATIC','NOW THE CITY KNOWS MY NAME','EVERY SHADOW HAS A STORY','WATCH ME TURN IT INTO FLAMES','I CAME BACK FROM THE DARK','AND I BROUGHT THE LIGHT WITH ME'];state.id=null;state.demo=true;state.title='DEMO / AFTER DARK';state.duration=24;state.time=2;state.waveform=Array.from({length:120},(_,i)=>.14+.42*Math.abs(Math.sin(i*7.1)*Math.cos(i*.9)));state.lines=texts.map((text,i)=>{const start=i*4;const line={id:String(i),start,end:start+3.7,text,words:[]};reflowWords(line);return line;});state.settings=defaultSettings();state.selected=0;$('welcome').classList.add('hidden');syncSettingUI();resizePreview();renderTitle();renderTimeline();renderLines();toast('Demo mode — upload your own song to enable MP4 export.');}
 async function exportVideo(){if(!state.id){toast('Upload your song to export a lyric video.',true);return;}if(!state.lines.length){toast('Add some lyric lines before exporting.',true);return;}panel('export');$('renderBtn').disabled=true;$('downloadBtn').classList.add('hidden');$('renderStatus').classList.remove('hidden');$('renderStatus').textContent='Preparing video render…';
  try{const {job_id}=await api(`/api/projects/${state.id}/render`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lines:state.lines,settings:state.settings})});for(let i=0;i<900;i++){await new Promise(r=>setTimeout(r,1200));const job=await api(`/api/jobs/${job_id}`);if(job.status==='done'){$('renderStatus').textContent='✓ Render complete. Your MP4 is ready.';const dl=$('downloadBtn');dl.href=job.download;dl.classList.remove('hidden');toast('Video export finished!');return;}if(job.status==='error')throw Error(job.error||'Rendering failed');$('renderStatus').textContent=`Rendering your video… ${Math.floor((i+1)*1.2)}s elapsed`; }throw Error('Render timed out after 18 minutes.');}catch(e){$('renderStatus').textContent='Render failed: '+e.message;toast(e.message,true);}finally{$('renderBtn').disabled=false;}}
 function wireUI(){
- $$('.rail-item').forEach(b=>b.addEventListener('click',()=>panel(b.dataset.panel)));
+ $('.rail-item').forEach(b=>b.addEventListener('click',()=>panel(b.dataset.panel)));
+ $('undoBtn').addEventListener('click',undoEdit);
+ $('redoBtn').addEventListener('click',redoEdit);
+ $('saveLookBtn').addEventListener('click',saveCurrentLook);
+ $('loadLookBtn').addEventListener('click',loadSavedLook);
+ $('resetLookBtn').addEventListener('click',resetCurrentLook);
  $$('[data-preset]').forEach(b=>b.addEventListener('click',()=>applyLook(b.dataset.preset)));
  $('nudgeBack').addEventListener('click',()=>shiftSelected(-.05));
  $('nudgeForward').addEventListener('click',()=>shiftSelected(.05));
@@ -288,7 +374,7 @@ function wireUI(){
  $('topExport').addEventListener('click',()=>panel('export'));
  $('renderBtn').addEventListener('click',exportVideo);
  $('addLineBtn').addEventListener('click',()=>{let start=clamp(state.time,0,Math.max(0,state.duration-.5));let line={id:Math.random().toString(16).slice(2,12),text:'New lyric',start,end:Math.min(state.duration,start+2),words:[]};reflowWords(line);state.lines.push(line);state.lines.sort((a,b)=>a.start-b.start);selectLine(state.lines.indexOf(line),true);queueSave();});
- $('newBtn').addEventListener('click',()=>{if(state.id&&state.lines.length&&!confirm('Start a new project? Your current changes are saved locally.'))return;state.playing=false;audio.pause();state.id=null;state.demo=false;state.lines=[];state.waveform=[];state.duration=0;state.time=0;state.title='Untitled project';state.settings=defaultSettings();state.backgroundUrl=null;state.selected=0;localStorage.removeItem('lyricforge-last');$('welcome').classList.remove('hidden');syncSettingUI();resizePreview();renderTitle();renderTimeline();renderLines();});
+ $('newBtn').addEventListener('click',()=>{if(state.id&&state.lines.length&&!confirm('Start a new project? Your current changes are saved locally.'))return;state.playing=false;audio.pause();state.id=null;state.demo=false;state.lines=[];resetEditHistory();state.waveform=[];state.duration=0;state.time=0;state.title='Untitled project';state.settings=defaultSettings();state.backgroundUrl=null;state.selected=0;localStorage.removeItem('lyricforge-last');$('welcome').classList.remove('hidden');syncSettingUI();resizePreview();renderTitle();renderTimeline();renderLines();});
  $('previewFull').addEventListener('click',()=>{const stage=$('stage');if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});else stage.requestFullscreen?.().catch(()=>{});});
  window.addEventListener('resize',()=>{
    clearTimeout(resizeTimer);
@@ -299,5 +385,5 @@ function wireUI(){
  document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.code==='KeyS'){e.preventDefault();if(state.id)save();return;}if(e.altKey&&!e.ctrlKey&&!e.metaKey&&['ArrowLeft','ArrowRight'].includes(e.code)&&!e.target.closest('input,textarea,select')){e.preventDefault();shiftSelected(e.code==='ArrowLeft'?-.05:.05);return;}if(e.code==='Space'&&!e.repeat&&!e.target.closest('input,textarea,select,button')){e.preventDefault();play();}});
 }
 async function restore(){const last=localStorage.getItem('lyricforge-last');if(!last)return;try{const p=await api(`/api/projects/${last}`);if(p.status==='editor'&&p.lines?.length){loadProjectData(p);}else if(p.status==='review'||p.status==='transcribing'){state.id=p.id;state.title=p.title;state.duration=p.duration;configureMedia();renderTitle();$('welcome').classList.add('hidden');$('reviewOverlay').classList.remove('hidden');$('transcribeProgress').classList.remove('hidden');$('lyricsText').classList.add('hidden');$('confirmLyrics').disabled=true;waitForTranscript(p.id);}}catch{localStorage.removeItem('lyricforge-last');}}
-wireUI();syncSettingUI();resizePreview();renderTimeline();requestAnimationFrame(drawFrame);restore();
+wireUI();syncSettingUI();resizePreview();renderTimeline();updateEditButtons();requestAnimationFrame(drawFrame);restore();
 })();
