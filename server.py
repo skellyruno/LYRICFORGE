@@ -763,34 +763,57 @@ def import_desktop_audio_file(source: Path, recognition: str = "balanced",
         raise
 
 
-def import_desktop_background_file(project_id: str, source: Path) -> dict:
-    """Import a background from a native dialog without exposing file-path APIs."""
+def background_destination(project_id: str, ext: str) -> Path:
+    d = read_project(project_id)
+    prefix = "background" if d.get("save_state") == "draft" else "background-pending-" + uuid.uuid4().hex
+    return project_dir(project_id) / (prefix + ext)
+
+
+def register_background(project_id: str, dest: Path) -> dict:
+    """Record imported background as a recovery-only edit for saved projects."""
     p = project_dir(project_id)
+    d = read_project(project_id)
+    if d.get("save_state") != "draft":
+        path = recovery_file(project_id)
+        recovery = perf.read_cache(path)
+        previous = recovery.get("pending_background")
+        recovery["pending_background"] = dest.name
+        recovery["updated_at"] = time.time()
+        staged = path.with_suffix(".tmp")
+        staged.write_text(json.dumps(recovery, ensure_ascii=False), encoding="utf-8")
+        staged.replace(path)
+        if isinstance(previous, str) and previous != dest.name and previous.startswith("background-pending-"):
+            (p / previous).unlink(missing_ok=True)
+        return {"background_url": f"/api/projects/{project_id}/background?pending=1",
+                "name": dest.name}
+    previous = d.get("background_file")
+    d["background_file"] = dest.name
+    save_project(p, d)
+    if previous and previous != dest.name:
+        (p / previous).unlink(missing_ok=True)
+    return {"background_url": f"/api/projects/{project_id}/background",
+            "name": dest.name}
+
+
+def import_desktop_background_file(project_id: str, source: Path) -> dict:
+    """Native background picker, with same crash-recovery handling as web uploads."""
     source = Path(source)
     ext = source.suffix.lower()
     if ext not in BG_EXT or not source.is_file():
         raise ValueError("Choose a JPG, PNG, WebP, MP4, MOV or WebM background")
     if not 0 < source.stat().st_size <= MAX_UPLOAD:
         raise ValueError("Background must be between 1 byte and 250 MB")
-    dest = p / ("background" + ext)
-    # Stage to prevent destroying the existing background if probing fails.
-    staged = p / ("background_pending" + ext)
+    dest = background_destination(project_id, ext)
     try:
-        shutil.copyfile(source, staged)
+        shutil.copyfile(source, dest)
         probe = run(["ffprobe", "-v", "error", "-select_streams", "v:0",
-                     "-show_entries", "stream=width", "-of", "csv=p=0", str(staged)])
+                     "-show_entries", "stream=width", "-of", "csv=p=0", str(dest)])
         if not probe.stdout.strip().isdigit():
             raise ValueError("Cannot read the selected image or video")
-        staged.replace(dest)
-        d = read_project(project_id)
-        if d.get("background_file") and d["background_file"] != dest.name:
-            (p / d["background_file"]).unlink(missing_ok=True)
-        d["background_file"] = dest.name
-        save_project(p, d)
-        return {"background_url": f"/api/projects/{project_id}/background",
-                "name": dest.name}
-    finally:
-        staged.unlink(missing_ok=True)
+        return register_background(project_id, dest)
+    except Exception:
+        dest.unlink(missing_ok=True)
+        raise
 
 
 @app.get("/api/projects/{project_id}")
@@ -877,44 +900,20 @@ def save_edit(project_id: str, body: SaveRequest):
 
 @app.post("/api/projects/{project_id}/background")
 async def upload_background(project_id: str, file: UploadFile = File(...)):
-    p = project_dir(project_id)
     ext = Path(file.filename or "").suffix.lower()
     if ext not in BG_EXT:
         raise HTTPException(400, "Background must be JPG, PNG, WebP, MP4, MOV or WebM")
-    d = read_project(project_id)
-    # Saved projects stage the new background instead of overwriting the
-    # previous saved image/video before explicit Save.
-    saved = d.get("save_state") != "draft"
-    dest = p / (("background-pending-" + uuid.uuid4().hex) if saved else "background")
-                + ext
+    dest = background_destination(project_id, ext)
     await save_upload(file, dest)
     try:
         probe = run(["ffprobe", "-v", "error", "-select_streams", "v:0",
                      "-show_entries", "stream=width", "-of", "csv=p=0", str(dest)])
         if not probe.stdout.strip().isdigit():
             raise RuntimeError("No readable video or image stream")
+        return register_background(project_id, dest)
     except Exception:
         dest.unlink(missing_ok=True)
-        raise HTTPException(400, "Cannot read background file")
-
-    if saved:
-        recovery = perf.read_cache(recovery_file(project_id))
-        previous = recovery.get("pending_background")
-        recovery["pending_background"] = dest.name
-        recovery["updated_at"] = time.time()
-        temp = recovery_file(project_id).with_suffix(".tmp")
-        temp.write_text(json.dumps(recovery, ensure_ascii=False), encoding="utf-8")
-        temp.replace(recovery_file(project_id))
-        if previous and previous != dest.name:
-            (p / previous).unlink(missing_ok=True)
-        url = f"/api/projects/{project_id}/background?pending=1"
-    else:
-        if d.get("background_file") and d["background_file"] != dest.name:
-            (p / d["background_file"]).unlink(missing_ok=True)
-        d["background_file"] = dest.name
-        save_project(p, d)
-        url = f"/api/projects/{project_id}/background"
-    return {"background_url": url, "name": dest.name}
+        raise HTTPException(400, "Cannot read or save background file")
 
 
 @app.get("/api/projects/{project_id}/background")
