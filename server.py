@@ -415,6 +415,8 @@ def transcribe_project(project_id: str) -> None:
         d["transcription_error"] = str(exc)[:600]
         d["draft_lyrics"] = ""
     save_project(p, d)
+    if d.get("transcription_stage") == "complete":
+        remember_transcript(d)
 
 
 def refine_uncertain_project(project_id: str, job_id: str) -> None:
@@ -600,9 +602,12 @@ async def create_project(file: UploadFile = File(...), recognition: str = Form("
                 "draft_lyrics": "", "original_words": [], "lines": [], "settings": {}, "language": None,
                 "transcription_stage": "queued", "transcription_progress": 0,
                 **recognition_options(recognition, language, vocabulary, performance_mode)}
+        reused = lookup_transcript(data, p / name)
         save_project(p, data)
-        ai_executor.submit(transcribe_project, project_id)
-        return {"id": project_id, "duration": duration, "status": "transcribing"}
+        if not reused:
+            ai_executor.submit(transcribe_project, project_id)
+        return {"id": project_id, "duration": duration,
+                "status": data["status"], "transcription_cached": reused}
     except Exception:
         shutil.rmtree(p, ignore_errors=True)
         raise
@@ -640,10 +645,13 @@ def import_desktop_audio_file(source: Path, recognition: str = "balanced",
                 "settings": {}, "language": None,
                 "transcription_stage": "queued", "transcription_progress": 0,
                 **recognition_options(recognition, language, vocabulary, performance_mode)}
+        reused = lookup_transcript(data, p / name)
         save_project(p, data)
-        ai_executor.submit(transcribe_project, project_id)
+        if not reused:
+            ai_executor.submit(transcribe_project, project_id)
         return {"id": project_id, "duration": duration,
-                "status": "transcribing", "title": title}
+                "status": data["status"], "title": title,
+                "transcription_cached": reused}
     except Exception:
         shutil.rmtree(p, ignore_errors=True)
         raise
