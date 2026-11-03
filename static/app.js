@@ -316,7 +316,20 @@ function drawBackground(w,h,t){const s=state.settings;ctx.fillStyle='#060b07';ct
  const vignette=ctx.createRadialGradient(w/2,h*.45,h*.03,w/2,h*.45,Math.max(w,h)*.78);vignette.addColorStop(0,'#00000000');vignette.addColorStop(1,'#00000066');ctx.fillStyle=vignette;ctx.fillRect(0,0,w,h);
 }
 function wrapWords(words,maxWidth,makeFont){let rows=[[]];for(const word of words){const current=rows[rows.length-1];const probe=[...current,word].join(' ');if(current.length&&ctx.measureText(probe).width>maxWidth){rows.push([word]);}else current.push(word);}return rows;}
-function activeLyric(t){const sorted=[...state.lines].sort((a,b)=>a.start-b.start);let current=null;for(let i=0;i<sorted.length;i++){const l=sorted[i],next=sorted[i+1];const end=next?Math.min(l.end,next.start):l.end;if(end-l.start<.10)continue;if(t>=l.start&&t<end)current={...l,end};}return current;}
+function activeLyric(t){
+ // One linear pass avoids allocating and sorting the entire lyric list every frame.
+ let current=null;
+ for(const line of state.lines){
+  if(line.end-line.start<.10||t<line.start||t>=line.end)continue;
+  if(!current||line.start>current.start)current=line;
+ }
+ if(!current)return null;
+ let end=current.end;
+ for(const line of state.lines){
+  if(line.start>current.start&&line.start<end)end=line.start;
+ }
+ return end-current.start>=.10?{...current,end}:null;
+}
 function easing(t){return 1-Math.pow(1-clamp(t,0,1),3);}
 
 const clipAnimations=['pop','fade','slide','typewriter','zoom','bounce','blur','none'];
@@ -349,13 +362,13 @@ function setClipMotion(property,value){
  if(line[property]===next||(line[property]==null&&next===undefined))return;
  recordEdit('clipfx:'+property+':'+state.selected);
  if(next===undefined)delete line[property];else line[property]=next;
- syncClipInspector();renderTimeline();queueSave();
+ syncClipInspector();renderEffects();queueSave();
 }
 function resetClipMotion(){
  const clip=selectedClip();if(!clip)return;
  if(!['animation','effectMs','x','y'].some(k=>clip[k]!=null))return;
  recordEdit('clipfx:reset');['animation','effectMs','x','y'].forEach(k=>delete clip[k]);
- syncClipInspector();renderTimeline();queueSave();toast('Clip now follows global motion and placement');
+ syncClipInspector();renderEffects();queueSave();toast('Clip now follows global motion and placement');
 }
 function applyClipMotionAll(){
  const clip=selectedClip();if(!clip||!state.lines.length)return;
@@ -366,7 +379,7 @@ function applyClipMotionAll(){
      else target[key]=clip[key];
    }
  }
- syncClipInspector();renderTimeline();queueSave();toast('Applied selected clip motion and position to every lyric');
+ syncClipInspector();renderEffects();queueSave();toast('Applied selected clip motion and position to every lyric');
 }
 function previewSelectedMotion(){
  const clip=selectedClip();if(!clip)return;
@@ -404,7 +417,7 @@ function bindPreviewPositionDragging(){
  });
  const finish=()=>{
   if(!drag)return;
-  if(drag.moved){renderTimeline();queueSave();toast('Lyric position updated');}
+  if(drag.moved){renderEffects();queueSave();toast('Lyric position updated');}
   drag=null;el.classList.remove('is-dragging-lyric');
  };
  ['pointerup','pointercancel','lostpointercapture'].forEach(name=>el.addEventListener(name,finish));
@@ -490,7 +503,7 @@ function renderLines(){syncClipInspector();const holder=$('lyricsEditor');if(!st
  holder.querySelectorAll('.lyric-input').forEach(el=>el.addEventListener('input',()=>{const i=+el.dataset.text,ln=state.lines[i];if(ln.text===el.value)return;recordEdit('text:'+i);ln.text=el.value;reflowWords(ln);renderTimeline();queueSave();}));
  holder.querySelectorAll('input[data-start],input[data-end]').forEach(el=>el.addEventListener('change',()=>{const i=+(el.dataset.start??el.dataset.end),ln=state.lines[i];const start=el.hasAttribute('data-start');const oldStart=ln.start,oldEnd=ln.end;const val=Number(el.value);if(!Number.isFinite(val))return;recordEdit('timing:'+i);if(start)ln.start=clamp(val,0,Math.max(0,ln.end-.06));else ln.end=clamp(val,ln.start+.06,state.duration);retimeWords(ln,oldStart,oldEnd);renderLines();renderTimeline();queueSave();}));
 }
-function renderTimeline(){const d=state.duration||1;const clips=$('lyricTrack');clips.innerHTML=state.lines.map((l,i)=>`<div class="lyric-clip ${i===state.selected?'selected':''}" data-index="${i}" style="left:${clamp(100*l.start/d,0,100)}%;width:${clamp(100*(l.end-l.start)/d,.3,100)}%;"><span class="clip-grab"></span>${safe(trimLine(l.text))}</div>`).join('');
+function renderEffects(){
  const fx=$('effectsTrack');
  fx.innerHTML=state.lines.map((line,i)=>{
    const custom=clipAnimations.includes(line.animation)||line.effectMs!=null||line.x!=null||line.y!=null;
@@ -506,6 +519,9 @@ function renderTimeline(){const d=state.duration||1;const clips=$('lyricTrack');
    e.preventDefault();e.stopPropagation();
    selectLine(Number(button.dataset.fxIndex),true);panel('animation');
  }));
+}
+function renderTimeline(){const d=state.duration||1;const clips=$('lyricTrack');clips.innerHTML=state.lines.map((l,i)=>`<div class="lyric-clip ${i===state.selected?'selected':''}" data-index="${i}" style="left:${clamp(100*l.start/d,0,100)}%;width:${clamp(100*(l.end-l.start)/d,.3,100)}%;"><span class="clip-grab"></span>${safe(trimLine(l.text))}</div>`).join('');
+ renderEffects();
  $('clipCount').textContent=`${state.lines.length} clips`;$('timelineInner').style.width=`${Math.max(100,state.zoom*100)}%`;
  const ruler=$('ruler');ruler.innerHTML='';const interval=d<45?5:d<150?15:d<360?30:60;for(let s=0;s<d;s+=interval){const tick=document.createElement('span');tick.className='tick';tick.style.left=`${s/d*100}%`;tick.textContent=shortTime(s);ruler.appendChild(tick);}
  drawWaveform();
