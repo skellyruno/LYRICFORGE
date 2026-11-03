@@ -14,6 +14,8 @@
       <div class="top-middle"><span id="projectTitle" class="song-title">Untitled project</span><span class="top-separator">/</span><span id="projectStatus" class="project-status">Ready to create</span></div>
       <div class="top-actions">
         <button id="newBtn" class="ghost-btn" title="Start a new song">＋ New</button>
+        <button id="undoBtn" class="ghost-btn icon-action" title="Undo (Ctrl+Z)" aria-label="Undo" disabled>↶</button>
+        <button id="redoBtn" class="ghost-btn icon-action" title="Redo (Ctrl+Y)" aria-label="Redo" disabled>↷</button>
         <button id="saveBtn" class="ghost-btn" title="Save changes" disabled>Save</button>
         <button id="topExport" class="primary-btn" disabled><span>↗</span> Export video</button>
       </div>
@@ -36,7 +38,14 @@
           <div class="panel-content" id="lyricsEditor">
             <div class="empty-caption"><div class="empty-caption-icon">♫</div><strong>No lyrics yet</strong><span>Upload a song to detect lyrics automatically.</span></div>
           </div>
-          <div class="panel-footer"><div class="nudge-tools"><span>Fine-tune selected line</span><div><button type="button" id="nudgeBack" title="Shift line 0.05 seconds earlier">− 0.05s</button><button type="button" id="nudgeForward" title="Shift line 0.05 seconds later">+ 0.05s</button></div></div><button id="addLineBtn" class="wide-ghost" disabled>＋ Add lyric line</button><span class="helper">Space = play / pause · Ctrl+S = save · Alt+←/→ = nudge</span></div>
+          <div class="panel-footer">
+            <div class="clip-actions">
+              <button type="button" id="splitLineBtn" title="Split selected lyric at playhead (S)">✂ Split</button>
+              <button type="button" id="duplicateLineBtn" title="Duplicate selected lyric (Ctrl+D)">⧉ Duplicate</button>
+              <button type="button" id="deleteLineBtn" title="Delete selected lyric (Delete)">⌫ Delete</button>
+            </div>
+            <div class="nudge-tools"><span>Fine-tune selected line</span><div><button type="button" id="nudgeBack" title="Shift line 0.05 seconds earlier">− 0.05s</button><button type="button" id="nudgeForward" title="Shift line 0.05 seconds later">+ 0.05s</button></div></div><button id="addLineBtn" class="wide-ghost" disabled>＋ Add lyric line</button>
+            <button id="exportSrtBtn" class="wide-ghost secondary-action" type="button" title="Download subtitles as SRT">↓ Export .SRT subtitles</button><span class="helper">Space Play · Ctrl+Z Undo · Ctrl+S Save · S Split · ? Help</span></div>
         </div>
 
         <div class="panel hidden" id="panel-style">
@@ -48,6 +57,11 @@
               <button type="button" data-preset="minimal"><b>◻ Minimal</b><small>Clean type</small></button>
               <button type="button" data-preset="dream"><b>◌ Dream</b><small>Soft motion</small></button>
               <button type="button" data-preset="bold"><b>✦ Bold</b><small>Big energy</small></button>
+            </div>
+            <div class="preset-tools">
+              <button id="saveLookBtn" type="button" class="compact-action" title="Save current text and motion style in this browser">☆ Save my look</button>
+              <button id="loadLookBtn" type="button" class="compact-action" title="Apply your saved style">★ Apply saved</button>
+              <button id="resetLookBtn" type="button" class="compact-action" title="Reset all styling">↺ Reset</button>
             </div>
             <div class="control-group"><label for="font">Font family</label><select id="font"><option>Arial</option><option>DejaVu Sans</option><option>Liberation Sans</option><option>Impact</option><option>Georgia</option><option>Courier New</option></select></div>
             <div class="control-group"><div class="flex-label"><label for="fontSize">Text size</label><span id="fontSizeVal">60px</span></div><input id="fontSize" type="range" min="22" max="116" value="60" /></div>
@@ -123,6 +137,7 @@
         </div>
       </aside>
 
+      <div id="panelResizer" class="panel-resizer" role="separator" tabindex="0" aria-label="Resize editing tools panel" aria-orientation="vertical" title="Drag to resize the tools panel; double-click to reset"></div>
       <main class="workspace">
         <div class="workspace-bar"><div class="workspace-heading"><span class="live-indicator"></span> LIVE PREVIEW <span class="bar-divider">|</span><span id="canvasFormat">9:16 · VERTICAL</span></div><div class="workspace-tools"><button id="previewFull" title="Full screen preview">⛶</button></div></div>
         <div class="stage-wrap">
@@ -133,8 +148,18 @@
       </main>
     </div>
 
+    <div id="timelineResizer" class="timeline-resizer" role="separator" tabindex="0" aria-label="Resize timeline height" aria-orientation="horizontal" title="Drag to resize timeline; double-click to reset"><span></span></div>
     <section class="timeline-pane" aria-label="Lyric timeline">
-      <div class="timeline-top"><div class="timeline-label"><span class="timeline-icon">▥</span><b>TIMELINE</b><span id="clipCount" class="clip-badge">0 clips</span></div><div class="timeline-controls"><button id="zoomOut" title="Zoom out">−</button><span id="zoomDisplay">100%</span><button id="zoomIn" title="Zoom in">＋</button></div></div>
+      <div class="timeline-top"><div class="timeline-label"><span class="timeline-icon">▥</span><b>TIMELINE</b><span id="clipCount" class="clip-badge">0 clips</span></div><div class="timeline-controls">
+          <button id="snapBtn" class="timeline-toggle" type="button" title="Snap timeline edits to 0.1 seconds" aria-pressed="false">Snap OFF</button>
+          <button id="prevClipBtn" title="Jump to previous lyric">⟵</button>
+          <button id="nextClipBtn" title="Jump to next lyric">⟶</button>
+          <button id="zoomOut" title="Zoom out">−</button>
+          <span id="zoomDisplay">100%</span>
+          <button id="zoomIn" title="Zoom in">＋</button>
+          <button id="zoomFit" class="timeline-toggle" title="Fit timeline width">Fit</button>
+          <button id="shortcutsBtn" class="timeline-toggle" title="Keyboard shortcuts">?</button>
+        </div></div>
       <div class="timeline-scroller" id="timelineScroll"><div class="timeline-inner" id="timelineInner"><div id="ruler" class="ruler"></div><div class="track"><div class="track-tag"><span>CC</span> LYRICS</div><div id="lyricTrack" class="clip-track"></div></div><div class="track audio-track"><div class="track-tag"><span>♫</span> AUDIO</div><div class="audio-wave" id="audioWave"></div></div><div class="playhead" id="playhead"><span class="playhead-top"></span></div></div></div>
     </section>
 
@@ -142,6 +167,23 @@
 
     <div id="reviewOverlay" class="modal-overlay hidden"><div class="review-modal"><div class="modal-top"><span class="eyebrow">STEP 01 OF 02</span><button id="closeReview" title="Close" class="modal-close">×</button></div><div class="modal-visual"><span class="modal-icon">♪</span><span class="step-chain"><b>UPLOAD</b><i></i><b>REVIEW</b><i></i><span>CREATE</span></span></div><h2 id="reviewTitle">Review your lyrics.</h2><p id="reviewDescription">We picked up the lyrics in your song. Fix anything we missed before we sync them to the timeline.</p><div id="transcribeProgress" class="transcribe-progress hidden" aria-live="polite"><div class="loading-orbit"></div><strong>Preparing your song…</strong><span>Using your existing Whisper AI model.</span><div class="transcribe-meter" id="transcribeMeterTrack" role="progressbar" aria-label="Audio analyzed" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="transcribeMeter"></div></div><small class="transcribe-note">Progress measures analyzed audio, not time remaining.</small></div><textarea id="lyricsText" spellcheck="false" placeholder="Your lyrics will appear here. You can also type or paste lyrics manually."></textarea><div id="reviewWarning" class="review-warning hidden"></div><div class="modal-footer"><span><b>PRO TIP</b> · Put each lyric line on a new line to control how it appears on screen.</span><button id="confirmLyrics" class="primary-btn">Confirm & sync lyrics <span>→</span></button></div></div></div>
 
+    <div id="shortcutsOverlay" class="shortcuts-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="shortcutsTitle">
+      <div class="shortcuts-card">
+        <div class="shortcuts-heading"><h2 id="shortcutsTitle">Keyboard shortcuts</h2><button id="closeShortcuts" type="button" aria-label="Close shortcuts">×</button></div>
+        <div class="shortcut-grid">
+          <span>Play / pause</span><kbd>Space</kbd>
+          <span>Undo / redo</span><kbd>Ctrl+Z / Ctrl+Y</kbd>
+          <span>Save project</span><kbd>Ctrl+S</kbd>
+          <span>Duplicate selected lyric</span><kbd>Ctrl+D</kbd>
+          <span>Split selected lyric</span><kbd>S</kbd>
+          <span>Delete selected lyric</span><kbd>Delete</kbd>
+          <span>Nudge earlier / later</span><kbd>Alt+← / Alt+→</kbd>
+          <span>Jump between lyric clips</span><kbd>↑ / ↓</kbd>
+          <span>Toggle snap</span><kbd>N</kbd>
+          <span>Show / close help</span><kbd>? / Esc</kbd>
+        </div>
+      </div>
+    </div>
     <div class="toast-stack" id="toasts" aria-live="polite"></div>
     <audio id="songAudio" preload="metadata"></audio>
     <video id="backgroundVideo" muted loop playsinline preload="auto" class="hidden"></video>
