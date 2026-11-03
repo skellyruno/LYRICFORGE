@@ -28,6 +28,7 @@
         <button class="rail-item" data-panel="animation"><span class="rail-ico">✧</span><span>Motion</span></button>
         <button class="rail-item" data-panel="background"><span class="rail-ico">▧</span><span>Canvas</span></button>
         <button class="rail-item" data-panel="export"><span class="rail-ico">↗</span><span>Export</span></button>
+        <button class="rail-item" data-panel="library"><span class="rail-ico">▦</span><span>Projects</span></button>
         <button class="rail-item" data-panel="storage"><span class="rail-ico">▤</span><span>Storage</span></button>
         <div class="rail-bottom">SM<span>01</span></div>
       </nav>
@@ -125,8 +126,18 @@
             <div class="info-note">Rendering happens on your computer. Your song is not uploaded to a cloud service.</div>
           </div>
         </div>
+        <div class="panel hidden" id="panel-library">
+          <div class="section-top"><div class="eyebrow">06 / YOUR WORK</div><h2>Saved projects.</h2><p>Continue any song without digging through folders.</p></div>
+          <div class="panel-content form-fields">
+            <button id="refreshProjects" class="wide-ghost" type="button">↻ Refresh my projects</button>
+            <div id="savedProjectsList" class="library-list" aria-live="polite">
+              <p class="library-empty">Open this tab to view saved projects.</p>
+            </div>
+            <div class="info-note">Opening an older project does not delete anything. Unsaved changes are saved first.</div>
+          </div>
+        </div>
         <div class="panel hidden" id="panel-storage">
-          <div class="section-top"><div class="eyebrow">06 / DISK SPACE</div><h2>Keep it light.</h2><p>Clean generated files, not your music.</p></div>
+          <div class="section-top"><div class="eyebrow">07 / DISK SPACE</div><h2>Keep it light.</h2><p>Clean generated files, not your music.</p></div>
           <div class="panel-content form-fields">
             <div class="storage-stats"><div><span>Project storage</span><b id="storageUsed">—</b></div><div><span>MP4 exports</span><b id="storageExports">—</b></div><div><span>Old render files</span><b id="storageReclaim">—</b></div><div><span>Saved projects</span><b id="storageProjects">—</b></div></div>
             <button id="refreshStorage" type="button" class="wide-ghost">↻ Refresh disk usage</button>
