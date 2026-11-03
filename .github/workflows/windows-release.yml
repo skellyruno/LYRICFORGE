@@ -23,6 +23,7 @@ jobs:
         shell: pwsh
         run: |
           node --check static/app.js
+          node tests/editor_smoke.mjs
           if ($LASTEXITCODE -ne 0) { throw 'Editor JavaScript syntax check failed' }
       - name: Download verified FFmpeg with libass
         shell: pwsh
