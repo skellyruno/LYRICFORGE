@@ -128,7 +128,10 @@ jobs:
             throw "SkellyMotion.exe smoke test exited with code $code"
           }
           Write-Host 'SkellyMotion portable GUI self-test completed successfully.'
-      - name: Package Windows download
+      # The release page needs a standalone ZIP. Manual Actions downloads
+      # already arrive as an archive, so skip the redundant compression there.
+      - name: Package GitHub Release ZIP
+        if: startsWith(github.ref, 'refs/tags/v')
         shell: pwsh
         run: |
           Compress-Archive -Path dist/SkellyMotion -DestinationPath dist/SkellyMotion-Windows-x64.zip -Force
