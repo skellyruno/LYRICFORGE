@@ -82,6 +82,7 @@ function setSetting(name,value){
    const labels={portrait:'9:16 · VERTICAL',landscape:'16:9 · HORIZONTAL',square:'1:1 · SQUARE'};
    $('canvasFormat').textContent=labels[value];resizePreview();
  }
+ if(name==='animation')renderTimeline();
  queueSave();
 }
 
@@ -490,6 +491,21 @@ function renderLines(){syncClipInspector();const holder=$('lyricsEditor');if(!st
  holder.querySelectorAll('input[data-start],input[data-end]').forEach(el=>el.addEventListener('change',()=>{const i=+(el.dataset.start??el.dataset.end),ln=state.lines[i];const start=el.hasAttribute('data-start');const oldStart=ln.start,oldEnd=ln.end;const val=Number(el.value);if(!Number.isFinite(val))return;recordEdit('timing:'+i);if(start)ln.start=clamp(val,0,Math.max(0,ln.end-.06));else ln.end=clamp(val,ln.start+.06,state.duration);retimeWords(ln,oldStart,oldEnd);renderLines();renderTimeline();queueSave();}));
 }
 function renderTimeline(){const d=state.duration||1;const clips=$('lyricTrack');clips.innerHTML=state.lines.map((l,i)=>`<div class="lyric-clip ${i===state.selected?'selected':''}" data-index="${i}" style="left:${clamp(100*l.start/d,0,100)}%;width:${clamp(100*(l.end-l.start)/d,.3,100)}%;"><span class="clip-grab"></span>${safe(trimLine(l.text))}</div>`).join('');
+ const fx=$('effectsTrack');
+ fx.innerHTML=state.lines.map((line,i)=>{
+   const custom=clipAnimations.includes(line.animation)||line.effectMs!=null||line.x!=null||line.y!=null;
+   const effect=clipMotionName(line),label=(custom?'✧ ':'↳ ')+clipAnimationName(effect);
+   const d=state.duration||1;
+   return '<button type="button" class="fx-clip '+(custom?'has-override ':'')+
+      (i===state.selected?'selected':'')+'" data-fx-index="'+i+'" title="'+
+      safe(line.text+' · '+clipAnimationName(effect)+(custom?' (customized)':' (global)'))+
+      '" style="left:'+clamp(100*line.start/d,0,100)+'%;width:'+
+      clamp(100*(line.end-line.start)/d,.3,100)+'%;">'+safe(label)+'</button>';
+ }).join('');
+ fx.querySelectorAll('[data-fx-index]').forEach(button=>button.addEventListener('click',e=>{
+   e.preventDefault();e.stopPropagation();
+   selectLine(Number(button.dataset.fxIndex),true);panel('animation');
+ }));
  $('clipCount').textContent=`${state.lines.length} clips`;$('timelineInner').style.width=`${Math.max(100,state.zoom*100)}%`;
  const ruler=$('ruler');ruler.innerHTML='';const interval=d<45?5:d<150?15:d<360?30:60;for(let s=0;s<d;s+=interval){const tick=document.createElement('span');tick.className='tick';tick.style.left=`${s/d*100}%`;tick.textContent=shortTime(s);ruler.appendChild(tick);}
  drawWaveform();
@@ -662,11 +678,19 @@ function wireUI(){
  $('prevClipBtn').addEventListener('click',()=>jumpClip(-1));
  $('nextClipBtn').addEventListener('click',()=>jumpClip(1));
  $('zoomFit').addEventListener('click',fitTimeline);
+ $('clipAnimation').addEventListener('change',e=>setClipMotion('animation',e.target.value));
+ $('clipEffectMs').addEventListener('input',e=>setClipMotion('effectMs',Number(e.target.value)));
+ $('clipPosX').addEventListener('input',e=>setClipMotion('x',Number(e.target.value)));
+ $('clipPosY').addEventListener('input',e=>setClipMotion('y',Number(e.target.value)));
+ $('resetClipMotion').addEventListener('click',resetClipMotion);
+ $('applyClipMotionAll').addEventListener('click',applyClipMotionAll);
+ $('previewClipMotion').addEventListener('click',previewSelectedMotion);
+ bindPreviewPositionDragging();
  $('shortcutsBtn').addEventListener('click',()=>showShortcuts(true));
  $('closeShortcuts').addEventListener('click',()=>showShortcuts(false));
  $('shortcutsOverlay').addEventListener('click',e=>{if(e.target===$('shortcutsOverlay'))showShortcuts(false)});
  initResizer('panelResizer','x','--panel-width',312,240,470);
- initResizer('timelineResizer','y','--timeline-height',210,145,400);
+ initResizer('timelineResizer','y','--timeline-height',245,145,400);
  $('nudgeBack').addEventListener('click',()=>shiftSelected(-.05));
  $('nudgeForward').addEventListener('click',()=>shiftSelected(.05));
  $('refreshProjects').addEventListener('click',loadLibrary);
@@ -724,5 +748,5 @@ function wireUI(){
  });
 }
 async function restore(){const last=localStorage.getItem('lyricforge-last');if(!last)return;try{const p=await api(`/api/projects/${last}`);if(p.status==='editor'&&p.lines?.length){loadProjectData(p);}else if(p.status==='review'||p.status==='transcribing'){state.id=p.id;state.title=p.title;state.duration=p.duration;configureMedia();renderTitle();$('welcome').classList.add('hidden');$('reviewOverlay').classList.remove('hidden');$('transcribeProgress').classList.remove('hidden');$('lyricsText').classList.add('hidden');$('confirmLyrics').disabled=true;waitForTranscript(p.id);}}catch{localStorage.removeItem('lyricforge-last');}}
-restoreLayout();wireUI();syncSettingUI();resizePreview();renderTimeline();updateEditButtons();requestAnimationFrame(drawFrame);restore();
+restoreLayout();wireUI();syncSettingUI();syncClipInspector();resizePreview();renderTimeline();updateEditButtons();requestAnimationFrame(drawFrame);restore();
 })();
