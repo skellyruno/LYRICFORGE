@@ -43,6 +43,9 @@ def test_roundtrip_audio_background_render(tmp_path, monkeypatch):
         d["status"] = "review"
         server.save_project(server.project_dir(project_id), d)
     monkeypatch.setattr(server, "transcribe_project", fake_asr)
+    # The integration test verifies file import, timing and a real MP4 export;
+    # run the stub transcription synchronously rather than queueing behind AI jobs.
+    monkeypatch.setattr(server.ai_executor, "submit", lambda fn, *args: fn(*args))
     path = tmp_path / 'sample.wav'
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "sine=frequency=300:duration=1.7", str(path)], check=True)
     client=TestClient(server.app)
