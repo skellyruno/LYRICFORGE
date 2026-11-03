@@ -294,8 +294,9 @@ def transcribe_project(project_id: str) -> None:
         # Beam search 3 (previously 5), one decoding temperature and one
         # candidate: less CPU work without changing model size, word timestamps,
         # or the ability to correct lyrics after transcription.
-        mode = d.get("recognition_mode", "balanced")
-        beam = RECOGNITION_MODES.get(mode, transcription_beam_size())
+        mode = d.get("recognition_mode")
+        # Legacy projects still honor SKELLYMOTION_BEAM_SIZE.
+        beam = RECOGNITION_MODES.get(mode) if mode in RECOGNITION_MODES else transcription_beam_size()
         language = d.get("language_hint")
         segs, info = model.transcribe(
             str(p / d["audio_file"]), word_timestamps=True,
