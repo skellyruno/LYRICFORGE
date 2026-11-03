@@ -265,3 +265,9 @@ html.desktop-mode .welcome-overlay{
  html:not(.desktop-mode) .timeline-pane{height:210px;flex:0 0 210px}
  html:not(.desktop-mode) .panel-resizer{display:none}
 }
+
+
+.welcome-secondary-actions{display:flex;align-items:center;flex-wrap:wrap;gap:12px}
+.welcome-secondary-actions .demo-btn{width:auto;min-width:185px;text-align:left}
+.welcome-secondary-actions #openProjectsWelcome{color:#bcffb7}
+html.desktop-mode .welcome-secondary-actions{gap:10px}
