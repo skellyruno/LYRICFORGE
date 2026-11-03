@@ -85,6 +85,49 @@ def self_test() -> int:
     return 0
 
 
+def bundled_python_runtime() -> Path:
+    """Exact bundled .NET assembly used by pythonnet's Windows desktop bridge."""
+    return runtime_dir() / "pythonnet" / "runtime" / "Python.Runtime.dll"
+
+
+def native_runtime_self_test() -> int:
+    """Actually initialize Python.NET, which the FFmpeg-only smoke test skipped."""
+    assembly = bundled_python_runtime()
+    if getattr(sys, "frozen", False) and not assembly.is_file():
+        raise RuntimeError("Missing packaged Python.NET runtime DLL: " + str(assembly))
+    import clr  # noqa: F401  # Deliberately initialize the WinForms .NET bridge.
+    from System import Environment
+    if not Environment.Version:
+        raise RuntimeError("The .NET bridge did not initialize correctly")
+    print("SkellyMotion native Python.NET self-test passed")
+    return 0
+
+
+def desktop_runtime_error(exc: Exception) -> str:
+    details = str(exc)
+    if "Python.Runtime.Loader.Initialize" not in details and "Python.Runtime.dll" not in details:
+        return (
+            "SkellyMotion couldn't open its desktop window.\n\n" + details +
+            "\n\nIf necessary, install Microsoft Edge WebView2 Runtime.\n"
+        )
+
+    assembly = bundled_python_runtime()
+    location = str(assembly)
+    if assembly.is_file():
+        presence = "The packaged Python.Runtime.dll exists but did not load."
+    else:
+        presence = "The packaged Python.Runtime.dll is MISSING; download a fresh complete build."
+    return (
+        "SkellyMotion's Windows Python.NET bridge could not start.\n\n"
+        + presence + "\n\n"
+        "If you trust this GitHub download, find Python.Runtime.dll in:\n"
+        + location + "\n"
+        "Right-click it > Properties > Unblock (if shown).\n"
+        "Or run Repair-SkellyMotion.cmd beside SkellyMotion.exe.\n\n"
+        "If the DLL is not blocked, check .NET Framework 4.6.2+ and the app log.\n"
+    )
+
+
 def available_port() -> int:
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
@@ -197,15 +240,19 @@ def main() -> int:
         return 0
     if "--self-test" in sys.argv:
         return self_test()
+    if "--native-self-test" in sys.argv:
+        try:
+            return native_runtime_self_test()
+        except Exception as exc:
+            print("Native Python.NET smoke test failed: " + repr(exc), file=sys.stderr)
+            return 2
     try:
         return run_desktop(home)
     except Exception as exc:
         print("Desktop startup error:", repr(exc), file=sys.stderr)
         native_error(
-            "SkellyMotion couldn't open its desktop window.\n\n"
-            + str(exc) + "\n\n"
-            "Install Microsoft Edge WebView2 Runtime if needed.\n"
-            "For details see: " + str(home / "logs" / "desktop.log")
+            desktop_runtime_error(exc)
+            + "\nFor details see: " + str(home / "logs" / "desktop.log")
         )
         return 1
 
