@@ -86,88 +86,148 @@ def self_test() -> int:
 
 
 def bundled_python_runtime() -> Path:
-    """Exact bundled .NET assembly used by pythonnet's Windows desktop bridge."""
+    """The CLR bridge assembly that pythonnet loads."""
     return runtime_dir() / "pythonnet" / "runtime" / "Python.Runtime.dll"
 
 
+# Narrow allowlist: only the managed assemblies SkellyMotion ships for its
+# Python.NET / WebView2 window. Never touch every DLL or an entire folder.
+MANAGED_UI_DLL_PATHS = (
+    ("pythonnet", "runtime", "Python.Runtime.dll"),
+    ("webview", "lib", "Microsoft.Web.WebView2.Core.dll"),
+    ("webview", "lib", "Microsoft.Web.WebView2.WinForms.dll"),
+    ("webview", "lib", "Microsoft.Web.WebView2.Wpf.dll"),
+)
+
+
+def bundled_managed_assemblies() -> list[Path]:
+    root = runtime_dir().resolve()
+    result = []
+    for pieces in MANAGED_UI_DLL_PATHS:
+        dll = root.joinpath(*pieces)
+        # Don't follow a symlink to an untrusted location.
+        if (dll.is_file() and not dll.is_symlink()
+                and dll.resolve().is_relative_to(root)):
+            result.append(dll)
+    return result
+
+
+def blocked_managed_assemblies() -> list[Path]:
+    """Read Windows Mark-of-the-Web ADS on the exact bundled DLL allowlist."""
+    if os.name != "nt" or not getattr(sys, "frozen", False):
+        return []
+    marked = []
+    for dll in bundled_managed_assemblies():
+        try:
+            with open(str(dll) + ":Zone.Identifier", "r",
+                      encoding="utf-8", errors="replace") as stream:
+                marker = stream.read(1024)
+        except OSError:
+            continue
+        if any(token in marker for token in ("ZoneId=3", "ZoneId=4")):
+            marked.append(dll)
+    return marked
+
+
 def native_runtime_self_test() -> int:
-    """Actually initialize Python.NET, which the FFmpeg-only smoke test skipped."""
-    assembly = bundled_python_runtime()
-    if getattr(sys, "frozen", False) and not assembly.is_file():
-        raise RuntimeError("Missing packaged Python.NET runtime DLL: " + str(assembly))
-    import clr  # noqa: F401  # Deliberately initialize the WinForms .NET bridge.
+    """Smoke-test the EXACT .NET assemblies used by the native Windows editor.
+
+    The previous test imported clr alone, allowing a working Python.NET loader
+    but a broken/blocked Microsoft.Web.WebView2.Core.dll to slip through.
+    """
+    python_runtime = bundled_python_runtime()
+    if getattr(sys, "frozen", False) and not python_runtime.is_file():
+        raise RuntimeError("Missing Python.NET runtime: " + str(python_runtime))
+    import clr
     from System import Environment
     if not Environment.Version:
-        raise RuntimeError("The .NET bridge did not initialize correctly")
-    print("SkellyMotion native Python.NET self-test passed")
+        raise RuntimeError("The .NET bridge did not initialize")
+    if getattr(sys, "frozen", False):
+        root = runtime_dir()
+        for name in ("Microsoft.Web.WebView2.Core.dll",
+                     "Microsoft.Web.WebView2.WinForms.dll"):
+            path = root / "webview" / "lib" / name
+            if not path.is_file():
+                raise RuntimeError("Missing bundled WebView2 managed assembly: " + str(path))
+            # Load using the same full-path assembly resolution as pywebview.
+            clr.AddReference(str(path))
+            print("Verified native .NET assembly: " + name, flush=True)
+    print("SkellyMotion Python.NET + WebView2 assembly self-test passed")
     return 0
 
 
-def offer_download_marker_repair() -> bool:
-    """Ask before unblocking exactly the bundled pythonnet DLL, never a folder.
-
-    Windows Explorer may propagate the ZIP's Mark-of-the-Web to extracted
-    assemblies. Python.NET cannot initialize a .NET assembly with that marker
-    on some Windows configurations. Do not remove download markers silently.
-    """
-    if os.name != "nt" or not getattr(sys, "frozen", False):
-        return False
-    dll = bundled_python_runtime()
-    if not dll.is_file():
-        return False
-    marker = str(dll) + ":Zone.Identifier"
+def native_notice(message: str, error: bool = False) -> None:
     try:
-        with open(marker, "r", encoding="utf-8", errors="replace") as stream:
-            zone = stream.read(1024)
-    except OSError:
-        return False
-    if "ZoneId=3" not in zone and "ZoneId=4" not in zone:
+        import ctypes
+        ctypes.windll.user32.MessageBoxW(
+            None, message, "SkellyMotion - Windows runtime repair",
+            0x10 if error else 0x40)
+    except Exception:
+        print(message, file=sys.stderr)
+
+
+def offer_download_marker_repair() -> bool:
+    """Offer one explicitly approved, narrowly scoped UI-DLL repair.
+
+    Windows Explorer may propagate Mark-of-the-Web from the downloaded ZIP to
+    multiple bundled .NET assemblies. Unblocking only Python.Runtime.dll then
+    exposes a second 0x80131515 failure in Microsoft.Web.WebView2.Core.dll.
+    """
+    marked = blocked_managed_assemblies()
+    if not marked:
         return False
     import ctypes
+    names = "\n".join("  - " + item.name for item in marked)
     response = ctypes.windll.user32.MessageBoxW(
         None,
-        "Windows marked SkellyMotion's bundled Python.Runtime.dll as a "
-        "downloaded file. This may prevent the native window from opening.\n\n"
-        "Only continue if you downloaded SkellyMotion from your trusted "
-        "GitHub repository.\n\n"
-        "Remove the download block from this ONE DLL and continue?",
-        "SkellyMotion - Windows DLL download block",
+        "Windows marked these SkellyMotion UI libraries as downloaded:\n\n"
+        + names
+        + "\n\nOnly continue if this build came from your trusted "
+          "SkellyMotion GitHub repository.\n\n"
+          "Remove the Windows download markers from these "
+          + str(len(marked)) + " files ONLY and continue?",
+        "SkellyMotion - Repair blocked UI libraries",
         0x04 | 0x30,  # MB_YESNO | MB_ICONWARNING
     )
     if response != 6:  # IDYES
+        print("User declined downloaded-DLL repair", file=sys.stderr)
         return False
-    try:
-        os.remove(marker)
-        print("Removed the user-approved download marker on bundled Python.Runtime.dll",
+    repaired = []
+    for dll in marked:
+        try:
+            # Only deletes the file's Zone.Identifier alternate data stream,
+            # NOT the DLL. The rest of Windows attachment protection remains.
+            os.remove(str(dll) + ":Zone.Identifier")
+            repaired.append(dll.name)
+        except OSError as exc:
+            print("Could not remove download marker from", dll.name, ":", exc,
+                  file=sys.stderr)
+    if repaired:
+        print("User approved unblocking bundled UI DLLs:", ", ".join(repaired),
               file=sys.stderr)
-        return True
-    except OSError as exc:
-        print("Could not unblock bundled Python.Runtime.dll:", exc, file=sys.stderr)
-        return False
+    return len(repaired) == len(marked)
 
 
 def desktop_runtime_error(exc: Exception) -> str:
     details = str(exc)
-    if "Python.Runtime.Loader.Initialize" not in details and "Python.Runtime.dll" not in details:
+    if (any(token in details for token in
+            ("0x80131515", "network location", "Microsoft.Web.WebView2",
+             "Python.Runtime.Loader.Initialize", "Python.Runtime.dll"))):
         return (
-            "SkellyMotion couldn't open its desktop window.\n\n" + details +
-            "\n\nIf necessary, install Microsoft Edge WebView2 Runtime.\n"
+            "SkellyMotion could not load one of its bundled .NET UI libraries.\n\n"
+            "This can happen when Windows marks DLLs extracted from a download "
+            "as untrusted, or when the app was not extracted completely.\n\n"
+            "If you trust the GitHub build, run Repair-SkellyMotion.cmd "
+            "beside SkellyMotion.exe to check the Python.NET and WebView2 "
+            "UI DLLs. The repair asks before changing any download markers.\n\n"
+            "Alternatively: right-click the downloaded ZIP > Properties > "
+            "Unblock (if shown), then extract the ZIP again into a new folder.\n\n"
+            "Details: " + details[:900]
         )
-
-    assembly = bundled_python_runtime()
-    location = str(assembly)
-    if assembly.is_file():
-        presence = "The packaged Python.Runtime.dll exists but did not load."
-    else:
-        presence = "The packaged Python.Runtime.dll is MISSING; download a fresh complete build."
     return (
-        "SkellyMotion's Windows Python.NET bridge could not start.\n\n"
-        + presence + "\n\n"
-        "If you trust this GitHub download, find Python.Runtime.dll in:\n"
-        + location + "\n"
-        "Right-click it > Properties > Unblock (if shown).\n"
-        "Or run Repair-SkellyMotion.cmd beside SkellyMotion.exe.\n\n"
-        "If the DLL is not blocked, check .NET Framework 4.6.2+ and the app log.\n"
+        "SkellyMotion couldn't open its desktop window.\n\n" + details[:900]
+        + "\n\nCheck the desktop.log file. Install Microsoft Edge WebView2 "
+          "Runtime only if the log indicates that WebView2 itself is missing."
     )
 
 
@@ -289,8 +349,20 @@ def main() -> int:
         try:
             return native_runtime_self_test()
         except Exception as exc:
-            print("Native Python.NET smoke test failed: " + repr(exc), file=sys.stderr)
+            print("Native Python.NET/WebView2 self-test failed: " + repr(exc), file=sys.stderr)
             return 2
+    if "--repair-runtime" in sys.argv:
+        if not blocked_managed_assemblies():
+            native_notice("No Windows download blocks were found on the bundled UI DLLs.\n"
+                          "See desktop.log for other startup errors.")
+            return 0
+        if offer_download_marker_repair():
+            native_notice("The selected SkellyMotion UI DLLs were unblocked.\n"
+                          "Please relaunch SkellyMotion.exe.")
+            return 0
+        native_notice("Runtime repair was declined or could not complete.\n"
+                      "No other files were modified.", error=True)
+        return 3
     try:
         return run_desktop(home)
     except Exception as exc:
