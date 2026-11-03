@@ -128,7 +128,7 @@ This upgrade keeps the **same Whisper \`small\` model**, project location, local
 
 ### Rendering improvements
 
-- FFmpeg and FFprobe child processes launch without separate command windows on Windows (including file checks, waveform extraction, desktop self-test and exports).
+- FFmpeg child processes launch without separate command windows on Windows; media duration/background checks now use the already-bundled PyAV library without requiring an FFprobe executable.
 - Added **540p Quick proof** alongside 720p and 1080p, plus three H.264 encoder settings: **Fast**, **Balanced** (original default) and **Quality**. Fast trades compression efficiency for speed and can make bigger files; Quality uses a slower preset and typically preserves more detail.
 - Export panel reports actual progress from FFmpeg, not just elapsed time.
 - Failed renders don't overwrite an earlier successful MP4: output is encoded into a temporary file then swapped in only when complete.
