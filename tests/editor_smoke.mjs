@@ -161,5 +161,6 @@ bottom.callbacks.pointerup[0]({});
 assert.ok(parseFloat(nodes.app.style['--timeline-height'])>210, 'Timeline should grow when dragging up');
 assert.ok(storage.get('skellymotion-layout-v1'), 'Custom layout should be remembered');
 assert.ok(nodes.refreshProjects.callbacks.click?.length, 'Projects library refresh must be wired');
+assert.ok(nodes.openProjectsWelcome.callbacks.click?.length, 'Welcome screen must link to saved projects');
 
 console.log('SkellyMotion editor smoke tests passed: load, edit, undo, redo, split, delete, snap, styles, layout tools, SRT.');
