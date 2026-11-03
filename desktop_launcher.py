@@ -122,13 +122,13 @@ class DesktopFilePicker:
             dialog_type=dialog, allow_multiple=False, file_types=(formats,))
         return Path(picked[0]) if picked else None
 
-    def choose_audio(self):
+    def choose_audio(self, recognition="balanced", language="auto"):
         source = self._open_file(
             "Music files (*.mp3;*.wav;*.flac;*.m4a;*.aac;*.ogg;*.opus;*.mp4;*.webm)")
         if source is None:
             return None
         import server
-        return server.import_desktop_audio_file(source)
+        return server.import_desktop_audio_file(source, recognition, language)
 
     def choose_background(self, project_id):
         if not isinstance(project_id, str):
