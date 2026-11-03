@@ -103,10 +103,12 @@ jobs:
       - name: Build self-contained Windows folder
         shell: pwsh
         run: |
+          # FFprobe is needed only on the CI runner for the source archive
+          # test. The portable app uses the already-bundled PyAV to probe
+          # durations and image/video streams, eliminating ~100 MB extracted.
           pyinstaller --noconfirm --clean --onedir --windowed --name SkellyMotion `
             --add-data "static;static" `
             --add-binary "vendor/ffmpeg/ffmpeg.exe;tools" `
-            --add-binary "vendor/ffmpeg/ffprobe.exe;tools" `
             --hidden-import clr `
             --hidden-import webview `
             --collect-all webview `
