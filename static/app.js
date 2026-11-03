@@ -960,6 +960,7 @@ function wireUI(){
  $('closeReview').addEventListener('click',()=>{$('reviewOverlay').classList.add('hidden');if(!state.lines.length)$('welcome').classList.remove('hidden');});
  $('demoBtn').addEventListener('click',loadDemo);
  $('openProjectsWelcome').addEventListener('click',()=>{$('welcome').classList.add('hidden');panel('library');});
+ $('resumeLastBtn').addEventListener('click',()=>restore(true));
  $('playButton').addEventListener('click',play);$('skipBack').addEventListener('click',()=>seek(state.time-5));$('skipAhead').addEventListener('click',()=>seek(state.time+5));
  $('zoomIn').addEventListener('click',()=>{state.zoom=clamp(state.zoom+.25,1,5);$('zoomDisplay').textContent=`${Math.round(state.zoom*100)}%`;renderTimeline();});
  $('zoomOut').addEventListener('click',()=>{state.zoom=clamp(state.zoom-.25,1,5);$('zoomDisplay').textContent=`${Math.round(state.zoom*100)}%`;renderTimeline();});
@@ -999,11 +1000,48 @@ function wireUI(){
   if(e.code==='ArrowDown'){e.preventDefault();jumpClip(1);return;}
  });
 }
-async function restore(){const last=localStorage.getItem('lyricforge-last');if(!last)return;try{const p=await api(`/api/projects/${last}`);if(p.status==='editor'&&p.lines?.length){loadProjectData(p);}else if(p.status==='review'||p.status==='transcribing'){state.id=p.id;state.title=p.title;state.duration=p.duration;configureMedia();renderTitle();$('welcome').classList.add('hidden');$('reviewOverlay').classList.remove('hidden');$('transcribeProgress').classList.remove('hidden');$('lyricsText').classList.add('hidden');$('confirmLyrics').disabled=true;waitForTranscript(p.id);}}catch{localStorage.removeItem('lyricforge-last');}}
+async function restore(interactive=false){
+ const last=localStorage.getItem('lyricforge-last');
+ if(!last||state.id||state.demo)return;
+ const button=$('resumeLastBtn');
+ button.disabled=true;
+ if(interactive)button.textContent='Opening saved project…';
+ try{
+  const p=await api('/api/projects/'+encodeURIComponent(last));
+  // Do not overwrite a new song selected while last-session lookup was in flight.
+  if(state.id||state.demo)return;
+  if(p.status==='editor'&&p.lines?.length){
+   loadProjectData(p);
+  }else if(p.status==='review'||p.status==='transcribing'){
+   state.id=p.id;state.title=p.title;state.duration=p.duration;
+   configureMedia();renderTitle();$('welcome').classList.add('hidden');
+   $('reviewOverlay').classList.remove('hidden');
+   $('transcribeProgress').classList.remove('hidden');$('lyricsText').classList.add('hidden');
+   $('confirmLyrics').disabled=true;waitForTranscript(p.id);
+  }else if(interactive){
+   toast('The previous project could not be restored. Try Projects.',true);
+  }
+ }catch(e){
+  if(localStorage.getItem('lyricforge-last')===last)localStorage.removeItem('lyricforge-last');
+  button.classList.add('hidden');
+  if(interactive)toast('Could not open the last project: '+e.message,true);
+ }finally{
+  button.disabled=false;button.textContent='↻ Resume last project →';
+ }
+}
 restoreLayout();
 try{const savedMode=localStorage.getItem('skellymotion-perf-mode');
  if(['eco','balanced','turbo'].includes(savedMode)){
   $('startupPerformance').value=savedMode;state.settings.performanceMode=savedMode;
  }}catch{}
-wireUI();syncSettingUI();syncClipInspector();resizePreview();renderTimeline();updateEditButtons();requestAnimationFrame(drawFrame);restore();
+wireUI();syncSettingUI();syncClipInspector();resizePreview();renderTimeline();updateEditButtons();
+requestAnimationFrame(drawFrame);
+let lastSession=null;
+try{lastSession=localStorage.getItem('lyricforge-last')}catch{}
+$('resumeLastBtn').classList.toggle('hidden',!lastSession);
+// Windows startup should display a responsive editor immediately. Restoring a
+// large song can decode audio, generate waveforms and populate many lyric clips.
+// The user can explicitly resume in one click; browser sessions still restore.
+if(!document.documentElement.classList.contains('desktop-mode')&&lastSession)
+ setTimeout(()=>restore(false),350);
 })();
