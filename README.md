@@ -31,6 +31,37 @@ Two distributions are included in this repository:
 
 
 
+## SkellyMotion 0.8 — speed, quality and CPU overhaul
+
+**Backwards compatibility:** Uses the same Whisper \`small\` model by default and the same \`%LOCALAPPDATA%\LyricForge\workspace\` and \`%LOCALAPPDATA%\LyricForge\models\` paths. Existing song files, corrected lyrics, and projects aren't migrated or deleted.
+
+### Faster video renders, without compromising previous exports
+
+- **Hardware acceleration (H.264 encoding):** NVIDIA NVENC, Intel Quick Sync and AMD AMF are tested with an actual three-frame encoding probe. A listed-but-unusable encoder is ignored. Auto prefers a successfully tested GPU; if an encoder fails during a real video export, SkellyMotion retries on CPU. libass caption effects and some video filters still use CPU, so speedup depends on hardware.
+- **Eco / Balanced / Turbo:** Eco reduces preview FPS and uses lower-priority Windows FFmpeg workers; Balanced is the default; Turbo permits higher CPU thread budgets. CPU-thread preferences for the AI model are selected when it first loads; restart the application to change those after a model has loaded.
+- **24 or 30 FPS** per export, alongside 540p, 720p and 1080p and existing Fast/Balanced/Quality encoder choices.
+- **15-second test render:** Render just the first fifteen seconds, watch the result inside the editor and download it if desired. Uses the same caption, audio, encoder and styling pipeline as full exports.
+- **Render fingerprint cache:** Re-exporting an identical project with unchanged audio, backgrounds, lyrics and settings reuses the completed MP4. Changing any relevant source invalidates the cache. Failed exports never overwrite a successful file.
+- **Live profiling:** Performance tab shows process CPU/RAM, FFmpeg child memory, confirmed GPU encoders, export frame rate, elapsed time, processing speed and whether the export was cached.
+- **Preview optimization:** Solid gradient backgrounds are cached to an offscreen canvas; lyric text layouts are cached with a bounded LRU; idle playback throttles frame paints and Eco mode uses a lighter frame budget.
+- **Faster new project setup:** Gradient creation uses an anti-aliased 360×640 intermediate (upscaled to 720×1280), with palette-aware caching. Repeat uploads of the *exact same audio bytes* with identical Whisper model, recognition mode, language and vocabulary reuse machine-generated transcription/timestamps; manually corrected lyrics are never copied into another project. The cache retains at most 40 transcripts.
+
+### Better sung-lyric review, same model
+
+- A **vocabulary hint** for artist names, slang, and uncommon words is available in the Advanced upload options and in native Windows imports. This is a model hint, not a guarantee.
+- Low-probability words are marked **Worth checking** in the review screen (probabilities are *not* calibrated accuracy percentages). Click a word to listen near that timestamp.
+- **Refine uncertain sections** performs an optional second Whisper pass using beam size 5, limited to up to four uncertain regions. It retains the existing model and avoids repeated whole-song transcription.
+- The second pass generates proposals and comparisons. You must explicitly approve replacements, and applying them warns before replacing current unconfirmed textbox edits.
+- Auto-generated timing uses Whisper word timestamps and corrected-word interpolation; **this is not a licensed/acoustic forced-alignment engine**. The app still requires manual review for musical vocals.
+
+### Performance benchmarking
+
+To compare versions, use the **same source song**, lyrics, background, export resolution/FPS/encoder, and computer. Record processing duration, render FPS, CPU, RAM, and file size. A fair quality comparison should also review the actual MP4; faster encoding does not imply equal quality at the same bitrate.
+
+The new Python regression tests exercise encoder selection/fallback, source-aware caching, short previews, opt-in refinement and transcription reuse. The JavaScript smoke test covers the editor's performance and review controls. These source tests are not a substitute for a successful **Windows build** and testing on the user's hardware.
+
+To install: open **GitHub Actions → Build SkellyMotion Windows app → Run workflow** on \`main\`, then extract the whole \`SkellyMotion-Windows-x64\` artifact. Keep the previous working version until importing, editing and MP4 export succeed.
+
 ## SkellyMotion 0.6 — clip motion, faster exports and cleaner Windows operation
 
 This upgrade keeps the **same Whisper \`small\` model**, project location, local AI model cache, existing songs and saved lyric edits. Nothing is deleted or renamed in \`%LOCALAPPDATA%\LyricForge\`.
