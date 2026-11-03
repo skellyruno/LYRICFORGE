@@ -178,7 +178,7 @@ def main() -> int:
     freeze_support()
     home = configure()
     if "--version" in sys.argv:
-        print("SkellyMotion 0.6.0")
+        print("SkellyMotion 0.8.0")
         return 0
     if "--self-test" in sys.argv:
         return self_test()
