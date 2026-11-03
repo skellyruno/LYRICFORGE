@@ -1000,65 +1000,6 @@ async function chooseBackground(){
  $('backgroundFile').click();
 }
 function loadDemo(){resetEditHistory();const texts=['I WAS LOST INSIDE THE STATIC','NOW THE CITY KNOWS MY NAME','EVERY SHADOW HAS A STORY','WATCH ME TURN IT INTO FLAMES','I CAME BACK FROM THE DARK','AND I BROUGHT THE LIGHT WITH ME'];state.id=null;state.demo=true;state.title='DEMO / AFTER DARK';state.duration=24;state.time=2;state.waveform=Array.from({length:120},(_,i)=>.14+.42*Math.abs(Math.sin(i*7.1)*Math.cos(i*.9)));state.lines=texts.map((text,i)=>{const start=i*4;const line={id:String(i),start,end:start+3.7,text,words:[]};reflowWords(line);return line;});state.settings=defaultSettings();state.selected=0;$('welcome').classList.add('hidden');syncSettingUI();resizePreview();renderTitle();renderTimeline();renderLines();toast('Demo mode — upload your own song to enable MP4 export.');}
-let updateCheckBusy=false;
-async function checkForUpdates(manual=false){
- const bridge=window.pywebview?.api;
- if(!bridge?.check_updates){
-  if(manual)toast('Automatic updates are available in the Windows desktop app.',true);
-  return;
- }
- if(updateCheckBusy)return;
- updateCheckBusy=true;
- const overlay=$('updateOverlay'),install=$('updateInstall');
- if(manual){$('updateTitle').textContent='Checking for updates…';
-  $('updateText').textContent='Checking official SkellyMotion releases.';
-  $('updateDetails').textContent='No change will be installed without your approval.';
-  install.disabled=true;overlay.classList.remove('hidden');}
- try{
-  const data=await bridge.check_updates();
-  if(data.status==='update'){
-   $('updateTitle').textContent='SkellyMotion '+data.version+' is available';
-   $('updateText').textContent='You have '+data.current_version+
-    '. Download and install the newer version? Your projects and AI models stay in place.';
-   $('updateDetails').textContent='Size: '+(data.size_bytes/1048576).toFixed(0)+
-    ' MB · Secure SHA-256 verification · Backup of previous app retained';
-   overlay.classList.remove('hidden');
-   install.disabled=false;install.textContent='Download and install';
-   install.onclick=async()=>{
-    install.disabled=true;install.textContent='Downloading…';
-    $('updateText').textContent='Downloading and verifying the update. Do not close SkellyMotion.';
-    try{
-     const result=await bridge.prepare_update(data.version);
-     if(result.status==='busy')throw Error('Another update is being prepared');
-     if(result.status!=='ready')throw Error('Update did not pass verification');
-     $('updateText').textContent='Update verified. Save your current project before restarting.';
-     if(!await mayLeaveProject()){
-      install.disabled=false;install.textContent='Restart and install';return;
-     }
-     await bridge.install_prepared_update();
-     $('updateText').textContent='Installing update and restarting…';
-    }catch(err){
-     $('updateText').textContent='Update not installed: '+(err.message||String(err));
-     install.disabled=false;install.textContent='Try again';
-    }
-   };
-  }else if(manual){
-   install.disabled=true;
-   $('updateTitle').textContent=data.status==='current'?'You’re up to date':'Updates not available';
-   $('updateText').textContent=data.reason||
-    (data.status==='current'?'You already have the latest published release.':
-     'There is no newer published release yet.');
-   $('updateDetails').textContent=data.status==='needs_auth'?
-    "Private GitHub repository: install GitHub CLI and sign in once using 'gh auth login'. No token is stored in SkellyMotion.":
-    'SkellyMotion only installs official, verified Windows release packages.';
-  }
- }catch(err){
-  if(manual){
-   install.disabled=true;$('updateTitle').textContent='Update check failed';
-   $('updateText').textContent=err.message||String(err);
-  }
- }finally{updateCheckBusy=false;}
-}
 async function downloadVideo(e,preview=false){
  const el=preview?$('previewDownloadBtn'):$('downloadBtn');
  if(downloadBusy){e.preventDefault();return;}
@@ -1229,8 +1170,6 @@ function wireUI(){
  ['mode','animation','background','aspect'].forEach(key=>$$(`[data-${key}]`).forEach(b=>b.addEventListener('click',()=>setSetting(key,b.dataset[key]))));
  $('heroUpload').addEventListener('click',chooseSong);
  $('exitBtn').addEventListener('click',quitStudio);
- $('checkUpdateBtn').addEventListener('click',()=>checkForUpdates(true));
- $('updateLater').addEventListener('click',()=>$('updateOverlay').classList.add('hidden'));
  window.addEventListener('skellymotion-close-request',()=>{quitStudio();});
  window.addEventListener('beforeunload',e=>{
   // Browser tab closes cannot synchronously run Save/Discard. A regular
@@ -1331,8 +1270,6 @@ try{const savedMode=localStorage.getItem('skellymotion-perf-mode');
  }}catch{}
 wireUI();syncSettingUI();syncClipInspector();resizePreview();renderTimeline();updateEditButtons();
 requestAnimationFrame(drawFrame);
-if(document.documentElement.classList.contains('desktop-mode'))
- setTimeout(()=>checkForUpdates(false),9000);
 let lastSession=null;
 try{lastSession=localStorage.getItem('lyricforge-last')}catch{}
 $('resumeLastBtn').classList.toggle('hidden',!lastSession);
