@@ -27,7 +27,6 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile, Request
 from fastapi.responses import FileResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
-from PIL import Image, ImageDraw, ImageFilter
 import studio_performance as perf
 
 ROOT = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
@@ -1008,6 +1007,7 @@ def rgb(hex_color: str) -> tuple[int, int, int]:
 
 
 def create_gradient(name: str, target: Path) -> None:
+    from PIL import Image  # Only import imaging code when an export needs a new background.
     top, bottom, glow = [rgb(h) for h in PRESETS[name]]
     # Render a smooth, low-frequency gradient at half resolution then upscale.
     # This cuts per-pixel Python math ~4x without changing final MP4 dimensions.
