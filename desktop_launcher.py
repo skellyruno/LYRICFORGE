@@ -256,6 +256,63 @@ class DesktopFilePicker:
 
     def __init__(self):
         self.window = None
+        self.active_project = False
+        self.allow_close = False
+        self._saving_video = threading.Lock()
+
+    def session_active(self, active):
+        self.active_project = bool(active)
+        return {"active": self.active_project}
+
+    def approve_close(self):
+        self.allow_close = True
+        if self.window is not None:
+            self.window.destroy()
+        return True
+
+    def save_video(self, project_id, preview=False):
+        """Native Save As copies the MP4; it does not navigate the WebView.
+
+        The no-wait lock prevents double-clicks from launching multiple huge
+        simultaneous downloads and makes cancellation a no-op.
+        """
+        if not self._saving_video.acquire(blocking=False):
+            return {"status": "busy"}
+        try:
+            import webview
+            import server
+            import re
+            project = server.read_project(project_id)
+            source = server.project_dir(project_id) / (
+                "lyric_preview.mp4" if bool(preview) else "lyric_video.mp4")
+            if not source.is_file() or source.stat().st_size < 1024:
+                raise RuntimeError("The MP4 has not finished rendering yet.")
+            title = re.sub(r"[^\w .()-]", "_", str(project.get("title") or "video"))[:55].strip(" .")
+            filename = ("SkellyMotion-" + (title or "video") +
+                        ("-preview" if preview else "") + ".mp4")
+            dialog = getattr(getattr(webview, "FileDialog", None), "SAVE",
+                             getattr(webview, "SAVE_DIALOG", 20))
+            picked = self.window.create_file_dialog(
+                dialog_type=dialog, save_filename=filename,
+                file_types=("MP4 video (*.mp4)",))
+            if not picked:
+                return {"status": "cancelled"}
+            target = Path(picked[0])
+            if target.suffix.lower() != ".mp4":
+                target = target.with_suffix(".mp4")
+            if source.resolve() == target.resolve():
+                return {"status": "saved", "path": str(target)}
+            # Atomic replacement avoids leaving a partial copy if interrupted.
+            temporary = target.with_name(target.name + ".part")
+            try:
+                with source.open("rb") as inp, temporary.open("wb") as out:
+                    shutil.copyfileobj(inp, out, 1024 * 1024)
+                temporary.replace(target)
+            finally:
+                temporary.unlink(missing_ok=True)
+            return {"status": "saved", "path": str(target)}
+        finally:
+            self._saving_video.release()
 
     def _open_file(self, formats):
         import webview
@@ -350,6 +407,19 @@ def run_desktop(home: Path, safe_mode: bool = False,
                               js_api=picker)
         picker.window = window
         try:
+            def on_closing():
+                # Never block the native UI thread waiting for JavaScript.
+                if picker.allow_close or smoke_test or not picker.active_project:
+                    return True
+                def request_decision():
+                    try:
+                        window.evaluate_js(
+                            "window.dispatchEvent(new Event('skellymotion-close-request'))")
+                    except Exception as exc:
+                        log_stage("Could not show Save / Don't Save / Cancel: " + str(exc))
+                threading.Thread(target=request_decision, daemon=True).start()
+                return False
+            window.events.closing += on_closing
             window.events.shown += lambda: log_stage("native window shown")
             def on_loaded():
                 log_stage("editor document loaded")
