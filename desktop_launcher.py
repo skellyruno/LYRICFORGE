@@ -261,6 +261,7 @@ class DesktopFilePicker:
         self._saving_video = threading.Lock()
         self._updating = threading.Lock()
         self._prepared_update = None
+        self._selected_audio = None
 
     def session_active(self, active):
         self.active_project = bool(active)
@@ -356,15 +357,28 @@ class DesktopFilePicker:
             dialog_type=dialog, allow_multiple=False, file_types=(formats,))
         return Path(picked[0]) if picked else None
 
-    def choose_audio(self, recognition="balanced", language="auto",
-                     vocabulary="", performance_mode="balanced"):
-        source = self._open_file(
+    def pick_audio_file(self):
+        """Select a file without creating any project until Save/Discard is chosen."""
+        self._selected_audio = self._open_file(
             "Music files (*.mp3;*.wav;*.flac;*.m4a;*.aac;*.ogg;*.opus;*.mp4;*.webm)")
-        if source is None:
-            return None
+        return {"chosen": True, "name": self._selected_audio.stem} if self._selected_audio else None
+
+    def import_picked_audio(self, recognition="balanced", language="auto",
+                            vocabulary="", performance_mode="balanced"):
+        source, self._selected_audio = self._selected_audio, None
+        if source is None or not source.is_file():
+            raise RuntimeError("Choose an audio file before importing it")
         import server
         return server.import_desktop_audio_file(source, recognition, language,
                                                 vocabulary, performance_mode)
+
+    def choose_audio(self, recognition="balanced", language="auto",
+                     vocabulary="", performance_mode="balanced"):
+        """Legacy bridge supported for older JS clients."""
+        picked = self.pick_audio_file()
+        if not picked:
+            return None
+        return self.import_picked_audio(recognition, language, vocabulary, performance_mode)
 
     def choose_background(self, project_id):
         if not isinstance(project_id, str):
