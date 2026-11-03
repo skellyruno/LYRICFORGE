@@ -1148,7 +1148,7 @@ function wireUI(){
  $('selectAllProjects').addEventListener('change',e=>{
   if(e.target.checked)visibleProjects.forEach(p=>selectedProjects.add(p.id));
   else visibleProjects.forEach(p=>selectedProjects.delete(p.id));
-  $('.library-check').forEach(box=>box.checked=e.target.checked);
+  document.querySelectorAll('.library-check').forEach(box=>box.checked=e.target.checked);
   updateDeleteSelection();
  });
  $('refreshStorage').addEventListener('click',loadStorage);
