@@ -29,6 +29,7 @@
         <button class="rail-item" data-panel="background"><span class="rail-ico">▧</span><span>Canvas</span></button>
         <button class="rail-item" data-panel="export"><span class="rail-ico">↗</span><span>Export</span></button>
         <button class="rail-item" data-panel="library"><span class="rail-ico">▦</span><span>Projects</span></button>
+        <button class="rail-item" data-panel="performance"><span class="rail-ico">⚡</span><span>Speed</span></button>
         <button class="rail-item" data-panel="storage"><span class="rail-ico">▤</span><span>Storage</span></button>
         <div class="rail-bottom">SM<span>01</span></div>
       </nav>
@@ -149,12 +150,19 @@
               <option value="balanced" selected>Balanced · Recommended</option>
               <option value="quality">Quality · Smaller file / higher detail</option></select>
               <p class="motion-hint">Fast generally exports quicker, but may produce a larger file. Export speed still depends on your computer.</p></div>
-            <div class="render-info"><div><span>Format</span><b>MP4 · H.264</b></div><div><span>Frame rate</span><b>30 FPS</b></div><div><span>Audio</span><b>AAC · 192kbps</b></div><div><span>Duration</span><b id="exportDuration">—</b></div></div>
-            <button id="renderBtn" class="primary-btn render-btn" disabled>↗ &nbsp; Render lyric video</button>
+            <div class="control-group"><label for="fps">Video frame rate</label>
+              <select id="fps"><option value="24">24 FPS · Cinematic, lighter render</option><option value="30" selected>30 FPS · Smooth</option></select></div>
+            <div class="render-info"><div><span>Format</span><b>MP4 · H.264</b></div><div><span>Frame rate</span><b id="exportFpsLabel">30 FPS</b></div><div><span>Audio</span><b>AAC · 192kbps</b></div><div><span>Duration</span><b id="exportDuration">—</b></div></div>
+            <div class="export-actions">
+              <button id="renderPreviewBtn" type="button" class="wide-ghost" disabled>▶ 15-second test render</button>
+              <button id="renderBtn" class="primary-btn render-btn" disabled>↗ Render full video</button>
+            </div>
             <div id="renderStatus" class="render-status hidden" role="status"></div>
             <div id="renderProgressTrack" class="render-meter hidden" role="progressbar" aria-label="Render progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
               <div id="renderProgressFill"></div></div>
-            <a id="downloadBtn" class="download-btn hidden" href="#">↓ &nbsp; Download MP4</a>
+            <a id="downloadBtn" class="download-btn hidden" href="#">↓ Download full MP4</a>
+            <a id="previewDownloadBtn" class="download-btn hidden" href="#">↓ Download 15-second preview</a>
+            <video id="renderPreviewPlayer" controls playsinline preload="none" class="export-preview-video hidden" aria-label="Test-render preview video"></video>
             <div class="info-note">Rendering happens on your computer. Your song is not uploaded to a cloud service.</div>
           </div>
         </div>
@@ -168,8 +176,39 @@
             <div class="info-note">Opening an older project does not delete anything. Unsaved changes are saved first.</div>
           </div>
         </div>
+        <div class="panel hidden" id="panel-performance">
+          <div class="section-top"><div class="eyebrow">07 / OPTIMIZATION</div>
+            <h2>Performance.</h2><p>Balance CPU load, playback, and export speed.</p></div>
+          <div class="panel-content form-fields">
+            <div class="control-group"><label for="performanceMode">Processing profile</label>
+              <select id="performanceMode">
+                <option value="eco">Eco · Less CPU, lighter previews</option>
+                <option value="balanced" selected>Balanced · Recommended</option>
+                <option value="turbo">Turbo · Maximum speed</option>
+              </select></div>
+            <div class="control-group"><label for="encoder">Video encoder</label>
+              <select id="encoder">
+                <option value="auto" selected>Auto · GPU if available</option>
+                <option value="gpu">Prefer GPU (CPU fallback)</option>
+                <option value="cpu">CPU · H.264 software</option>
+              </select></div>
+            <div class="info-note">GPU support is tested by encoding sample frames. Subtitle effects can still use CPU. Changing Whisper thread limits after the model has loaded requires restarting the app.</div>
+            <button id="checkGPU" class="wide-ghost" type="button">⚡ Check GPU compatibility</button>
+            <div id="gpuResult" class="perf-result" aria-live="polite">Not checked</div>
+            <label class="control-head after-gap">LIVE SYSTEM METRICS</label>
+            <div class="perf-metrics">
+              <div><span>App CPU</span><strong id="perfCPU">—</strong></div>
+              <div><span>App memory</span><strong id="perfRAM">—</strong></div>
+              <div><span>Render process RAM</span><strong id="perfChildRAM">—</strong></div>
+              <div><span>Logical CPU cores</span><strong id="perfCores">—</strong></div>
+            </div>
+            <button id="refreshPerformance" type="button" class="wide-ghost">↻ Refresh performance</button>
+            <div id="perfLastRender" class="perf-result">No completed export measured yet.</div>
+            <div class="info-note">Metrics update when you open or refresh this tab. CPU usage varies with machine and workload.</div>
+          </div>
+        </div>
         <div class="panel hidden" id="panel-storage">
-          <div class="section-top"><div class="eyebrow">07 / DISK SPACE</div><h2>Keep it light.</h2><p>Clean generated files, not your music.</p></div>
+          <div class="section-top"><div class="eyebrow">08 / DISK SPACE</div><h2>Keep it light.</h2><p>Clean generated files, not your music.</p></div>
           <div class="panel-content form-fields">
             <div class="storage-stats"><div><span>Project storage</span><b id="storageUsed">—</b></div><div><span>MP4 exports</span><b id="storageExports">—</b></div><div><span>Old render files</span><b id="storageReclaim">—</b></div><div><span>Saved projects</span><b id="storageProjects">—</b></div></div>
             <button id="refreshStorage" type="button" class="wide-ghost">↻ Refresh disk usage</button>
@@ -222,10 +261,29 @@
           <option value="de">German</option><option value="it">Italian</option>
           <option value="ja">Japanese</option><option value="ko">Korean</option>
         </select></label>
-      <small>Same installed Whisper model in every mode. Choose the correct language to avoid unnecessary detection.</small>
+      <small>Same installed Whisper model. More intensive decoding may help difficult lyrics.</small>
+      <details class="recognition-advanced">
+        <summary>Advanced · performance and artist vocabulary</summary>
+        <label for="startupPerformance">CPU priority
+          <select id="startupPerformance"><option value="eco">Eco</option><option value="balanced" selected>Balanced</option><option value="turbo">Turbo</option></select>
+        </label>
+        <label for="vocabularyHint">Names, slang, or words in this song
+          <textarea id="vocabularyHint" rows="2" maxlength="300" placeholder="Optional: artist names, unusual words, song vocabulary"></textarea>
+        </label>
+        <small>Vocabulary is a hint—not a guaranteed transcription. It does not change the model.</small>
+      </details>
     </div><div class="welcome-features"><span>✳ AI lyric detection</span><span>✳ Word-level sync</span><span>✳ MP4 export</span></div><div class="welcome-secondary-actions"><button id="openProjectsWelcome" class="demo-btn" type="button">▦ Open a saved project <span>→</span></button><button id="demoBtn" class="demo-btn">Or explore the demo editor <span>→</span></button></div></div><div class="welcome-decor">SM / CREATIVE TOOLS — 001</div></div>
 
-    <div id="reviewOverlay" class="modal-overlay hidden"><div class="review-modal"><div class="modal-top"><span class="eyebrow">STEP 01 OF 02</span><button id="closeReview" title="Close" class="modal-close">×</button></div><div class="modal-visual"><span class="modal-icon">♪</span><span class="step-chain"><b>UPLOAD</b><i></i><b>REVIEW</b><i></i><span>CREATE</span></span></div><h2 id="reviewTitle">Review your lyrics.</h2><p id="reviewDescription">We picked up the lyrics in your song. Fix anything we missed before we sync them to the timeline.</p><div id="transcribeProgress" class="transcribe-progress hidden" aria-live="polite"><div class="loading-orbit"></div><strong>Preparing your song…</strong><span>Using your existing Whisper AI model.</span><div class="transcribe-meter" id="transcribeMeterTrack" role="progressbar" aria-label="Audio analyzed" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="transcribeMeter"></div></div><small class="transcribe-note">Progress measures analyzed audio, not time remaining.</small></div><textarea id="lyricsText" spellcheck="false" placeholder="Your lyrics will appear here. You can also type or paste lyrics manually."></textarea><div id="reviewWarning" class="review-warning hidden"></div><div class="modal-footer"><span><b>PRO TIP</b> · Put each lyric line on a new line to control how it appears on screen.</span><button id="confirmLyrics" class="primary-btn">Confirm & sync lyrics <span>→</span></button></div></div></div>
+    <div id="reviewOverlay" class="modal-overlay hidden"><div class="review-modal"><div class="modal-top"><span class="eyebrow">STEP 01 OF 02</span><button id="closeReview" title="Close" class="modal-close">×</button></div><div class="modal-visual"><span class="modal-icon">♪</span><span class="step-chain"><b>UPLOAD</b><i></i><b>REVIEW</b><i></i><span>CREATE</span></span></div><h2 id="reviewTitle">Review your lyrics.</h2><p id="reviewDescription">We picked up the lyrics in your song. Fix anything we missed before we sync them to the timeline.</p><div id="transcribeProgress" class="transcribe-progress hidden" aria-live="polite"><div class="loading-orbit"></div><strong>Preparing your song…</strong><span>Using your existing Whisper AI model.</span><div class="transcribe-meter" id="transcribeMeterTrack" role="progressbar" aria-label="Audio analyzed" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="transcribeMeter"></div></div><small class="transcribe-note">Progress measures analyzed audio, not time remaining.</small></div><textarea id="lyricsText" spellcheck="false" placeholder="Your lyrics will appear here. You can also type or paste lyrics manually."></textarea><div id="reviewWarning" class="review-warning hidden"></div>
+          <div id="uncertainReview" class="uncertain-review hidden">
+            <strong>Words worth checking</strong>
+            <div id="uncertainWordList" class="uncertain-list"></div>
+            <button id="refineLyricsBtn" type="button">✧ Improve uncertain sections (slower)</button>
+            <div id="refineStatus" role="status" aria-live="polite"></div>
+            <div id="refineSuggestions" class="refine-suggestions hidden"></div>
+            <button id="applyRefineBtn" class="hidden" type="button">Apply reviewed suggestions to draft</button>
+            <small>Suggestions are never applied automatically. Listen and correct the lyrics before confirming.</small>
+          </div><div class="modal-footer"><span><b>PRO TIP</b> · Put each lyric line on a new line to control how it appears on screen.</span><button id="confirmLyrics" class="primary-btn">Confirm & sync lyrics <span>→</span></button></div></div></div>
 
     <div id="shortcutsOverlay" class="shortcuts-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="shortcutsTitle">
       <div class="shortcuts-card">
