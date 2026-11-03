@@ -841,9 +841,15 @@ def ffmpeg_seconds(value: str) -> float:
 
 def render_with_progress(args: list[str], folder: Path, job_id: str, duration: float) -> None:
     """Read incremental FFmpeg progress, keeping stderr diagnostics and no CMD popups."""
+    with job_lock:
+        mode = jobs.get(job_id, {}).get("performance_mode", "balanced")
+    child_options = perf.windows_child_options(
+        perf.profile_config(mode)["low_priority"])
     process = subprocess.Popen(args, cwd=folder, stdout=subprocess.PIPE,
                                stderr=subprocess.STDOUT, text=True, bufsize=1,
-                               **silent_subprocess_flags())
+                               stdin=subprocess.DEVNULL, **child_options)
+    started = time.monotonic()
+    frames = 0
     watchdog = threading.Timer(1800, process.kill)
     watchdog.daemon = True
     watchdog.start()
@@ -855,11 +861,19 @@ def render_with_progress(args: list[str], folder: Path, job_id: str, duration: f
             row = line.strip()
             if row.startswith("out_time="):
                 progress_seconds = ffmpeg_seconds(row.partition("=")[2])
+            elif row.startswith("frame="):
+                try:
+                    frames = max(0, int(row.partition("=")[2]))
+                except ValueError:
+                    pass
             elif row.startswith("progress="):
                 percent = max(0, min(99, int(progress_seconds / max(.1, duration) * 100)))
+                elapsed = max(.001, time.monotonic() - started)
                 with job_lock:
                     if job_id in jobs:
-                        jobs[job_id].update(stage="encoding", progress=percent)
+                        jobs[job_id].update(stage="encoding", progress=percent,
+                                            encode_fps=round(frames / elapsed, 1),
+                                            speed_ratio=round(progress_seconds / elapsed, 2))
             elif row:
                 error_tail.append(row)
                 if len(error_tail) > 25:
@@ -1000,7 +1014,8 @@ def queue_render(project_id: str, body: RenderRequest, preview: bool = False) ->
         job_id = uuid.uuid4().hex
         jobs[job_id] = {"id": job_id, "project_id": project_id, "preview": preview,
                         "status": "rendering", "stage": "preparing", "progress": 0,
-                        "created": time.time(), "encoder_used": None}
+                        "created": time.time(), "encoder_used": None,
+                        "performance_mode": settings["performanceMode"]}
     if not preview:
         d["settings"] = settings
         d["lines"] = lines
