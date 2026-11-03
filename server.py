@@ -623,13 +623,16 @@ def read_recovery(project_id: str):
 def store_recovery(project_id: str, body: RecoveryRequest):
     """Crash protection ONLY; never commits saved project content."""
     data = read_project(project_id)
+    path = recovery_file(project_id)
+    previous = perf.read_cache(path)
     values = {
         "lines": validate_lines(body.lines, data["duration"]),
         "settings": sanitize_settings(body.settings),
         "draft_lyrics": body.draft_lyrics[:60000],
         "updated_at": time.time(),
     }
-    path = recovery_file(project_id)
+    if previous.get("pending_background"):
+        values["pending_background"] = previous["pending_background"]
     staging = path.with_suffix(".tmp")
     staging.write_text(json.dumps(values, ensure_ascii=False), encoding="utf-8")
     staging.replace(path)
@@ -675,7 +678,10 @@ def discard_working_project(project_id: str):
         shutil.rmtree(folder)
         return {"deleted": True, "kept_saved_project": False}
     # Don't Save on a previously saved project retains its last Save.
+    pending = perf.read_cache(recovery_file(project_id)).get("pending_background")
     recovery_file(project_id).unlink(missing_ok=True)
+    if isinstance(pending, str) and pending.startswith("background-pending-"):
+        (project_dir(project_id) / pending).unlink(missing_ok=True)
     return {"deleted": False, "kept_saved_project": True}
 
 
@@ -855,9 +861,17 @@ def save_edit(project_id: str, body: SaveRequest):
     d = read_project(project_id)
     d["lines"] = validate_lines(body.lines, d["duration"])
     d["settings"] = sanitize_settings(body.settings)
+    staging = perf.read_cache(recovery_file(project_id))
+    pending = staging.get("pending_background")
+    if isinstance(pending, str) and re.fullmatch(r"background-pending-[0-9a-f]{32}\.(?:jpg|jpeg|png|webp|mp4|mov|webm)", pending):
+        if (project_dir(project_id) / pending).is_file():
+            d["background_file"] = pending
     d["save_state"] = "saved"
+    old_background = read_project(project_id).get("background_file")
     save_project(project_dir(project_id), d)
     recovery_file(project_id).unlink(missing_ok=True)
+    if old_background and old_background != d.get("background_file"):
+        (project_dir(project_id) / old_background).unlink(missing_ok=True)
     return {"saved": True, "save_state": "saved"}
 
 
@@ -867,30 +881,54 @@ async def upload_background(project_id: str, file: UploadFile = File(...)):
     ext = Path(file.filename or "").suffix.lower()
     if ext not in BG_EXT:
         raise HTTPException(400, "Background must be JPG, PNG, WebP, MP4, MOV or WebM")
-    dest = p / ("background" + ext)
+    d = read_project(project_id)
+    # Saved projects stage the new background instead of overwriting the
+    # previous saved image/video before explicit Save.
+    saved = d.get("save_state") != "draft"
+    dest = p / (("background-pending-" + uuid.uuid4().hex) if saved else "background")
+                + ext
     await save_upload(file, dest)
-    # Probe whether it is actually an image/video, not only a renamed arbitrary file.
     try:
-        probe = run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width", "-of", "csv=p=0", str(dest)])
+        probe = run(["ffprobe", "-v", "error", "-select_streams", "v:0",
+                     "-show_entries", "stream=width", "-of", "csv=p=0", str(dest)])
         if not probe.stdout.strip().isdigit():
             raise RuntimeError("No readable video or image stream")
     except Exception:
         dest.unlink(missing_ok=True)
         raise HTTPException(400, "Cannot read background file")
-    d = read_project(project_id)
-    if d.get("background_file") and d["background_file"] != dest.name:
-        (p / d["background_file"]).unlink(missing_ok=True)
-    d["background_file"] = dest.name
-    save_project(p, d)
-    return {"background_url": f"/api/projects/{project_id}/background", "name": dest.name}
+
+    if saved:
+        recovery = perf.read_cache(recovery_file(project_id))
+        previous = recovery.get("pending_background")
+        recovery["pending_background"] = dest.name
+        recovery["updated_at"] = time.time()
+        temp = recovery_file(project_id).with_suffix(".tmp")
+        temp.write_text(json.dumps(recovery, ensure_ascii=False), encoding="utf-8")
+        temp.replace(recovery_file(project_id))
+        if previous and previous != dest.name:
+            (p / previous).unlink(missing_ok=True)
+        url = f"/api/projects/{project_id}/background?pending=1"
+    else:
+        if d.get("background_file") and d["background_file"] != dest.name:
+            (p / d["background_file"]).unlink(missing_ok=True)
+        d["background_file"] = dest.name
+        save_project(p, d)
+        url = f"/api/projects/{project_id}/background"
+    return {"background_url": url, "name": dest.name}
 
 
 @app.get("/api/projects/{project_id}/background")
-def get_background(project_id: str):
+def get_background(project_id: str, pending: bool = False):
     d = read_project(project_id)
-    if not d.get("background_file"):
+    p = project_dir(project_id)
+    filename = d.get("background_file")
+    if pending:
+        changed = perf.read_cache(recovery_file(project_id)).get("pending_background")
+        if changed and re.fullmatch(r"background-pending-[0-9a-f]{32}\.(?:jpg|jpeg|png|webp|mp4|mov|webm)", str(changed)):
+            filename = changed
+    if not filename:
         raise HTTPException(404, "No custom background")
-    return FileResponse(project_dir(project_id) / d["background_file"])
+    return FileResponse(p / filename)
 
 
 def clamp(value: Any, low: float, high: float, default: float) -> float:
@@ -1206,9 +1244,14 @@ def render_project(project_id: str, job_id: str, settings: dict,
         audio = p / d["audio_file"]
         user_bg = None
         use_bg_video = False
-        if settings["background"] == "custom" and d.get("background_file"):
-            user_bg = p / d["background_file"]
-            use_bg_video = user_bg.suffix.lower() in {".mp4", ".mov", ".webm"}
+        if settings["background"] == "custom":
+            pending = perf.read_cache(recovery_file(project_id)).get("pending_background")
+            if pending and re.fullmatch(r"background-pending-[0-9a-f]{32}\.(?:jpg|jpeg|png|webp|mp4|mov|webm)", str(pending)) and (p / pending).is_file():
+                user_bg = p / pending
+            elif d.get("background_file"):
+                user_bg = p / d["background_file"]
+            if user_bg:
+                use_bg_video = user_bg.suffix.lower() in {".mp4", ".mov", ".webm"}
         cache_path = p / "render_cache.json"
         cache_slot = "preview" if preview else "full"
         fingerprint = perf.render_fingerprint(lines, settings, audio, user_bg, preview)
