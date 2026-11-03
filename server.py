@@ -888,7 +888,7 @@ def ass_event(start: float, end: float, tags: str, text: str) -> str:
 
 def animation_tags(name: str, W: int, H: int, y: int,
                    x: int | None = None, enter_ms: int = 230) -> str:
-    """Valid ASS animation overrides; slide supplies \move instead of \pos."""
+    r"""Valid ASS animation overrides; slide supplies \move instead of \pos."""
     center = W // 2 if x is None else x
     ms = max(120, min(650, int(enter_ms)))
     fade = min(180, round(ms * .45))
