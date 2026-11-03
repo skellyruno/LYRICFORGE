@@ -19,5 +19,9 @@ jobs:
           python -m pip install -r requirements.txt pytest httpx
       - name: Validate editor JavaScript syntax
         run: node --check static/app.js
+      - name: Test editor startup and UI actions
+        run: |
+          node --check static/app.js
+          node tests/editor_smoke.mjs
       - name: Test API, timing and actual MP4 export
         run: python -m pytest tests -q
