@@ -147,4 +147,19 @@ nodes.closeShortcuts.click();
 assert.equal(nodes.shortcutsOverlay.classList.contains('hidden'), true);
 nodes.exportSrtBtn.click();
 
+// Resizing must update only layout sizes without breaking editor actions.
+const side = nodes.panelResizer;
+assert.ok(side.callbacks.pointerdown?.length, 'Panel must have a pointer resize handler');
+side.callbacks.pointerdown[0]({button:0,pointerId:1,clientX:100,preventDefault(){}});
+side.callbacks.pointermove[0]({clientX:140});
+side.callbacks.pointerup[0]({});
+assert.ok(parseFloat(nodes.app.style['--panel-width'])>312, 'Side panel should grow while dragging');
+const bottom = nodes.timelineResizer;
+bottom.callbacks.pointerdown[0]({button:0,pointerId:2,clientY:220,preventDefault(){}});
+bottom.callbacks.pointermove[0]({clientY:185});
+bottom.callbacks.pointerup[0]({});
+assert.ok(parseFloat(nodes.app.style['--timeline-height'])>210, 'Timeline should grow when dragging up');
+assert.ok(storage.get('skellymotion-layout-v1'), 'Custom layout should be remembered');
+assert.ok(nodes.refreshProjects.callbacks.click?.length, 'Projects library refresh must be wired');
+
 console.log('SkellyMotion editor smoke tests passed: load, edit, undo, redo, split, delete, snap, styles, layout tools, SRT.');
