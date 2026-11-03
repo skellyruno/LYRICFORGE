@@ -151,8 +151,18 @@ jobs:
               throw "PyInstaller did not bundle required managed UI DLL: $relativePath"
             }
             $bytes = (Get-Item -LiteralPath $dll).Length
-            if ($bytes -lt 50000) {
-              throw "Bundled UI assembly is unexpectedly small ($bytes bytes): $relativePath"
+            if ($bytes -lt 4096) {
+              throw "Bundled managed UI assembly is truncated ($bytes bytes): $relativePath"
+            }
+            # Real WebView2 WinForms assemblies can be ~39KB; verify PE/MZ
+            # format rather than wrongly assuming every DLL exceeds 50KB.
+            $stream = [System.IO.File]::OpenRead($dll)
+            try {
+              $first = $stream.ReadByte()
+              $second = $stream.ReadByte()
+            } finally { $stream.Dispose() }
+            if ($first -ne 77 -or $second -ne 90) {
+              throw "Bundled UI file is not a valid Windows DLL: $relativePath"
             }
           }
           Copy-Item -LiteralPath 'Repair-SkellyMotion.cmd' -Destination (Join-Path $folder 'Repair-SkellyMotion.cmd')
