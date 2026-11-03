@@ -67,11 +67,12 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 Dialogue: 0,0:00:00.00,0:00:00.40,Main,,0,0,0,,SkellyMotion
 """
         (root / "check.ass").write_text(ass, encoding="utf-8-sig")
+        child_flags = {"creationflags": subprocess.CREATE_NO_WINDOW} if os.name == "nt" else {}
         result = subprocess.run([ffmpeg, "-hide_banner", "-loglevel", "error", "-y",
             "-f", "lavfi", "-i", "color=c=black:s=320x180:r=25:d=0.3",
             "-vf", "ass=check.ass", "-frames:v", "3", "-c:v", "libx264",
             "-pix_fmt", "yuv420p", "check.mp4"], cwd=root,
-            capture_output=True, text=True, timeout=45)
+            capture_output=True, text=True, timeout=45, **child_flags)
         if result.returncode or not (root / "check.mp4").exists():
             raise RuntimeError("FFmpeg cannot render lyrics: " + result.stderr[-500:])
 
