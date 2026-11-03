@@ -70,3 +70,38 @@ def test_waveform_jobs_get_one_cpu_thread_and_low_priority(tmp_path, monkeypatch
     # Reopening should use the cached peaks without touching FFmpeg.
     assert server.get_waveform(identity) == result
     assert len(jobs) == 1
+
+
+def test_native_runtime_failure_is_checked_by_windows_ci():
+    workflow = (ROOT / ".github/workflows/windows-release.yml").read_text(encoding="utf-8")
+    launcher = (ROOT / "desktop_launcher.py").read_text(encoding="utf-8")
+    assert "--native-self-test" in workflow
+    assert 'def native_runtime_self_test() -> int:' in launcher
+    assert "import clr" in launcher
+    assert 'from System import Environment' in launcher
+    assert 'Python.Runtime.dll' in workflow
+    assert "pythonnet==3.0.5" in workflow
+    assert "clr-loader==0.2.7.post0" in workflow
+
+
+def test_opt_in_runtime_repair_is_packaged_and_targets_only_pythonnet_dll():
+    script = (ROOT / "Repair-SkellyMotion.cmd").read_text(encoding="utf-8")
+    workflow = (ROOT / ".github/workflows/windows-release.yml").read_text(encoding="utf-8")
+    assert r"_internal\pythonnet\runtime\Python.Runtime.dll" in script
+    assert "Zone.Identifier" in script
+    assert "Read-Host" in script
+    assert "Unblock-File -LiteralPath $dll" in script
+    assert "Unblock-File -Path *" not in script
+    assert "Repair-SkellyMotion.cmd" in workflow
+
+
+def test_error_diagnostic_is_about_pythonnet_not_just_webview2():
+    import desktop_launcher
+    message = desktop_launcher.desktop_runtime_error(
+        RuntimeError("Failed to resolve Python.Runtime.Loader.Initialize from bundled DLL"))
+    assert "Python.NET" in message
+    assert "Python.Runtime.dll" in message
+    assert "Unblock" in message
+    assert "Repair-SkellyMotion.cmd" in message
+    generic = desktop_launcher.desktop_runtime_error(RuntimeError("Missing WebView2"))
+    assert "WebView2 Runtime" in generic
