@@ -2,7 +2,7 @@
 'use strict';
 const $ = (id) => document.getElementById(id);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
-const defaultSettings = () => ({aspect:'portrait',resolution:'720p',renderSpeed:'balanced',mode:'line',animation:'pop',font:'Arial',fontSize:60,textColor:'#FFFFFF',accentColor:'#81FF71',outline:2.5,position:55,background:'midnight',dim:.15,upper:false});
+const defaultSettings = () => ({aspect:'portrait',resolution:'720p',renderSpeed:'balanced',fps:30,performanceMode:'balanced',encoder:'auto',mode:'line',animation:'pop',font:'Arial',fontSize:60,textColor:'#FFFFFF',accentColor:'#81FF71',outline:2.5,position:55,background:'midnight',dim:.15,upper:false});
 const backgrounds = {midnight:['#101418','#020605','#6fff87'],acid:['#15372b','#07120f','#72ff68'],violet:['#35244a','#0e0c1c','#bb8cfa'],crimson:['#4b1d2d','#130911','#fb5d88'],ocean:['#16445d','#06121f','#6be4ff'],noir:['#282b31','#050505','#b3b8bc']};
 const state = {id:null, title:'Untitled project', duration:0, lines:[], settings:defaultSettings(), time:0, playing:false, selected:0, demo:false, zoom:1, snap:false, sourceObjectUrl:null, backgroundUrl:null, pendingSave:null, backgroundIsVideo:false, waveform:[]};
 const audio=$('songAudio'), canvas=$('previewCanvas'), ctx=canvas.getContext('2d'), bgImg=$('backgroundImage'),bgVid=$('backgroundVideo');
@@ -19,8 +19,8 @@ const safe=(s)=>String(s??'').replaceAll('&','&amp;').replaceAll('<','&lt;').rep
 const trimLine=(s)=>s.length>95?s.slice(0,92)+'…':s;
 const toast=(msg,error=false)=>{const el=document.createElement('div');el.className='toast'+(error?' error':'');el.textContent=msg;$('toasts').appendChild(el);setTimeout(()=>el.remove(),4700);};
 function api(path,options={}){return fetch(path,options).then(async response=>{if(!response.ok){let reason;try{reason=(await response.json()).detail;}catch{}throw Error(typeof reason==='string'?reason:`Request failed (${response.status})`);}return response.json();});}
-function renderTitle(){updateEditButtons();syncClipInspector();$('projectTitle').textContent=state.title;$('trackName').textContent=state.id||state.demo?state.title:'No audio loaded';$('totalTime').textContent=shortTime(state.duration);$('exportDuration').textContent=shortTime(state.duration);$('clipCount').textContent=`${state.lines.length} clip${state.lines.length===1?'':'s'}`;const enabled=!!state.id;['topExport','saveBtn','renderBtn'].forEach(x=>$(x).disabled=!enabled);$('addLineBtn').disabled=!state.id&&!state.demo;$('projectStatus').textContent=state.demo?'Demo · upload to export':state.id?'Editing':'Ready to create';}
-function panel(name){if(name==='storage')loadStorage();if(name==='library')loadLibrary();$$('.rail-item').forEach(b=>b.classList.toggle('active',b.dataset.panel===name));$$('.panel').forEach(p=>p.classList.toggle('hidden',p.id!==`panel-${name}`));}
+function renderTitle(){updateEditButtons();syncClipInspector();$('projectTitle').textContent=state.title;$('trackName').textContent=state.id||state.demo?state.title:'No audio loaded';$('totalTime').textContent=shortTime(state.duration);$('exportDuration').textContent=shortTime(state.duration);$('clipCount').textContent=`${state.lines.length} clip${state.lines.length===1?'':'s'}`;const enabled=!!state.id;['topExport','saveBtn','renderBtn','renderPreviewBtn'].forEach(x=>$(x).disabled=!enabled);$('addLineBtn').disabled=!state.id&&!state.demo;$('projectStatus').textContent=state.demo?'Demo · upload to export':state.id?'Editing':'Ready to create';}
+function panel(name){if(name==='storage')loadStorage();if(name==='library')loadLibrary();if(name==='performance')loadPerformance(false);$$('.rail-item').forEach(b=>b.classList.toggle('active',b.dataset.panel===name));$$('.panel').forEach(p=>p.classList.toggle('hidden',p.id!==`panel-${name}`));}
 
 function snapshotEdit(){return JSON.stringify({lines:state.lines,settings:state.settings,selected:state.selected});}
 function updateEditButtons(){
@@ -83,6 +83,8 @@ function setSetting(name,value){
    $('canvasFormat').textContent=labels[value];resizePreview();
  }
  if(name==='animation')renderTimeline();
+ if(name==='fps')$('exportFpsLabel').textContent=value+' FPS';
+ if(name==='performanceMode'){$('startupPerformance').value=value;try{localStorage.setItem('skellymotion-perf-mode',value)}catch{}}
  queueSave();
 }
 
@@ -122,7 +124,8 @@ function loadSavedLook(){
 }
 function resetCurrentLook(){
  recordEdit('look');
- state.settings={...defaultSettings(),aspect:state.settings.aspect,resolution:state.settings.resolution};
+ state.settings={...defaultSettings(),aspect:state.settings.aspect,resolution:state.settings.resolution,
+  performanceMode:state.settings.performanceMode,encoder:state.settings.encoder,fps:state.settings.fps};
  syncSettingUI();resizePreview();queueSave();toast('Reset visual styling.');
 }
 
@@ -299,7 +302,8 @@ const fileSize=bytes=>bytes>=1024**3?(bytes/1024**3).toFixed(2)+' GB':bytes>=102
 async function loadStorage(){try{const params=state.id?'?keep_project_id='+encodeURIComponent(state.id):'';const d=await api('/api/storage'+params);$('storageUsed').textContent=fileSize(d.workspace_bytes);$('storageExports').textContent=fileSize(d.exports_bytes);$('storageReclaim').textContent=fileSize(d.cleanup_bytes)+' · '+d.cleanup_files+' files';$('storageProjects').textContent=d.projects;}catch(e){toast('Storage info unavailable: '+e.message,true);}}
 async function cleanupStorage(){try{const params=state.id?'?keep_project_id='+encodeURIComponent(state.id):'';const data=await api('/api/storage'+params);if(!data.cleanup_files){toast('No old render files to clean.');return;}if(!confirm('Delete '+data.cleanup_files+' generated files from OTHER projects and free about '+fileSize(data.cleanup_bytes)+'? Original songs, edits, backgrounds, the current video, and AI models are kept.'))return;const result=await api('/api/storage/cleanup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({keep_project_id:state.id,confirm:true})});toast('Cleaned '+result.removed_files+' files · Freed '+fileSize(result.freed_bytes));loadStorage();}catch(e){toast('Cleanup failed: '+e.message,true);}}
 function syncSettingUI(){const s=state.settings;
- ['font','fontSize','position','textColor','accentColor','outline','dim','upper','resolution','renderSpeed'].forEach(k=>{if($(k))$(k).type==='checkbox'?$(k).checked=!!s[k]:$(k).value=s[k]});
+ ['font','fontSize','position','textColor','accentColor','outline','dim','upper','resolution','renderSpeed','fps','performanceMode','encoder'].forEach(k=>{if($(k))$(k).type==='checkbox'?$(k).checked=!!s[k]:$(k).value=s[k]});
+ $('exportFpsLabel').textContent=(s.fps||30)+' FPS';
  $('fontSizeVal').textContent=`${s.fontSize}px`;$('positionVal').textContent=`${s.position}%`;$('outlineVal').textContent=s.outline;
  $('dimVal').textContent=`${Math.round(s.dim*100)}%`;$('textColorVal').textContent=s.textColor.toUpperCase();$('accentColorVal').textContent=s.accentColor.toUpperCase();
  $$('[data-mode]').forEach(x=>x.classList.toggle('selected',x.dataset.mode===s.mode));
@@ -593,7 +597,7 @@ function prepareNewSongUI(){
 }
 async function finishNewSong(data,title){resetEditHistory();
  state.id=data.id;state.title=title;state.duration=data.duration;state.demo=false;state.lines=[];
- state.waveform=[];state.time=0;state.settings=defaultSettings();state.backgroundUrl=null;
+ state.waveform=[];state.time=0;state.settings={...defaultSettings(),performanceMode:$('startupPerformance').value};state.backgroundUrl=null;
  state.backgroundIsVideo=false;syncSettingUI();resizePreview();configureMedia();renderTitle();
  renderTimeline();renderLines();localStorage.setItem('lyricforge-last',state.id);
  await waitForTranscript(state.id);
@@ -608,6 +612,8 @@ async function startUpload(file){
  try{const fd=new FormData();fd.append('file',file);
    fd.append('recognition',$('recognitionMode').value);
    fd.append('language',$('languageHint').value);
+   fd.append('vocabulary',$('vocabularyHint').value);
+   fd.append('performance_mode',$('startupPerformance').value);
    data=await api('/api/projects',{method:'POST',body:fd});}
  catch(e){toast('Song import failed: '+e.message,true);$('reviewOverlay').classList.add('hidden');$('welcome').classList.remove('hidden');return;}
  await finishNewSong(data,file.name.replace(/\.[^.]+$/,''));
@@ -616,7 +622,8 @@ async function chooseSong(){
  const bridge=window.pywebview?.api;
  if(document.documentElement.classList.contains('desktop-mode')&&bridge?.choose_audio){
    try{
-     const data=await bridge.choose_audio($('recognitionMode').value,$('languageHint').value); // Native file dialog; original Whisper model retained
+     const data=await bridge.choose_audio($('recognitionMode').value,$('languageHint').value,
+        $('vocabularyHint').value,$('startupPerformance').value); // Native file dialog; original Whisper model retained
      if(!data)return; // The user cancelled
      prepareNewSongUI();
      await finishNewSong(data,data.title||'My song');
@@ -747,7 +754,7 @@ function wireUI(){
  $('refreshProjects').addEventListener('click',loadLibrary);
  $('refreshStorage').addEventListener('click',loadStorage);
  $('cleanupStorage').addEventListener('click',cleanupStorage);
- ['font','fontSize','position','textColor','accentColor','outline','dim','resolution','renderSpeed'].forEach(k=>$(k).addEventListener('input',e=>setSetting(k,k==='fontSize'||k==='position'||k==='outline'||k==='dim'?Number(e.target.value):e.target.value)));
+ ['font','fontSize','position','textColor','accentColor','outline','dim','resolution','renderSpeed','fps','performanceMode','encoder'].forEach(k=>$(k).addEventListener('input',e=>setSetting(k,k==='fontSize'||k==='position'||k==='outline'||k==='dim'?Number(e.target.value):e.target.value)));
  $('upper').addEventListener('change',e=>setSetting('upper',e.target.checked));
  ['mode','animation','background','aspect'].forEach(key=>$$(`[data-${key}]`).forEach(b=>b.addEventListener('click',()=>setSetting(key,b.dataset[key]))));
  $('heroUpload').addEventListener('click',chooseSong);
