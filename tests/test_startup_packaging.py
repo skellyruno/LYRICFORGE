@@ -105,3 +105,52 @@ def test_error_diagnostic_is_about_pythonnet_not_just_webview2():
     assert "Repair-SkellyMotion.cmd" in message
     generic = desktop_launcher.desktop_runtime_error(RuntimeError("Missing WebView2"))
     assert "WebView2 Runtime" in generic
+
+
+def test_windows_download_marker_preflight_requires_explicit_consent(tmp_path, monkeypatch):
+    import ctypes
+    import io
+    import desktop_launcher
+
+    dll = tmp_path / "Python.Runtime.dll"
+    dll.write_bytes(b"verified packaged DLL placeholder")
+    marker = Path(str(dll) + ":Zone.Identifier")
+    marker.write_text("[ZoneTransfer]\nZoneId=3\n", encoding="utf-8")
+    class FakeMessageBox:
+        def __init__(self, answer):
+            self.answer = answer
+            self.shown = 0
+        def MessageBoxW(self, *args):
+            self.shown += 1
+            return self.answer
+
+    fake_sys = SimpleNamespace(frozen=True, stderr=io.StringIO())
+    fake_os = SimpleNamespace(name="nt", remove=lambda name: Path(name).unlink())
+    monkeypatch.setattr(desktop_launcher, "os", fake_os)
+    monkeypatch.setattr(desktop_launcher, "sys", fake_sys)
+    monkeypatch.setattr(desktop_launcher, "bundled_python_runtime", lambda: dll)
+
+    denied = FakeMessageBox(7)
+    monkeypatch.setattr(ctypes, "windll", SimpleNamespace(user32=denied), raising=False)
+    assert desktop_launcher.offer_download_marker_repair() is False
+    assert marker.is_file()
+    assert denied.shown == 1
+
+    accepted = FakeMessageBox(6)
+    monkeypatch.setattr(ctypes, "windll", SimpleNamespace(user32=accepted), raising=False)
+    assert desktop_launcher.offer_download_marker_repair() is True
+    assert not marker.exists()
+    assert dll.is_file()
+    assert accepted.shown == 1
+    assert desktop_launcher.offer_download_marker_repair() is False
+    assert accepted.shown == 1
+
+
+def test_windows_download_marker_preflight_skips_unmarked_dll(tmp_path, monkeypatch):
+    import desktop_launcher
+    dll = tmp_path / "Python.Runtime.dll"
+    dll.write_bytes(b"some dll")
+    monkeypatch.setattr(desktop_launcher, "os", SimpleNamespace(name="nt"))
+    monkeypatch.setattr(desktop_launcher, "sys", SimpleNamespace(frozen=True))
+    monkeypatch.setattr(desktop_launcher, "bundled_python_runtime", lambda: dll)
+    assert desktop_launcher.offer_download_marker_repair() is False
