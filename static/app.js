@@ -1245,7 +1245,10 @@ function wireUI(){
  $('lyricsText').addEventListener('input',()=>{$('confirmLyrics').disabled=!$('lyricsText').value.trim();queueSave();});
  $('confirmLyrics').addEventListener('click',confirmLyrics);
  $('closeReview').addEventListener('click',async()=>{if(await mayLeaveProject())resetWorkspace();});
- $('demoBtn').addEventListener('click',async()=>{if(await mayLeaveProject()){resetWorkspace();loadDemo();}});
+ $('demoBtn').addEventListener('click',()=>{
+  if(!state.id){loadDemo();return;}
+  mayLeaveProject().then(ok=>{if(ok){resetWorkspace();loadDemo();}});
+ });
  $('openProjectsWelcome').addEventListener('click',()=>{$('welcome').classList.add('hidden');panel('library');});
  $('resumeLastBtn').addEventListener('click',()=>restore(true));
  $('playButton').addEventListener('click',play);$('skipBack').addEventListener('click',()=>seek(state.time-5));$('skipAhead').addEventListener('click',()=>seek(state.time+5));
