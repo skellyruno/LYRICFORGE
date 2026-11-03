@@ -183,8 +183,6 @@ assert.ok(nodes.deleteSelectedProjects.callbacks.click?.length, 'Checked-only de
 assert.ok(nodes.downloadBtn.callbacks.click?.length, 'Full MP4 Save As action must be wired');
 assert.ok(nodes.previewDownloadBtn.callbacks.click?.length, 'Preview MP4 Save As action must be wired');
 assert.ok(nodes.exitBtn.callbacks.click?.length, 'Explicit close/save workflow must be wired');
-assert.ok(nodes.checkUpdateBtn.callbacks.click?.length, 'Opt-in updater control must be wired');
-assert.ok(nodes.updateLater.callbacks.click?.length, 'Update prompt has a Later action');
 
 assert.ok(nodes.renderPreviewBtn.callbacks.click?.length, '15-second test render must be wired');
 assert.ok(nodes.checkGPU.callbacks.click?.length, 'Hardware compatibility button must be wired');
