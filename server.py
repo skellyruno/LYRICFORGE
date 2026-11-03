@@ -876,8 +876,11 @@ def render_with_progress(args: list[str], folder: Path, job_id: str, duration: f
             process.stdout.close()
 
 
-def render_project(project_id: str, job_id: str, settings: dict, lines: list[dict]):
+def render_project(project_id: str, job_id: str, settings: dict,
+                   lines: list[dict], preview: bool = False) -> None:
     p = project_dir(project_id)
+    started = time.monotonic()
+    output = p / ("lyric_preview.mp4" if preview else "lyric_video.mp4")
     try:
         d = read_project(project_id)
         w, h = SIZES[settings["aspect"]]
@@ -885,66 +888,157 @@ def render_project(project_id: str, job_id: str, settings: dict, lines: list[dic
             w, h = round(w * 1.5), round(h * 1.5)
         elif settings["resolution"] == "540p":
             w, h = round(w * .75), round(h * .75)
-        ass_file = p / "captions.ass"
-        create_ass(lines, settings, w, h, ass_file)
-        bg_file = None
+        fps = settings.get("fps", 30)
+        length = min(15.0, float(d["duration"])) if preview else float(d["duration"])
+        audio = p / d["audio_file"]
+        user_bg = None
         use_bg_video = False
         if settings["background"] == "custom" and d.get("background_file"):
-            bg_file = p / d["background_file"]
-            use_bg_video = bg_file.suffix.lower() in {".mp4", ".mov", ".webm"}
-        if bg_file is None:
+            user_bg = p / d["background_file"]
+            use_bg_video = user_bg.suffix.lower() in {".mp4", ".mov", ".webm"}
+        cache_path = p / "render_cache.json"
+        cache_slot = "preview" if preview else "full"
+        fingerprint = perf.render_fingerprint(lines, settings, audio, user_bg, preview)
+        cached = perf.read_cache(cache_path)
+        if (cached.get(cache_slot) == fingerprint and output.is_file()
+                and output.stat().st_size > 1024):
+            with job_lock:
+                jobs[job_id].update(status="done", stage="cached", progress=100, cached=True,
+                                    elapsed_seconds=round(time.monotonic() - started, 2),
+                                    download=f"/api/projects/{project_id}/" +
+                                    ("preview-video" if preview else "export"))
+            return
+
+        if user_bg is None:
             bg_file = p / "generated_bg.png"
-            create_gradient(settings["background"] if settings["background"] in PRESETS else "midnight", bg_file)
-        audio = p / d["audio_file"]
-        output = p / "lyric_video.mp4"
-        # Relative ASS filter path prevents Windows drive-letter parsing issues.
+            palette_file = p / "generated_bg.palette"
+            style = settings["background"] if settings["background"] in PRESETS else "midnight"
+            if not bg_file.is_file() or not palette_file.is_file() or palette_file.read_text() != style:
+                create_gradient(style, bg_file)
+                palette_file.write_text(style)
+        else:
+            bg_file = user_bg
+
+        # Preview renders the FIRST 15 seconds, using the same absolute ASS timings.
+        # No trim offsets or side effects to the saved video/corrected lyrics.
+        ass_file = p / ("preview_captions.ass" if preview else "captions.ass")
+        create_ass(lines, settings, w, h, ass_file)
         filters = (f"[0:v]scale={w}:{h}:force_original_aspect_ratio=increase,"
                    f"crop={w}:{h},setsar=1,format=yuv420p,"
-                   f"eq=brightness={-settings['dim'] * .45:.3f},ass=captions.ass[v]")
+                   f"eq=brightness={-settings['dim'] * .45:.3f},ass={ass_file.name}[v]")
         background_input = (["-stream_loop", "-1", "-i", str(bg_file)] if use_bg_video
-                            else ["-loop", "1", "-framerate", "30", "-i", str(bg_file)])
-        speed = settings.get("renderSpeed", "balanced")
-        preset, crf = {
-            "fast": ("superfast", "22"),
-            "balanced": ("veryfast", "21"),
-            "quality": ("medium", "19"),
-        }.get(speed, ("veryfast", "21"))
-        args = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-nostats",
-                "-stats_period", "0.5", "-progress", "pipe:1", "-y", *background_input,
-                "-i", str(audio), "-filter_complex", filters, "-map", "[v]", "-map", "1:a:0",
-                "-t", str(d["duration"]), "-r", "30", "-c:v", "libx264", "-preset", preset,
-                "-crf", crf, "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k",
-                "-movflags", "+faststart", str(output)]
-        # A failed render must never overwrite the previously completed MP4.
+                            else ["-loop", "1", "-framerate", str(fps), "-i", str(bg_file)])
+        profile = perf.profile_config(settings.get("performanceMode", "balanced"))
+        preference = settings.get("encoder", "auto")
+        with job_lock:
+            jobs[job_id].update(stage="checking_encoder", progress=0)
+        available = perf.available_gpu_encoders() if preference != "cpu" else ()
+        encoder = perf.choose_encoder(preference, available)
+
+        def arguments(codec: str, target: Path) -> list[str]:
+            return ["ffmpeg", "-hide_banner", "-loglevel", "error", "-nostats", "-nostdin",
+                    "-stats_period", "0.5", "-progress", "pipe:1",
+                    "-filter_complex_threads", str(profile["threads"]),
+                    "-y", *background_input, "-i", str(audio),
+                    "-filter_complex", filters, "-map", "[v]", "-map", "1:a:0",
+                    "-t", f"{length:.3f}", "-r", str(fps),
+                    *perf.encode_args(codec, settings["renderSpeed"], w, h, profile["threads"]),
+                    "-c:a", "aac", "-b:a", "192k",
+                    "-movflags", "+faststart", str(target)]
+
         temporary = p / ("render-" + job_id + ".mp4")
-        args[-1] = str(temporary)
         try:
-            render_with_progress(args, p, job_id, float(d["duration"]))
+            with job_lock:
+                jobs[job_id].update(stage="encoding", encoder_used=encoder,
+                                    gpu_available=list(available))
+            try:
+                render_with_progress(arguments(encoder, temporary), p, job_id, length)
+            except Exception:
+                # Hardware can disappear or fail partway through an export. Use
+                # CPU instead of losing the user's video.
+                if encoder == "libx264":
+                    raise
+                temporary.unlink(missing_ok=True)
+                with job_lock:
+                    jobs[job_id].update(stage="cpu_fallback", progress=0, encoder_used="libx264",
+                                        hardware_fallback=True)
+                render_with_progress(arguments("libx264", temporary), p, job_id, length)
+            if not temporary.is_file() or temporary.stat().st_size < 1024:
+                raise RuntimeError("Encoder completed without a usable video")
             temporary.replace(output)
         finally:
             temporary.unlink(missing_ok=True)
+
+        # Rendering cache is advisory. Losing this manifest never loses an MP4.
+        cached[cache_slot] = fingerprint
+        try:
+            perf.store_cache(cache_path, cached)
+        except OSError:
+            pass
+        elapsed = max(.001, time.monotonic() - started)
         with job_lock:
             jobs[job_id].update(status="done", stage="complete", progress=100,
-                                download=f"/api/projects/{project_id}/export")
+                                cached=False, elapsed_seconds=round(elapsed, 2),
+                                speed_ratio=round(length / elapsed, 2),
+                                download=f"/api/projects/{project_id}/" +
+                                ("preview-video" if preview else "export"))
     except Exception as exc:
         with job_lock:
-            jobs[job_id].update(status="error", error=str(exc)[:1800])
+            jobs[job_id].update(status="error", stage="error", error=str(exc)[:1800],
+                                elapsed_seconds=round(time.monotonic() - started, 2))
+
+
+def queue_render(project_id: str, body: RenderRequest, preview: bool = False) -> dict:
+    d = read_project(project_id)
+    settings = sanitize_settings(body.settings)
+    lines = validate_lines(body.lines, d["duration"])
+    with job_lock:
+        # Two simultaneous renders of the same project would share ASS/assets.
+        if any(item.get("project_id") == project_id and item.get("status") == "rendering"
+               for item in jobs.values()):
+            raise HTTPException(409, "This project's export is still running")
+        job_id = uuid.uuid4().hex
+        jobs[job_id] = {"id": job_id, "project_id": project_id, "preview": preview,
+                        "status": "rendering", "stage": "preparing", "progress": 0,
+                        "created": time.time(), "encoder_used": None}
+    if not preview:
+        d["settings"] = settings
+        d["lines"] = lines
+        save_project(project_dir(project_id), d)
+    executor.submit(render_project, project_id, job_id, settings, lines, preview)
+    return {"job_id": job_id, "preview": preview}
 
 
 @app.post("/api/projects/{project_id}/render")
 def render(project_id: str, body: RenderRequest):
-    d = read_project(project_id)
-    settings = sanitize_settings(body.settings)
-    lines = validate_lines(body.lines, d["duration"])
-    d["settings"] = settings
-    d["lines"] = lines
-    save_project(project_dir(project_id), d)
-    job_id = uuid.uuid4().hex
+    return queue_render(project_id, body, preview=False)
+
+
+@app.post("/api/projects/{project_id}/preview")
+def render_preview(project_id: str, body: RenderRequest):
+    return queue_render(project_id, body, preview=True)
+
+
+@app.get("/api/projects/{project_id}/preview-video")
+def get_preview_video(project_id: str):
+    path = project_dir(project_id) / "lyric_preview.mp4"
+    if not path.is_file():
+        raise HTTPException(404, "No preview video yet")
+    return FileResponse(path, filename="SkellyMotion-preview.mp4", media_type="video/mp4")
+
+
+@app.get("/api/performance")
+def performance_info(check_gpu: bool = False):
+    """Process metrics and confirmed GPU encoders; no device claims from list-only checks."""
+    stats = perf.resource_snapshot()
     with job_lock:
-        jobs[job_id] = {"id": job_id, "status": "rendering", "stage": "preparing",
-                        "progress": 0, "created": time.time()}
-    executor.submit(render_project, project_id, job_id, settings, lines)
-    return {"job_id": job_id}
+        active = [dict(job) for job in jobs.values() if job.get("status") == "rendering"]
+        past = [dict(job) for job in jobs.values() if job.get("status") == "done"]
+    last = max(past, key=lambda j: j.get("created", 0)) if past else None
+    return {"resources": stats, "gpu_encoders": list(perf.available_gpu_encoders())
+            if check_gpu else None,
+            "active": active[-3:], "last_render": last,
+            "same_model": True, "hardware_tests_ran": bool(check_gpu)}
 
 
 @app.get("/api/jobs/{job_id}")
