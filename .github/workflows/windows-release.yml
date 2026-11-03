@@ -2,6 +2,13 @@ name: Build SkellyMotion Windows app
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
+    paths:
+      - 'desktop_launcher.py'
+      - 'Repair-SkellyMotion.cmd'
+      - 'requirements.txt'
+      - '.github/workflows/windows-release.yml'
     tags:
       - 'v*'
 permissions:
