@@ -76,15 +76,15 @@ def test_native_background_import_stages_changes_until_explicit_save(tmp_path, m
                     "background_file": "background_old.jpg", "save_state": "saved"}),
         encoding="utf-8")
     (folder / "background_old.jpg").write_bytes(b"old")
+    from PIL import Image
     selected = tmp_path / "scene.png"
-    selected.write_bytes(b"test png fixture")
-    monkeypatch.setattr(server, "run", lambda cmd: SimpleNamespace(stdout="1280\n"))
+    Image.new("RGB", (128, 72), (20, 45, 30)).save(selected)
     client = TestClient(server.app)
 
     staged = server.import_desktop_background_file(project_id, selected)
     assert staged["name"].startswith("background-pending-")
     assert staged["name"].endswith(".png")
-    assert selected.exists() and selected.read_bytes() == b"test png fixture"
+    assert selected.exists() and server.video_stream_width(selected) == 128
     assert (folder / staged["name"]).read_bytes() == selected.read_bytes()
     assert (folder / "background_old.jpg").is_file()
     assert server.read_project(project_id)["background_file"] == "background_old.jpg"
