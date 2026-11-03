@@ -19,7 +19,7 @@ class DummyEvent:
 
 class FakeWindow:
     def __init__(self):
-        self.events = SimpleNamespace(shown=DummyEvent(), loaded=DummyEvent())
+        self.events = SimpleNamespace(shown=DummyEvent(), loaded=DummyEvent(), closing=DummyEvent())
 
 
 class FakeUvicorn:
