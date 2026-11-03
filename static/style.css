@@ -271,3 +271,54 @@ html.desktop-mode .welcome-overlay{
 .welcome-secondary-actions .demo-btn{width:auto;min-width:185px;text-align:left}
 .welcome-secondary-actions #openProjectsWelcome{color:#bcffb7}
 html.desktop-mode .welcome-secondary-actions{gap:10px}
+
+
+/* v0.6 · per-lyric FX and draggable preview */
+.clip-motion-inspector{background:linear-gradient(145deg,#203526,#142019);border:1px solid #426549;
+ border-radius:12px;padding:14px;margin-bottom:25px;display:flex;flex-direction:column;gap:10px}
+.clip-motion-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.clip-motion-top .control-head{margin:0}
+.clip-motion-top button{border:1px solid #4d7651;background:#2e4c34;border-radius:7px;color:#d7ffd1;
+ padding:7px 9px;font-size:10px;white-space:nowrap}
+.clip-motion-top button:disabled{opacity:.3}
+.selected-motion-name{font-size:12px;line-height:1.5;color:#f0fff0;font-weight:700;
+ overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:#18271c;
+ padding:9px 10px;border:1px solid #344d37;border-radius:7px}
+.clip-motion-inspector select{background:#0e1911;color:#e4f7e1;border:1px solid #446048;
+ border-radius:7px;padding:9px;min-height:37px;width:100%;font-size:12px}
+.clip-motion-inspector select:disabled,.clip-motion-inspector input:disabled{opacity:.45}
+.clip-motion-inspector .control-group{margin:4px 0 7px!important}
+.clip-position-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+.clip-position-grid>div{min-width:0}
+.clip-position-grid .flex-label{gap:4px}
+.clip-position-grid .flex-label label,.clip-position-grid .flex-label span{font-size:10px}
+.clip-position-grid input{width:100%}
+.clip-motion-actions{display:flex;gap:8px;flex-wrap:wrap}
+.clip-motion-actions button{flex:1;min-width:95px;font-size:11px;font-weight:700;
+ color:#c6f0c5;background:#1e3523;border:1px solid #45694a;border-radius:7px;padding:9px 6px}
+.clip-motion-actions button:hover:not(:disabled){background:#315838;border-color:#9aff89}
+.clip-motion-actions button:disabled{opacity:.4}
+.motion-hint{color:#a4bea6;font-size:10px;line-height:1.65;margin:3px 0 0}
+.stage{touch-action:none}
+.stage canvas{cursor:grab;touch-action:none}
+.stage canvas.is-dragging-lyric{cursor:grabbing}
+.stage-hint{color:#85c989}
+.timeline-inner{min-height:192px;height:192px}
+.effects-track{height:32px;background:#111c16;min-height:32px}
+.effects-track .track-tag{padding:6px 11px;color:#91ba97}
+.effects-track .track-tag span{font-size:14px}
+.effects-clip-track{position:relative;flex:1;min-width:0;overflow:hidden;background:
+ repeating-linear-gradient(90deg,#14231a 0,#14231a 64px,#19271d 64px,#19271d 65px)}
+.fx-clip{position:absolute;top:4px;bottom:4px;border-radius:5px;min-width:3px;
+ overflow:hidden;white-space:nowrap;text-overflow:ellipsis;padding:3px 6px;
+ cursor:pointer;text-align:left;font-size:10px;line-height:17px;
+ background:#21392c;border:1px solid #44604b;color:#8fa992}
+.fx-clip.has-override{background:#443459;border-color:#be96ff;color:#ebd9ff}
+.fx-clip.selected{box-shadow:0 0 0 1px #f5e7ff inset}
+.fx-clip:hover{filter:brightness(1.2)}
+html.desktop-mode .timeline-inner{height:192px;min-height:192px}
+html.desktop-mode .timeline-pane{min-height:0}
+html.desktop-mode .stage canvas{cursor:grab}
+@media(max-width:760px){
+ html:not(.desktop-mode) .clip-position-grid{grid-template-columns:1fr 1fr}
+}
