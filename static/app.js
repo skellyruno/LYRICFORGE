@@ -19,7 +19,7 @@ const safe=(s)=>String(s??'').replaceAll('&','&amp;').replaceAll('<','&lt;').rep
 const trimLine=(s)=>s.length>95?s.slice(0,92)+'…':s;
 const toast=(msg,error=false)=>{const el=document.createElement('div');el.className='toast'+(error?' error':'');el.textContent=msg;$('toasts').appendChild(el);setTimeout(()=>el.remove(),4700);};
 function api(path,options={}){return fetch(path,options).then(async response=>{if(!response.ok){let reason;try{reason=(await response.json()).detail;}catch{}throw Error(typeof reason==='string'?reason:`Request failed (${response.status})`);}return response.json();});}
-function renderTitle(){updateEditButtons();$('projectTitle').textContent=state.title;$('trackName').textContent=state.id||state.demo?state.title:'No audio loaded';$('totalTime').textContent=shortTime(state.duration);$('exportDuration').textContent=shortTime(state.duration);$('clipCount').textContent=`${state.lines.length} clip${state.lines.length===1?'':'s'}`;const enabled=!!state.id;['topExport','saveBtn','renderBtn'].forEach(x=>$(x).disabled=!enabled);$('addLineBtn').disabled=!state.id&&!state.demo;$('projectStatus').textContent=state.demo?'Demo · upload to export':state.id?'Editing':'Ready to create';}
+function renderTitle(){updateEditButtons();syncClipInspector();$('projectTitle').textContent=state.title;$('trackName').textContent=state.id||state.demo?state.title:'No audio loaded';$('totalTime').textContent=shortTime(state.duration);$('exportDuration').textContent=shortTime(state.duration);$('clipCount').textContent=`${state.lines.length} clip${state.lines.length===1?'':'s'}`;const enabled=!!state.id;['topExport','saveBtn','renderBtn'].forEach(x=>$(x).disabled=!enabled);$('addLineBtn').disabled=!state.id&&!state.demo;$('projectStatus').textContent=state.demo?'Demo · upload to export':state.id?'Editing':'Ready to create';}
 function panel(name){if(name==='storage')loadStorage();if(name==='library')loadLibrary();$$('.rail-item').forEach(b=>b.classList.toggle('active',b.dataset.panel===name));$$('.panel').forEach(p=>p.classList.toggle('hidden',p.id!==`panel-${name}`));}
 
 function snapshotEdit(){return JSON.stringify({lines:state.lines,settings:state.settings,selected:state.selected});}
@@ -48,7 +48,7 @@ function restoreEdit(value){
  state.lines=previous.lines;
  state.settings=previous.settings;
  state.selected=clamp(previous.selected,0,Math.max(0,state.lines.length-1));
- syncSettingUI();resizePreview();renderLines();renderTimeline();queueSave();
+ syncSettingUI();resizePreview();renderLines();renderTimeline();queueSave();syncClipInspector();
  updateEditButtons();
 }
 function undoEdit(){
@@ -317,19 +317,124 @@ function drawBackground(w,h,t){const s=state.settings;ctx.fillStyle='#060b07';ct
 function wrapWords(words,maxWidth,makeFont){let rows=[[]];for(const word of words){const current=rows[rows.length-1];const probe=[...current,word].join(' ');if(current.length&&ctx.measureText(probe).width>maxWidth){rows.push([word]);}else current.push(word);}return rows;}
 function activeLyric(t){const sorted=[...state.lines].sort((a,b)=>a.start-b.start);let current=null;for(let i=0;i<sorted.length;i++){const l=sorted[i],next=sorted[i+1];const end=next?Math.min(l.end,next.start):l.end;if(end-l.start<.10)continue;if(t>=l.start&&t<end)current={...l,end};}return current;}
 function easing(t){return 1-Math.pow(1-clamp(t,0,1),3);}
+
+const clipAnimations=['pop','fade','slide','typewriter','zoom','bounce','blur','none'];
+const clipAnimationName=name=>({pop:'Pop',fade:'Fade',slide:'Slide',typewriter:'Type-on',zoom:'Zoom',bounce:'Bounce',blur:'Blur',none:'None'})[name]||'Global';
+function selectedClip(){return state.lines[state.selected]||null;}
+function clipMotionName(clip){return clipAnimations.includes(clip?.animation)?clip.animation:state.settings.animation;}
+function clipMotionMs(clip){return Number.isFinite(Number(clip?.effectMs))?clamp(Number(clip.effectMs),120,650):230;}
+function clipLocation(clip){return {x:Number.isFinite(Number(clip?.x))?clamp(Number(clip.x),8,92):50,
+ y:Number.isFinite(Number(clip?.y))?clamp(Number(clip.y),8,92):state.settings.position};}
+function syncClipInspector(){
+ const clip=selectedClip(),has=!!clip;
+ const ids=['clipAnimation','clipEffectMs','clipPosX','clipPosY',
+            'resetClipMotion','applyClipMotionAll','previewClipMotion'];
+ ids.forEach(id=>{$(id).disabled=!has});
+ $('clipMotionName').textContent=has?clip.text:'Select a lyric from the timeline';
+ $('clipAnimation').value=has&&clipAnimations.includes(clip.animation)?clip.animation:'';
+ $('clipEffectMs').value=has?clipMotionMs(clip):230;
+ $('clipEffectMsVal').textContent=(has?clipMotionMs(clip):230)+' ms';
+ const pos=clipLocation(clip);
+ $('clipPosX').value=pos.x;
+ $('clipPosY').value=pos.y;
+ $('clipPosXVal').textContent=Math.round(pos.x)+'%';
+ $('clipPosYVal').textContent=Math.round(pos.y)+'%';
+}
+function setClipMotion(property,value){
+ const line=selectedClip();if(!line)return;
+ const next=property==='animation'?(clipAnimations.includes(value)?value:undefined):
+ property==='effectMs'?clamp(Number(value),120,650):
+ clamp(Number(value),8,92);
+ if(line[property]===next||(line[property]==null&&next===undefined))return;
+ recordEdit('clipfx:'+property+':'+state.selected);
+ if(next===undefined)delete line[property];else line[property]=next;
+ syncClipInspector();renderTimeline();queueSave();
+}
+function resetClipMotion(){
+ const clip=selectedClip();if(!clip)return;
+ if(!['animation','effectMs','x','y'].some(k=>clip[k]!=null))return;
+ recordEdit('clipfx:reset');['animation','effectMs','x','y'].forEach(k=>delete clip[k]);
+ syncClipInspector();renderTimeline();queueSave();toast('Clip now follows global motion and placement');
+}
+function applyClipMotionAll(){
+ const clip=selectedClip();if(!clip||!state.lines.length)return;
+ recordEdit('clipfx:all');
+ for(const target of state.lines){
+   for(const key of ['animation','effectMs','x','y']){
+     if(clip[key]==null)delete target[key];
+     else target[key]=clip[key];
+   }
+ }
+ syncClipInspector();renderTimeline();queueSave();toast('Applied selected clip motion and position to every lyric');
+}
+function previewSelectedMotion(){
+ const clip=selectedClip();if(!clip)return;
+ seek(clip.start);
+ if(!state.playing)play();
+}
+function bindPreviewPositionDragging(){
+ const el=canvas;let drag=null;
+ function point(e){
+  const rect=canvas.getBoundingClientRect();
+  return {x:(e.clientX-rect.left)/Math.max(1,rect.width)*100,
+          y:(e.clientY-rect.top)/Math.max(1,rect.height)*100};
+ }
+ el.addEventListener('pointerdown',e=>{
+  if(e.button!==0||!state.lines.length)return;
+  const active=activeLyric(state.time);
+  if(!active)return;
+  const index=state.lines.findIndex(line=>line.id===active.id);
+  if(index<0)return;
+  const p=point(e),loc=clipLocation(active);
+  if(Math.abs(p.x-loc.x)>37||Math.abs(p.y-loc.y)>14)return;
+  e.preventDefault();state.selected=index;syncClipInspector();renderLines();renderTimeline();
+  drag={index,x:p.x,y:p.y,from:loc,moved:false};
+  el.setPointerCapture(e.pointerId);el.classList.add('is-dragging-lyric');
+ });
+ el.addEventListener('pointermove',e=>{
+  if(!drag)return;
+  const p=point(e),clip=state.lines[drag.index];if(!clip)return;
+  const x=clamp(drag.from.x+(p.x-drag.x),8,92);
+  const y=clamp(drag.from.y+(p.y-drag.y),8,92);
+  if(Math.abs(x-clipLocation(clip).x)<.01&&Math.abs(y-clipLocation(clip).y)<.01)return;
+  if(!drag.moved){recordEdit('clipfx:drag');drag.moved=true;}
+  clip.x=Math.round(x*10)/10;clip.y=Math.round(y*10)/10;
+  syncClipInspector();
+ });
+ const finish=()=>{
+  if(!drag)return;
+  if(drag.moved){renderTimeline();queueSave();toast('Lyric position updated');}
+  drag=null;el.classList.remove('is-dragging-lyric');
+ };
+ ['pointerup','pointercancel','lostpointercapture'].forEach(name=>el.addEventListener(name,finish));
+}
+function drawPositionGuide(){
+ if(state.playing||!$('welcome').classList.contains('hidden')||!$('reviewOverlay').classList.contains('hidden'))return;
+ const line=activeLyric(state.time);
+ if(!line||line.id!==selectedClip()?.id)return;
+ const {x,y}=clipLocation(line),w=canvas.width,h=canvas.height;
+ const px=w*x/100,py=h*y/100,bw=w*.74,bh=h*.105;
+ ctx.save();ctx.lineWidth=Math.max(1,w/450);
+ ctx.strokeStyle='rgba(146,255,127,0.7)';
+ ctx.setLineDash([7,5]);ctx.strokeRect(px-bw/2,py-bh/2,bw,bh);
+ ctx.setLineDash([]);ctx.fillStyle='#9aff8a';
+ ctx.fillRect(px-4,py-4,8,8);ctx.restore();
+}
+
 function showText(t){const w=canvas.width,h=canvas.height,s=state.settings,ln=activeLyric(t);if(!ln)return;
+ const anim=clipMotionName(ln),duration=clipMotionMs(ln)/1000,pos=clipLocation(ln);
  let text=s.upper?ln.text.toUpperCase():ln.text;const progress=clamp((t-ln.start)/Math.max(.03,ln.end-ln.start),0,1);
- const entry=clamp((t-ln.start)/.23,0,1),outro=clamp((ln.end-t)/.16,0,1);
+ const entry=clamp((t-ln.start)/duration,0,1),outro=clamp((ln.end-t)/.16,0,1);
  let alpha=1,scale=1,shift=0;
- if(s.animation==='fade')alpha=Math.min(entry,outro);
- if(s.animation==='pop'){scale=.8+.2*easing(entry);alpha=Math.min(1,entry*4,outro*4);}
- if(s.animation==='slide'){shift=(1-easing(entry))*h*.07;alpha=Math.min(1,entry*4,outro*4);}
- if(s.animation==='zoom'){scale=1.25-.25*easing(clamp((t-ln.start)/.30,0,1));alpha=Math.min(1,entry*5,outro*5);}
- if(s.animation==='bounce'){const x=clamp((t-ln.start)/.26,0,1);scale=x<.42?.65+(.5*x/.42):1.15-.15*easing((x-.42)/.58);alpha=Math.min(1,entry*6,outro*6);}
- if(s.animation==='blur'){alpha=Math.min(entry,outro);}
+ if(anim==='fade')alpha=Math.min(entry,outro);
+ if(anim==='pop'){scale=.8+.2*easing(entry);alpha=Math.min(1,entry*4,outro*4);}
+ if(anim==='slide'){shift=(1-easing(entry))*h*.07;alpha=Math.min(1,entry*4,outro*4);}
+ if(anim==='zoom'){scale=1.25-.25*easing(clamp((t-ln.start)/duration,0,1));alpha=Math.min(1,entry*5,outro*5);}
+ if(anim==='bounce'){const x=clamp((t-ln.start)/duration,0,1);scale=x<.42?.65+(.5*x/.42):1.15-.15*easing((x-.42)/.58);alpha=Math.min(1,entry*6,outro*6);}
+ if(anim==='blur'){alpha=Math.min(entry,outro);}
  let words=(ln.words||[]).length?ln.words.map(x=>({...x,text:s.upper?x.text.toUpperCase():x.text})):text.split(/\s+/).map(x=>({text:x,start:ln.start,end:ln.end}));
  if(s.mode==='word') {let active=words.find(x=>x.start<=t&&x.end>t)||words.find(x=>x.start<=t)||words[0];if(!active)return;text=active.text;words=[active];}
- if(s.animation==='typewriter'&&s.mode==='line')text=text.split(/\s+/).slice(0,Math.max(1,Math.ceil(progress*text.split(/\s+/).length))).join(' ');
+ if(anim==='typewriter'&&s.mode==='line')text=text.split(/\s+/).slice(0,Math.max(1,Math.ceil(progress*text.split(/\s+/).length))).join(' ');
  const nominal=Math.round(s.fontSize*w/720);let fs=nominal;const margin=w*.09;
  ctx.save();ctx.font=`800 ${fs}px "${s.font}",Arial,sans-serif`;
  const rawWords=s.mode==='karaoke'?words.map(x=>x.text):text.split(/\s+/);
@@ -339,8 +444,8 @@ function showText(t){const w=canvas.width,h=canvas.height,s=state.settings,ln=ac
  if(maxRow>w-margin*2){fs*= (w-margin*2)/maxRow;ctx.font=`800 ${fs}px "${s.font}",Arial,sans-serif`;}
  ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineJoin='round';ctx.lineWidth=Math.max(0,s.outline*w/720*2);ctx.strokeStyle='rgba(5,10,8,.94)';ctx.shadowColor='rgba(0,0,0,.58)';ctx.shadowBlur=fs*.22;
  ctx.globalAlpha=alpha;
- if(s.animation==='blur')ctx.filter='blur('+((1-easing(clamp((t-ln.start)/.28,0,1)))*Math.max(2,fs*.09))+'px)';
- const lineHeight=fs*1.24,cy=h*(s.position/100)+shift;ctx.translate(w/2,cy);ctx.scale(scale,scale);
+ if(anim==='blur')ctx.filter='blur('+((1-easing(clamp((t-ln.start)/duration,0,1)))*Math.max(2,fs*.09))+'px)';
+ const lineHeight=fs*1.24,cy=h*(pos.y/100)+shift;ctx.translate(w*pos.x/100,cy);ctx.scale(scale,scale);
  if(s.mode==='karaoke'){
  let cursor=0;
  rows.forEach((row,i)=>{const y=(i-(rows.length-1)/2)*lineHeight;const total=ctx.measureText(row.join(' ')).width;let x=-total/2;row.forEach((str,j)=>{const wd=ctx.measureText(str).width;const word=words[cursor++];const active=word&&t>=word.start;ctx.textAlign='left';ctx.strokeText(str,x,y);ctx.fillStyle=active?s.accentColor:s.textColor;ctx.fillText(str,x,y);x+=wd+ctx.measureText(' ').width;});});
@@ -359,7 +464,7 @@ function drawFrame(now){
  const elapsed=Math.min(.15,(now-lastFrame)/1000);lastFrame=now;lastPreviewPaint=now;
  if(state.demo&&state.playing){state.time+=elapsed;if(state.time>state.duration){state.time=0;state.playing=false;}}
  if(state.id&&state.playing&&isFinite(audio.currentTime))state.time=audio.currentTime;
- const w=canvas.width,h=canvas.height;ctx.clearRect(0,0,w,h);drawBackground(w,h,state.time);showText(state.time);
+ const w=canvas.width,h=canvas.height;ctx.clearRect(0,0,w,h);drawBackground(w,h,state.time);showText(state.time);drawPositionGuide();
  $('currentTime').textContent=shortTime(state.time);$('playButton').textContent=state.playing?'Ⅱ':'▶';
  const duration=state.duration||1;const timelineWidth=Math.max(0,$('timelineInner').clientWidth-110);$('playhead').style.left=`${110+timelineWidth*clamp(state.time/duration,0,1)}px`;
  if(state.backgroundIsVideo&&state.playing&&bgVid.paused)bgVid.play().catch(()=>{});
@@ -367,7 +472,7 @@ function drawFrame(now){
 }
 function seek(seconds){state.time=clamp(seconds,0,state.duration);if(state.id&&audio.readyState)audio.currentTime=state.time;if(state.backgroundIsVideo&&Number.isFinite(bgVid.duration)&&bgVid.duration>0)bgVid.currentTime=state.time%bgVid.duration;}
 function play(){if(!state.duration){toast('Upload a song to preview lyrics.');return;}state.playing=!state.playing;if(state.id){if(state.playing)audio.play().catch(e=>{state.playing=false;toast(e.message,true);});else audio.pause();}}
-function selectLine(index,jump=false){state.selected=clamp(index,0,Math.max(0,state.lines.length-1));if(jump&&state.lines[state.selected])seek(state.lines[state.selected].start);renderLines();renderTimeline();}
+function selectLine(index,jump=false){state.selected=clamp(index,0,Math.max(0,state.lines.length-1));if(jump&&state.lines[state.selected])seek(state.lines[state.selected].start+.07);syncClipInspector();renderLines();renderTimeline();}
 function reflowWords(line){
  const parts=line.text.trim().split(/\s+/).filter(Boolean);
  if(line.words&&line.words.length===parts.length){line.words=line.words.map((w,i)=>({...w,text:parts[i]}));return;}
@@ -377,7 +482,7 @@ function retimeWords(line,oldStart,oldEnd,sourceWords){
  const span=Math.max(.01,oldEnd-oldStart),newSpan=line.end-line.start;
  line.words=(sourceWords||line.words||[]).map(w=>({text:w.text,start:line.start+(w.start-oldStart)*newSpan/span,end:line.start+(w.end-oldStart)*newSpan/span}));
 }
-function renderLines(){const holder=$('lyricsEditor');if(!state.lines.length){holder.innerHTML='<div class="empty-caption"><div class="empty-caption-icon">♫</div><strong>No lyrics yet</strong><span>Upload a song to detect lyrics automatically.</span></div>';return;}
+function renderLines(){syncClipInspector();const holder=$('lyricsEditor');if(!state.lines.length){holder.innerHTML='<div class="empty-caption"><div class="empty-caption-icon">♫</div><strong>No lyrics yet</strong><span>Upload a song to detect lyrics automatically.</span></div>';return;}
  holder.innerHTML=state.lines.map((l,i)=>`<div class="lyric-row ${i===state.selected?'selected':''}" data-line="${i}"><div class="lyric-row-top"><span class="lyric-n">LINE ${String(i+1).padStart(2,'0')}</span><div class="lyric-row-actions"><button data-action="jump" data-i="${i}" class="tiny-btn" title="Seek to lyric">▶</button><button data-action="delete" data-i="${i}" class="tiny-btn danger" title="Delete line">×</button></div></div><input class="lyric-input" data-text="${i}" value="${safe(l.text)}" aria-label="Line ${i+1} text"/><div class="timing-row"><label>IN<input type="number" data-start="${i}" step="0.01" min="0" max="${state.duration}" value="${prettyTime(l.start)}" /></label><span class="timing-arrow">→</span><label>OUT<input type="number" data-end="${i}" step="0.01" min="0" max="${state.duration}" value="${prettyTime(l.end)}" /></label></div></div>`).join('');
  holder.querySelectorAll('.lyric-row').forEach(el=>el.addEventListener('click',e=>{if(e.target.closest('input,button'))return;selectLine(+el.dataset.line,true)}));
  holder.querySelectorAll('[data-action]').forEach(b=>b.addEventListener('click',()=>{const i=+b.dataset.i;if(b.dataset.action==='jump'){selectLine(i,true);return;}deleteAt(i);}));
