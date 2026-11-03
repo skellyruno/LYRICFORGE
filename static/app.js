@@ -974,7 +974,7 @@ function loadProjectData(project){resetEditHistory();state.id=project.id;state.t
 async function confirmLyrics(){const lyrics=$('lyricsText').value.trim();if(!lyrics){toast('Add or correct your lyrics first.',true);return;}$('confirmLyrics').disabled=true;try{const result=await api(`/api/projects/${state.id}/confirm`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lyrics})});state.lines=result.lines;state.selected=0;$('reviewOverlay').classList.add('hidden');renderTitle();renderLines();renderTimeline();loadWaveform();queueSave();toast('Lyrics confirmed! You can edit text and timing below.');}catch(e){toast(e.message,true);}finally{$('confirmLyrics').disabled=false;}}
 function refreshBackgroundMedia(){if(!state.backgroundUrl)return;if(state.backgroundIsVideo){bgVid.src=state.backgroundUrl;bgVid.load();bgVid.currentTime=state.time;bgImg.src='';}else{bgImg.src=state.backgroundUrl;bgVid.pause();bgVid.removeAttribute('src');}}
 function applyImportedBackground(response,name){
- state.backgroundUrl=response.background_url+'?v='+Date.now();
+ state.backgroundUrl=response.background_url+(response.background_url.includes('?')?'&':'?')+'v='+Date.now();
  state.backgroundIsVideo=/\.(mp4|mov|webm)$/i.test(response.name);
  $('backgroundFileInfo').classList.remove('hidden');
  $('backgroundFileInfo').textContent='✓ '+name;
