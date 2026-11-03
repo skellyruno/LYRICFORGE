@@ -232,7 +232,8 @@ def align_confirmed(lyrics: str, old_words: list[dict], duration: float) -> list
         if tag == "equal":
             for old_i, new_i in zip(range(a, b), range(c, d)):
                 old = old_words[old_i]
-                aligned[new_i] = {"text": new_text[new_i], "start": float(old["start"]), "end": float(old["end"])}
+                aligned[new_i] = {"text": new_text[new_i], "start": float(old["start"]), "end": float(old["end"]),
+                                  **({"probability": old["probability"]} if "probability" in old else {})}
         elif tag in ("replace", "insert") and d > c:
             # Prefer source speech region for substitutions; insertions use local neighboring bounds.
             left = float(old_words[a]["start"]) if a < b else (float(old_words[a - 1]["end"]) if a else 0)
@@ -249,7 +250,8 @@ def align_confirmed(lyrics: str, old_words: list[dict], duration: float) -> list
         item = item or {"text": new_text[i], "start": 0, "end": .2}
         s = max(0, min(float(item["start"]), duration - .01))
         e = max(s + .03, min(float(item["end"]), duration))
-        final_words.append({"text": item["text"], "start": round(s, 3), "end": round(e, 3)})
+        final_words.append({"text": item["text"], "start": round(s, 3), "end": round(e, 3),
+                            **({"probability": item["probability"]} if "probability" in item else {})})
     lines = []
     offset = 0
     for raw in raw_lines:
@@ -263,11 +265,14 @@ RECOGNITION_MODES = {"fast": 1, "balanced": 3, "accurate": 5}
 RECOGNITION_LANGUAGES = {"auto", "en", "es", "fr", "pt", "de", "it", "ja", "ko"}
 
 
-def recognition_options(mode: str, language: str) -> dict:
-    """User-selectable decoding effort without downloading or changing the model."""
+def recognition_options(mode: str, language: str, vocabulary: str = "",
+                        performance_mode: str = "balanced") -> dict:
+    """Same-model decoding effort and bounded user-supplied vocabulary hints."""
     return {
         "recognition_mode": mode if isinstance(mode, str) and mode in RECOGNITION_MODES else "balanced",
         "language_hint": language if isinstance(language, str) and language in RECOGNITION_LANGUAGES else "auto",
+        **({"vocabulary_hint": " ".join(vocabulary.split())[:300]} if vocabulary else {}),
+        "performanceMode": performance_mode if performance_mode in perf.PROFILES else "balanced",
     }
 
 
@@ -294,6 +299,7 @@ def transcribe_project(project_id: str) -> None:
     d = json.loads((p / "project.json").read_text(encoding="utf-8"))
     try:
         update_transcription_stage(p, "loading_model", 0)
+        model_request.profile = d.get("performanceMode", "balanced")
         model = load_model()
         update_transcription_stage(p, "recognizing", 0)
         # Beam search 3 (previously 5), one decoding temperature and one
@@ -303,10 +309,13 @@ def transcribe_project(project_id: str) -> None:
         # Keep SKELLYMOTION_BEAM_SIZE working for Balanced and legacy projects.
         beam = 1 if mode == "fast" else 5 if mode == "accurate" else transcription_beam_size()
         language = d.get("language_hint")
+        vocabulary = str(d.get("vocabulary_hint") or "")[:300]
+        started = time.monotonic()
         segs, info = model.transcribe(
             str(p / d["audio_file"]), word_timestamps=True,
             beam_size=beam, best_of=1, temperature=0,
             language=language if language in RECOGNITION_LANGUAGES and language != "auto" else None,
+            hotwords=vocabulary or None,
             vad_filter=False, condition_on_previous_text=False)
         words = []
         duration = max(0.1, float(d.get("duration", 1)))
@@ -315,8 +324,12 @@ def transcribe_project(project_id: str) -> None:
             for w in seg.words or []:
                 word = w.word.strip()
                 if word:
-                    words.append({"text": word, "start": round(float(w.start), 3),
-                                  "end": round(float(w.end), 3)})
+                    item = {"text": word, "start": round(float(w.start), 3),
+                            "end": round(float(w.end), 3)}
+                    probability = getattr(w, "probability", None)
+                    if isinstance(probability, (float, int)) and math.isfinite(probability):
+                        item["probability"] = round(float(probability), 3)
+                    words.append(item)
             pct = min(99, round(max(0, float(seg.end)) / duration * 100))
             now = time.monotonic()
             if pct >= last_pct + 5 and now - last_update >= 0.5:
@@ -324,6 +337,8 @@ def transcribe_project(project_id: str) -> None:
                 last_pct, last_update = pct, now
         d = json.loads((p / "project.json").read_text(encoding="utf-8"))
         d["original_words"] = words
+        d["review_uncertain"] = perf.uncertain_words(words)
+        d["transcription_seconds"] = round(time.monotonic() - started, 2)
         d["draft_lyrics"] = "\n".join(ln["text"] for ln in build_lines(words))
         d["status"] = "review"
         d["transcription_stage"] = "complete"
@@ -387,7 +402,8 @@ def list_saved_projects():
 
 @app.post("/api/projects")
 async def create_project(file: UploadFile = File(...), recognition: str = Form("balanced"),
-                         language: str = Form("auto")):
+                         language: str = Form("auto"), vocabulary: str = Form(""),
+                         performance_mode: str = Form("balanced")):
     ext = Path(file.filename or "").suffix.lower()
     if ext not in AUDIO_EXT:
         raise HTTPException(400, "Upload MP3, WAV, M4A, FLAC, OGG, AAC, MP4 or WebM")
@@ -404,7 +420,7 @@ async def create_project(file: UploadFile = File(...), recognition: str = Form("
                 "audio_file": name, "duration": duration, "status": "transcribing",
                 "draft_lyrics": "", "original_words": [], "lines": [], "settings": {}, "language": None,
                 "transcription_stage": "queued", "transcription_progress": 0,
-                **recognition_options(recognition, language)}
+                **recognition_options(recognition, language, vocabulary, performance_mode)}
         save_project(p, data)
         executor.submit(transcribe_project, project_id)
         return {"id": project_id, "duration": duration, "status": "transcribing"}
@@ -414,7 +430,8 @@ async def create_project(file: UploadFile = File(...), recognition: str = Form("
 
 
 def import_desktop_audio_file(source: Path, recognition: str = "balanced",
-                              language: str = "auto") -> dict:
+                              language: str = "auto", vocabulary: str = "",
+                              performance_mode: str = "balanced") -> dict:
     """Import only the file explicitly selected in the native Windows dialog.
 
     This is a Python-only function, not an HTTP endpoint, so a web page cannot
