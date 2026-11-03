@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import difflib
+import gc
 import base64
 import secrets
 import sys
@@ -25,6 +26,7 @@ from fastapi.responses import FileResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from PIL import Image, ImageDraw, ImageFilter
+import studio_performance as perf
 
 ROOT = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
 DATA = Path(os.environ.get("LYRICFORGE_DATA", ROOT / "workspace")).resolve()
@@ -48,6 +50,7 @@ MODES = {"line", "word", "karaoke"}
 SIZES = {"portrait": (720, 1280), "landscape": (1280, 720), "square": (720, 720)}
 executor = ThreadPoolExecutor(max_workers=2)
 model_lock = threading.Lock()
+model_request = threading.local()  # First model load uses the selected CPU profile.
 _model: Any = None
 jobs: dict[str, dict[str, Any]] = {}
 job_lock = threading.Lock()
@@ -163,9 +166,11 @@ def load_model():
             compute = "float16" if device == "cuda" else "int8"
             options = {"device": device, "compute_type": compute}
             if device == "cpu":
-                # Leave a little CPU headroom for the desktop window and FFmpeg.
-                cores = os.cpu_count() or 4
-                options["cpu_threads"] = max(2, min(8, cores - 2))
+                # The first transcription selects CPU threading; the model stays
+                # warm afterward to avoid expensive reloads between songs.
+                profile = getattr(model_request, "profile", "balanced")
+                options["cpu_threads"] = perf.profile_config(profile)["threads"]
+                options["num_workers"] = 1
             _model = WhisperModel(name, **options)
     return _model
 
@@ -590,6 +595,9 @@ def sanitize_settings(d: dict) -> dict:
         "aspect": d.get("aspect") if d.get("aspect") in SIZES else "portrait",
         "resolution": d.get("resolution") if d.get("resolution") in {"540p", "720p", "1080p"} else "720p",
         "renderSpeed": d.get("renderSpeed") if d.get("renderSpeed") in {"fast", "balanced", "quality"} else "balanced",
+        "performanceMode": d.get("performanceMode") if d.get("performanceMode") in perf.PROFILES else "balanced",
+        "encoder": d.get("encoder") if d.get("encoder") in {"auto", "cpu", "gpu"} else "auto",
+        "fps": 24 if str(d.get("fps")) == "24" else 30,
         "mode": d.get("mode") if d.get("mode") in MODES else "line",
         "animation": d.get("animation") if d.get("animation") in ANIMATIONS else "pop",
         "font": d.get("font") if d.get("font") in FONTS else "Arial",
