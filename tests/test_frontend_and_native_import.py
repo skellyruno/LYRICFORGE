@@ -78,7 +78,7 @@ def test_native_background_import_stages_changes_until_explicit_save(tmp_path, m
     (folder / "background_old.jpg").write_bytes(b"old")
     selected = tmp_path / "scene.png"
     selected.write_bytes(b"test png fixture")
-    monkeypatch.setattr(server, "run", lambda cmd: SimpleNamespace(stdout="1280\\n"))
+    monkeypatch.setattr(server, "run", lambda cmd: SimpleNamespace(stdout="1280\n"))
     client = TestClient(server.app)
 
     staged = server.import_desktop_background_file(project_id, selected)
