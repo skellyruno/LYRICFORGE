@@ -20,7 +20,7 @@ const trimLine=(s)=>s.length>95?s.slice(0,92)+'…':s;
 const toast=(msg,error=false)=>{const el=document.createElement('div');el.className='toast'+(error?' error':'');el.textContent=msg;$('toasts').appendChild(el);setTimeout(()=>el.remove(),4700);};
 function api(path,options={}){return fetch(path,options).then(async response=>{if(!response.ok){let reason;try{reason=(await response.json()).detail;}catch{}throw Error(typeof reason==='string'?reason:`Request failed (${response.status})`);}return response.json();});}
 function renderTitle(){updateEditButtons();$('projectTitle').textContent=state.title;$('trackName').textContent=state.id||state.demo?state.title:'No audio loaded';$('totalTime').textContent=shortTime(state.duration);$('exportDuration').textContent=shortTime(state.duration);$('clipCount').textContent=`${state.lines.length} clip${state.lines.length===1?'':'s'}`;const enabled=!!state.id;['topExport','saveBtn','renderBtn'].forEach(x=>$(x).disabled=!enabled);$('addLineBtn').disabled=!state.id&&!state.demo;$('projectStatus').textContent=state.demo?'Demo · upload to export':state.id?'Editing':'Ready to create';}
-function panel(name){if(name==='storage')loadStorage();$$('.rail-item').forEach(b=>b.classList.toggle('active',b.dataset.panel===name));$$('.panel').forEach(p=>p.classList.toggle('hidden',p.id!==`panel-${name}`));}
+function panel(name){if(name==='storage')loadStorage();if(name==='library')loadLibrary();$$('.rail-item').forEach(b=>b.classList.toggle('active',b.dataset.panel===name));$$('.panel').forEach(p=>p.classList.toggle('hidden',p.id!==`panel-${name}`));}
 
 function snapshotEdit(){return JSON.stringify({lines:state.lines,settings:state.settings,selected:state.selected});}
 function updateEditButtons(){
@@ -242,6 +242,56 @@ function initResizer(id,axis,variable,initial,minValue,maxValue){
   const sign=e.key===keys[0]?-1:1;
   update((parseFloat(getComputedStyle(app).getPropertyValue(variable))||initial)+20*sign);saveLayout();
  });
+}
+
+
+async function loadLibrary(){
+ const holder=$('savedProjectsList');
+ holder.innerHTML='<p class="library-empty">Loading your saved projects…</p>';
+ try{
+  const result=await api('/api/projects');
+  const projects=result.projects||[];
+  if(!projects.length){holder.innerHTML='<p class="library-empty">No saved songs yet. Upload your first song to get started.</p>';return;}
+  holder.innerHTML=projects.map(item=>{
+   const date=Number.isFinite(item.updated_at)?new Date(item.updated_at*1000).toLocaleDateString():'';
+   const status=item.status==='editor'?'Ready':item.status==='review'?'Review lyrics':item.status==='transcribing'?'Finding lyrics':'Saved';
+   return '<div class="library-item"><div class="library-details">'+
+      '<strong title="'+safe(item.title)+'">'+safe(item.title)+'</strong>'+
+      '<span>'+shortTime(item.duration||0)+' · '+status+' · '+date+'</span></div>'+
+      '<button type="button" data-open-project="'+safe(item.id)+'">Open</button></div>';
+  }).join('');
+  holder.querySelectorAll('[data-open-project]').forEach(button=>{
+   button.addEventListener('click',()=>openSavedProject(button.dataset.openProject));
+  });
+ }catch(e){holder.innerHTML='<p class="library-empty">Could not load your projects.</p>';toast(e.message,true);}
+}
+async function openSavedProject(id){
+ if(!/^[0-9a-f]{32}$/.test(id))return;
+ if(id===state.id){panel('lyrics');return;}
+ try{
+  if(state.id&&state.lines.length){
+   await save();
+   if($('projectStatus').textContent==='Save failed'){
+    toast('Save this project before switching.',true);return;
+   }
+  }
+  const project=await api('/api/projects/'+id);
+  if(project.status==='editor'&&project.lines&&project.lines.length){
+   loadProjectData(project);panel('lyrics');localStorage.setItem('lyricforge-last',id);return;
+  }
+  resetEditHistory();
+  state.id=project.id;state.title=project.title||'Untitled project';
+  state.duration=project.duration||0;state.demo=false;state.lines=[];
+  state.selected=0;state.waveform=[];state.time=0;state.playing=false;
+  state.settings={...defaultSettings(),...(project.settings||{})};
+  state.backgroundUrl=project.background_file?'/api/projects/'+id+'/background?v='+Date.now():null;
+  state.backgroundIsVideo=!!project.background_file&&/\.(mp4|mov|webm)$/i.test(project.background_file);
+  refreshBackgroundMedia();syncSettingUI();resizePreview();configureMedia();renderTitle();renderTimeline();renderLines();
+  $('welcome').classList.add('hidden');$('reviewOverlay').classList.remove('hidden');
+  $('transcribeProgress').classList.remove('hidden');$('lyricsText').classList.add('hidden');
+  $('confirmLyrics').disabled=true;localStorage.setItem('lyricforge-last',id);
+  await waitForTranscript(id);
+ }catch(e){toast('Could not reopen project: '+e.message,true);}
 }
 
 const fileSize=bytes=>bytes>=1024**3?(bytes/1024**3).toFixed(2)+' GB':bytes>=1024**2?(bytes/1024**2).toFixed(1)+' MB':bytes>=1024?(bytes/1024).toFixed(1)+' KB':bytes+' B';
@@ -514,6 +564,7 @@ function wireUI(){
  initResizer('timelineResizer','y','--timeline-height',210,145,400);
  $('nudgeBack').addEventListener('click',()=>shiftSelected(-.05));
  $('nudgeForward').addEventListener('click',()=>shiftSelected(.05));
+ $('refreshProjects').addEventListener('click',loadLibrary);
  $('refreshStorage').addEventListener('click',loadStorage);
  $('cleanupStorage').addEventListener('click',cleanupStorage);
  ['font','fontSize','position','textColor','accentColor','outline','dim','resolution'].forEach(k=>$(k).addEventListener('input',e=>setSetting(k,k==='fontSize'||k==='position'||k==='outline'||k==='dim'?Number(e.target.value):e.target.value)));
