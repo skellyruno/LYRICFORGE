@@ -578,9 +578,9 @@ def import_desktop_audio_file(source: Path, recognition: str = "balanced",
                 "draft_lyrics": "", "original_words": [], "lines": [],
                 "settings": {}, "language": None,
                 "transcription_stage": "queued", "transcription_progress": 0,
-                **recognition_options(recognition, language)}
+                **recognition_options(recognition, language, vocabulary, performance_mode)}
         save_project(p, data)
-        executor.submit(transcribe_project, project_id)
+        ai_executor.submit(transcribe_project, project_id)
         return {"id": project_id, "duration": duration,
                 "status": "transcribing", "title": title}
     except Exception:
