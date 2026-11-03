@@ -8,6 +8,8 @@ on:
       - 'desktop_launcher.py'
       - 'server.py'
       - 'studio_performance.py'
+      - 'studio_updater.py'
+      - 'update_apply.ps1'
       - 'static/**'
       - 'Repair-SkellyMotion.cmd'
       - 'SkellyMotion-SafeMode.cmd'
@@ -105,10 +107,12 @@ jobs:
         run: |
           pyinstaller --noconfirm --clean --onedir --windowed --name SkellyMotion `
             --add-data "static;static" `
+            --add-data "update_apply.ps1;." `
             --add-binary "vendor/ffmpeg/ffmpeg.exe;tools" `
             --add-binary "vendor/ffmpeg/ffprobe.exe;tools" `
             --hidden-import clr `
             --hidden-import webview `
+            --hidden-import studio_updater `
             --collect-all webview `
             --collect-all pythonnet `
             --collect-all clr_loader `
@@ -180,6 +184,9 @@ jobs:
             if (-not (Test-Path (Join-Path $folder $helper))) {
               throw "Missing recovery mode launcher: $helper"
             }
+          }
+          if (-not (Test-Path -LiteralPath (Join-Path $folder '_internal/update_apply.ps1'))) {
+            throw 'The verified update installer is missing from packaged app'
           }
           $exe = Join-Path $folder 'SkellyMotion.exe'
           $log = Join-Path $env:LOCALAPPDATA 'LyricForge/logs/desktop.log'
