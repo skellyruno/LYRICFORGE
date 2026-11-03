@@ -16,7 +16,9 @@
         <button id="newBtn" class="ghost-btn" title="Start a new song">＋ New</button>
         <button id="undoBtn" class="ghost-btn icon-action" title="Undo (Ctrl+Z)" aria-label="Undo" disabled>↶</button>
         <button id="redoBtn" class="ghost-btn icon-action" title="Redo (Ctrl+Y)" aria-label="Redo" disabled>↷</button>
-        <button id="saveBtn" class="ghost-btn" title="Save changes" disabled>Save</button>
+        <button id="saveBtn" class="ghost-btn" title="Save this project permanently" disabled>Save</button>
+        <button id="checkUpdateBtn" class="ghost-btn" title="Check for new SkellyMotion releases">Updates</button>
+        <button id="exitBtn" class="ghost-btn" title="Close the project with Save / Don't Save / Cancel">Exit</button>
         <button id="topExport" class="primary-btn" disabled><span>↗</span> Export video</button>
       </div>
     </header>
@@ -160,8 +162,9 @@
             <div id="renderStatus" class="render-status hidden" role="status"></div>
             <div id="renderProgressTrack" class="render-meter hidden" role="progressbar" aria-label="Render progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
               <div id="renderProgressFill"></div></div>
-            <a id="downloadBtn" class="download-btn hidden" href="#">↓ Download full MP4</a>
-            <a id="previewDownloadBtn" class="download-btn hidden" href="#">↓ Download 15-second preview</a>
+            <a id="downloadBtn" class="download-btn hidden" href="#" download="SkellyMotion-video.mp4">↓ Save full MP4 to computer</a>
+            <a id="previewDownloadBtn" class="download-btn hidden" href="#" download="SkellyMotion-preview.mp4">↓ Save 15-second preview</a>
+            <div id="downloadStatus" class="download-status" role="status" aria-live="polite"></div>
             <video id="renderPreviewPlayer" controls playsinline preload="none" class="export-preview-video hidden" aria-label="Test-render preview video"></video>
             <div class="info-note">Rendering happens on your computer. Your song is not uploaded to a cloud service.</div>
           </div>
@@ -170,10 +173,19 @@
           <div class="section-top"><div class="eyebrow">06 / YOUR WORK</div><h2>Saved projects.</h2><p>Continue any song without digging through folders.</p></div>
           <div class="panel-content form-fields">
             <button id="refreshProjects" class="wide-ghost" type="button">↻ Refresh my projects</button>
+            <div class="library-bulk-actions">
+              <label><input id="selectAllProjects" type="checkbox" /> Select all shown</label>
+              <button id="deleteSelectedProjects" type="button" disabled>Delete selected (0)</button>
+            </div>
+            <div class="control-head">SAVED PROJECTS</div>
             <div id="savedProjectsList" class="library-list" aria-live="polite">
               <p class="library-empty">Open this tab to view saved projects.</p>
             </div>
-            <div class="info-note">Opening an older project does not delete anything. Unsaved changes are saved first.</div>
+            <div class="control-head after-gap">CRASH-RECOVERY DRAFTS</div>
+            <div id="draftProjectsList" class="library-list">
+              <p class="library-empty">No unfinished drafts.</p>
+            </div>
+            <div class="info-note">Drafts are protected in case of a crash, but are not permanently saved. Choose Save to keep a project. Delete selected permanently removes only the checked projects.</div>
           </div>
         </div>
         <div class="panel hidden" id="panel-performance">
@@ -308,5 +320,30 @@
     <img id="backgroundImage" alt="" class="hidden" />
   </div>
   <script src="/static/app.js"></script>
+
+    <div id="saveDecisionOverlay" class="decision-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="saveDecisionTitle">
+      <div class="decision-card">
+        <div class="eyebrow">PROJECT CHANGES</div>
+        <h2 id="saveDecisionTitle">Save your work?</h2>
+        <p id="saveDecisionText">Choose what to do with this project's unsaved changes.</p>
+        <div class="decision-actions">
+          <button id="decisionSave" class="primary-btn" type="button">Save project</button>
+          <button id="decisionDiscard" type="button" class="danger-ghost">Don't Save</button>
+          <button id="decisionCancel" class="ghost-btn" type="button">Cancel</button>
+        </div>
+      </div>
+    </div>
+    <div id="updateOverlay" class="decision-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="updateTitle">
+      <div class="decision-card">
+        <div class="eyebrow">SKELLYMOTION UPDATES</div>
+        <h2 id="updateTitle">Check for updates</h2>
+        <p id="updateText">Updates are installed only with your approval.</p>
+        <div class="decision-actions">
+          <button id="updateInstall" class="primary-btn" type="button">Install update</button>
+          <button id="updateLater" type="button" class="ghost-btn">Later</button>
+        </div>
+        <small id="updateDetails"></small>
+      </div>
+    </div>
 </body>
 </html>
