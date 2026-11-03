@@ -395,3 +395,40 @@ html.desktop-mode .uncertain-review{max-height:160px;margin:7px 0}
 html.desktop-mode .perf-metrics{gap:6px}
 @media(max-width:760px){.perf-metrics{grid-template-columns:1fr 1fr}}
 @media(prefers-reduced-motion:reduce){.export-actions button,.uncertain-list button{transition:none}}
+
+
+/* 0.9 — selected project deletion, crash-recovery prompts and update notices */
+.library-bulk-actions{display:flex;align-items:center;justify-content:space-between;gap:9px;
+ margin:7px 0 14px;flex-wrap:wrap}
+.library-bulk-actions label{display:flex;align-items:center;gap:7px;color:#a9c7ae;
+ font-size:11px}
+.library-bulk-actions input,.library-check{width:15px;height:15px;flex:0 0 15px;accent-color:#92ff81}
+.library-bulk-actions button{font-size:11px;font-weight:800;
+ border:1px solid #9b5151;background:#3c2427;color:#ffd5d5;border-radius:7px;padding:8px 10px}
+.library-bulk-actions button:disabled{opacity:.42;cursor:default}
+.library-item>.library-check{margin-right:4px}
+.library-details{flex:1}
+.decision-overlay{position:fixed;inset:0;z-index:7000;
+ display:flex;align-items:center;justify-content:center;
+ background:rgba(2,7,4,.78);padding:24px}
+.decision-overlay.hidden{display:none}
+.decision-card{background:#17231a;border:1px solid #4a7050;
+ border-radius:15px;padding:24px;max-width:450px;width:100%;
+ box-shadow:0 18px 60px rgba(0,0,0,.4)}
+.decision-card h2{font-size:21px;margin:10px 0;color:#f1fff0}
+.decision-card p{font-size:12px;line-height:1.7;color:#b5cbb5;white-space:pre-line}
+.decision-card small{font-size:10px;color:#a1b8a4;line-height:1.5;display:block;margin-top:13px}
+.decision-actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:18px}
+.decision-actions button{flex:1;min-width:100px;border-radius:8px;padding:10px;
+ font-size:11px;font-weight:800}
+.decision-actions button:disabled{opacity:.5;cursor:default}
+.danger-ghost{background:#442428;color:#ffd3d3;border:1px solid #875051}
+.danger-ghost:hover{background:#653337}
+.download-status{font-size:11px;line-height:1.6;color:#bbe5b9;overflow-wrap:anywhere}
+.download-btn.is-busy{pointer-events:none;opacity:.55}
+#checkUpdateBtn,#exitBtn{font-size:11px}
+@media(max-width:850px){
+ .top-actions{gap:5px}
+ #checkUpdateBtn,#exitBtn{padding:6px 8px;font-size:10px}
+ .decision-card{padding:16px}
+}
