@@ -606,8 +606,18 @@ def validate_lines(lines: list[dict], duration: float) -> list[dict]:
                 ws = clamp(w.get("start"), start, end, start)
                 we = clamp(w.get("end"), ws, end, end)
                 good_words.append({"text": str(w.get("text", ""))[:100], "start": ws, "end": we})
-        cleaned.append({"id": str(row.get("id", uuid.uuid4().hex[:10]))[:20], "text": text,
-                        "start": start, "end": end, "words": good_words})
+        # Optional per-clip motion and placement. Missing values inherit the
+        # original project-wide style so old saved projects render unchanged.
+        cleaned_row = {"id": str(row.get("id", uuid.uuid4().hex[:10]))[:20], "text": text,
+                       "start": start, "end": end, "words": good_words}
+        if row.get("animation") in ANIMATIONS:
+            cleaned_row["animation"] = row["animation"]
+        if row.get("effectMs") is not None:
+            cleaned_row["effectMs"] = int(clamp(row.get("effectMs"), 120, 650, 230))
+        for coordinate in ("x", "y"):
+            if row.get(coordinate) is not None:
+                cleaned_row[coordinate] = clamp(row[coordinate], 8, 92, 50 if coordinate == "x" else 55)
+        cleaned.append(cleaned_row)
     cleaned.sort(key=lambda ln: ln["start"])
     if not cleaned:
         raise HTTPException(400, "No lyrics to export")
@@ -634,19 +644,26 @@ def ass_event(start: float, end: float, tags: str, text: str) -> str:
     return f"Dialogue: 0,{asstime(start)},{asstime(end)},Main,,0,0,0,,{{{tags}}}{ass_escape(text)}\n"
 
 
-def animation_tags(name: str, W: int, H: int, y: int) -> str:
+def animation_tags(name: str, W: int, H: int, y: int,
+                   x: int | None = None, enter_ms: int = 230) -> str:
+    """Valid ASS animation overrides; slide supplies \move instead of \pos."""
+    center = W // 2 if x is None else x
+    ms = max(120, min(650, int(enter_ms)))
+    fade = min(180, round(ms * .45))
     if name == "fade":
-        return r"\fad(180,180)"
+        return rf"\fad({fade},{fade})"
     if name == "pop":
-        return r"\fscx80\fscy80\t(0,160,\fscx100\fscy100)\fad(65,120)"
+        return rf"\fscx80\fscy80\t(0,{ms},\fscx100\fscy100)\fad({min(90,fade)},120)"
     if name == "slide":
-        return rf"\move({W//2},{y + 65},{W//2},{y},0,200)\fad(100,150)"
+        offset = max(24, round(H * .052))
+        return rf"\move({center},{y + offset},{center},{y},0,{ms})\fad({min(100,fade)},150)"
     if name == "zoom":
-        return r"\fscx125\fscy125\t(0,300,\fscx100\fscy100)\fad(90,130)"
+        return rf"\fscx125\fscy125\t(0,{ms},\fscx100\fscy100)\fad({min(90,fade)},130)"
     if name == "bounce":
-        return r"\fscx65\fscy65\t(0,110,\fscx115\fscy115)\t(110,260,\fscx100\fscy100)\fad(40,100)"
+        first = round(ms * .42)
+        return rf"\fscx65\fscy65\t(0,{first},\fscx115\fscy115)\t({first},{ms},\fscx100\fscy100)\fad(40,100)"
     if name == "blur":
-        return r"\blur6\t(0,280,\blur0.5)\fad(170,140)"
+        return rf"\blur6\t(0,{ms},\blur0.5)\fad({min(170,fade)},140)"
     return ""
 
 
@@ -703,25 +720,31 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     for line in prepare_render_lines(lines):
         start, end = line["start"], line["end"]
         text = line["text"].upper() if s["upper"] else line["text"]
-        base = rf"\an5\pos({W//2},{y})"
-        tags = base + animation_tags(s["animation"], W, H, y)
-        if s["mode"] == "word" and line["words"]:
+        mode = s["mode"]
+        motion = line.get("animation") if line.get("animation") in ANIMATIONS else s["animation"]
+        ms = int(clamp(line.get("effectMs"), 120, 650, 230))
+        cx = round(W * clamp(line.get("x"), 8, 92, 50) / 100)
+        cy = round(H * clamp(line.get("y"), 8, 92, s["position"]) / 100)
+        # Do not combine \pos and \move, which conflicts on some ASS renderers.
+        base = rf"\an5" + ("" if motion == "slide" else rf"\pos({cx},{cy})")
+        effect = animation_tags(motion, W, H, cy, cx, ms)
+        tags = base + effect
+        if mode == "word" and line["words"]:
             for word in line["words"]:
                 wtext = word["text"].upper() if s["upper"] else word["text"]
                 output.append(ass_event(word["start"], word["end"], tags, wtext))
-        elif s["mode"] == "karaoke" and line["words"]:
-            # Karaoke secondary = inactive; primary = active; word durations track timestamps.
-            # For gaps, hold previous highlight until the next word.
+        elif mode == "karaoke" and line["words"]:
             spans = []
             cursor = start
             for word in line["words"]:
                 gap_cs = max(0, round((word["start"] - cursor) * 100))
                 duration_cs = max(1, round((word["end"] - word["start"]) * 100))
-                spans.append(r"{\k" + str(gap_cs + duration_cs) + "}" + ass_escape(word["text"].upper() if s["upper"] else word["text"]))
+                spans.append(r"{\k" + str(gap_cs + duration_cs) + "}" +
+                             ass_escape(word["text"].upper() if s["upper"] else word["text"]))
                 cursor = word["end"]
-            # ASS tags are already encoded, so do not escape karaoke markup.
-            output.append(f"Dialogue: 0,{asstime(start)},{asstime(end)},Main,,0,0,0,,{{{base}\\1c{accent}\\2c{main}{animation_tags(s['animation'], W, H, y)}}}" + " ".join(spans) + "\n")
-        elif s["animation"] == "typewriter":
+            output.append(f"Dialogue: 0,{asstime(start)},{asstime(end)},Main,,0,0,0,,"
+                          f"{{{base}\\1c{accent}\\2c{main}{effect}}}" + " ".join(spans) + "\n")
+        elif motion == "typewriter" and mode == "line":
             pieces = tokenize(text)
             if pieces:
                 for i in range(len(pieces)):
