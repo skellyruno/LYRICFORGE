@@ -272,7 +272,8 @@ def recognition_options(mode: str, language: str, vocabulary: str = "",
         "recognition_mode": mode if isinstance(mode, str) and mode in RECOGNITION_MODES else "balanced",
         "language_hint": language if isinstance(language, str) and language in RECOGNITION_LANGUAGES else "auto",
         **({"vocabulary_hint": " ".join(vocabulary.split())[:300]} if vocabulary else {}),
-        "performanceMode": performance_mode if performance_mode in perf.PROFILES else "balanced",
+        **({"performanceMode": performance_mode} if performance_mode in perf.PROFILES
+           and performance_mode != "balanced" else {}),
     }
 
 
