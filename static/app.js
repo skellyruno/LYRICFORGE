@@ -1297,10 +1297,15 @@ async function restore(interactive=false){
   const p=await api('/api/projects/'+encodeURIComponent(last));
   // Do not overwrite a new song selected while last-session lookup was in flight.
   if(state.id||state.demo)return;
+  if(p.has_recovery){
+   // Resume the crash-protected draft only after the user chooses Recover.
+   await openSavedProject(p.id);return;
+  }
   if(p.status==='editor'&&p.lines?.length){
    loadProjectData(p);
   }else if(p.status==='review'||p.status==='transcribing'){
    state.id=p.id;state.title=p.title;state.duration=p.duration;
+   state.persisted=p.save_state!=='draft';state.dirty=false;notifyNativeSession();
    configureMedia();renderTitle();$('welcome').classList.add('hidden');
    $('reviewOverlay').classList.remove('hidden');
    $('transcribeProgress').classList.remove('hidden');$('lyricsText').classList.add('hidden');
