@@ -31,6 +31,27 @@ Two distributions are included in this repository:
 
 
 
+## SkellyMotion Windows native bridge repair (Python.Runtime.dll)
+
+If the executable shows **"Failed to resolve Python.Runtime.Loader.Initialize from ...Python.Runtime.dll"**, the failure is from the Python.NET/WinForms bridge that powers pywebview, **not** from Whisper, FFmpeg or necessarily WebView2. Windows may tag extracted DLLs as downloaded from the Internet; other causes are a broken/incomplete archive or missing .NET Framework.
+
+### Immediate repair on a trusted build
+
+1. Close SkellyMotion.
+2. In the **fully extracted** Windows download, open \`_internal\pythonnet\runtime\`.
+3. Right-click \`Python.Runtime.dll\` → **Properties** → **Unblock** (if this option appears) → Apply.
+4. Relaunch \`SkellyMotion.exe\` with the adjacent \`_internal\` folder intact.
+5. For builds with the new repair helper, you can alternatively open \`Repair-SkellyMotion.cmd\` alongside \`SkellyMotion.exe\`. It detects that DLL's download marker and asks before clearing the marker on that DLL **only**. Run this only after confirming the download came from your trusted GitHub repository.
+
+If there is **no Unblock option**, don't force it. Check that the whole artifact was extracted and inspect \`%LOCALAPPDATA%\LyricForge\logs\desktop.log\`. Python.NET on Windows needs the .NET Framework and pywebview's Edge Chromium renderer also needs WebView2. A Python.Runtime.dll initialization error does not by itself prove WebView2 is missing.
+
+### Packaging safeguards
+
+- Windows CI pins \`pythonnet==3.0.5\` and \`clr-loader==0.2.7.post0\` and validates the actual bundled Python.Runtime.dll file.
+- A new \`--native-self-test\` launches the packaged executable and **imports CLR/.NET**, not just FFmpeg. A failing native runtime now fails the Windows build.
+- The onedir distribution retains its single-extraction GitHub Actions artifact and logs native initialization failures with targeted repair guidance.
+- Bundled \`Repair-SkellyMotion.cmd\` is not an installer or a generic security bypass. It only checks and, if explicitly approved, removes the download marker from the specified DLL.
+
 ## SkellyMotion 0.8.1 — faster opening and ONE extraction on Windows
 
 **Why it seemed to freeze:** The desktop edition previously reopened the last project immediately, which could trigger media loading, waveform generation, and hundreds of timeline controls while the WebView2 window was still starting. The Windows app now opens the welcome screen first; use **Resume last project** to reopen your song when ready. The Projects tab still works and **no songs or AI models are removed**. The browser edition keeps automatic restoration.
