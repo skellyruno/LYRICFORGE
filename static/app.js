@@ -2,7 +2,7 @@
 'use strict';
 const $ = (id) => document.getElementById(id);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
-const defaultSettings = () => ({aspect:'portrait',resolution:'720p',mode:'line',animation:'pop',font:'Arial',fontSize:60,textColor:'#FFFFFF',accentColor:'#81FF71',outline:2.5,position:55,background:'midnight',dim:.15,upper:false});
+const defaultSettings = () => ({aspect:'portrait',resolution:'720p',renderSpeed:'balanced',mode:'line',animation:'pop',font:'Arial',fontSize:60,textColor:'#FFFFFF',accentColor:'#81FF71',outline:2.5,position:55,background:'midnight',dim:.15,upper:false});
 const backgrounds = {midnight:['#101418','#020605','#6fff87'],acid:['#15372b','#07120f','#72ff68'],violet:['#35244a','#0e0c1c','#bb8cfa'],crimson:['#4b1d2d','#130911','#fb5d88'],ocean:['#16445d','#06121f','#6be4ff'],noir:['#282b31','#050505','#b3b8bc']};
 const state = {id:null, title:'Untitled project', duration:0, lines:[], settings:defaultSettings(), time:0, playing:false, selected:0, demo:false, zoom:1, snap:false, sourceObjectUrl:null, backgroundUrl:null, pendingSave:null, backgroundIsVideo:false, waveform:[]};
 const audio=$('songAudio'), canvas=$('previewCanvas'), ctx=canvas.getContext('2d'), bgImg=$('backgroundImage'),bgVid=$('backgroundVideo');
@@ -299,7 +299,7 @@ const fileSize=bytes=>bytes>=1024**3?(bytes/1024**3).toFixed(2)+' GB':bytes>=102
 async function loadStorage(){try{const params=state.id?'?keep_project_id='+encodeURIComponent(state.id):'';const d=await api('/api/storage'+params);$('storageUsed').textContent=fileSize(d.workspace_bytes);$('storageExports').textContent=fileSize(d.exports_bytes);$('storageReclaim').textContent=fileSize(d.cleanup_bytes)+' · '+d.cleanup_files+' files';$('storageProjects').textContent=d.projects;}catch(e){toast('Storage info unavailable: '+e.message,true);}}
 async function cleanupStorage(){try{const params=state.id?'?keep_project_id='+encodeURIComponent(state.id):'';const data=await api('/api/storage'+params);if(!data.cleanup_files){toast('No old render files to clean.');return;}if(!confirm('Delete '+data.cleanup_files+' generated files from OTHER projects and free about '+fileSize(data.cleanup_bytes)+'? Original songs, edits, backgrounds, the current video, and AI models are kept.'))return;const result=await api('/api/storage/cleanup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({keep_project_id:state.id,confirm:true})});toast('Cleaned '+result.removed_files+' files · Freed '+fileSize(result.freed_bytes));loadStorage();}catch(e){toast('Cleanup failed: '+e.message,true);}}
 function syncSettingUI(){const s=state.settings;
- ['font','fontSize','position','textColor','accentColor','outline','dim','upper','resolution'].forEach(k=>{if($(k))$(k).type==='checkbox'?$(k).checked=!!s[k]:$(k).value=s[k]});
+ ['font','fontSize','position','textColor','accentColor','outline','dim','upper','resolution','renderSpeed'].forEach(k=>{if($(k))$(k).type==='checkbox'?$(k).checked=!!s[k]:$(k).value=s[k]});
  $('fontSizeVal').textContent=`${s.fontSize}px`;$('positionVal').textContent=`${s.position}%`;$('outlineVal').textContent=s.outline;
  $('dimVal').textContent=`${Math.round(s.dim*100)}%`;$('textColorVal').textContent=s.textColor.toUpperCase();$('accentColorVal').textContent=s.accentColor.toUpperCase();
  $$('[data-mode]').forEach(x=>x.classList.toggle('selected',x.dataset.mode===s.mode));
@@ -660,8 +660,40 @@ async function chooseBackground(){
  $('backgroundFile').click();
 }
 function loadDemo(){resetEditHistory();const texts=['I WAS LOST INSIDE THE STATIC','NOW THE CITY KNOWS MY NAME','EVERY SHADOW HAS A STORY','WATCH ME TURN IT INTO FLAMES','I CAME BACK FROM THE DARK','AND I BROUGHT THE LIGHT WITH ME'];state.id=null;state.demo=true;state.title='DEMO / AFTER DARK';state.duration=24;state.time=2;state.waveform=Array.from({length:120},(_,i)=>.14+.42*Math.abs(Math.sin(i*7.1)*Math.cos(i*.9)));state.lines=texts.map((text,i)=>{const start=i*4;const line={id:String(i),start,end:start+3.7,text,words:[]};reflowWords(line);return line;});state.settings=defaultSettings();state.selected=0;$('welcome').classList.add('hidden');syncSettingUI();resizePreview();renderTitle();renderTimeline();renderLines();toast('Demo mode — upload your own song to enable MP4 export.');}
-async function exportVideo(){if(!state.id){toast('Upload your song to export a lyric video.',true);return;}if(!state.lines.length){toast('Add some lyric lines before exporting.',true);return;}panel('export');$('renderBtn').disabled=true;$('downloadBtn').classList.add('hidden');$('renderStatus').classList.remove('hidden');$('renderStatus').textContent='Preparing video render…';
- try{const {job_id}=await api(`/api/projects/${state.id}/render`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lines:state.lines,settings:state.settings})});for(let i=0;i<900;i++){await new Promise(r=>setTimeout(r,1200));const job=await api(`/api/jobs/${job_id}`);if(job.status==='done'){$('renderStatus').textContent='✓ Render complete. Your MP4 is ready.';const dl=$('downloadBtn');dl.href=job.download;dl.classList.remove('hidden');toast('Video export finished!');return;}if(job.status==='error')throw Error(job.error||'Rendering failed');$('renderStatus').textContent=`Rendering your video… ${Math.floor((i+1)*1.2)}s elapsed`; }throw Error('Render timed out after 18 minutes.');}catch(e){$('renderStatus').textContent='Render failed: '+e.message;toast(e.message,true);}finally{$('renderBtn').disabled=false;}}
+async function exportVideo(){
+ if(!state.id){toast('Upload a song to export a video.',true);return;}
+ if(!state.lines.length){toast('Add lyric lines before exporting.',true);return;}
+ panel('export');$('renderBtn').disabled=true;
+ $('downloadBtn').classList.add('hidden');
+ const text=$('renderStatus'),track=$('renderProgressTrack'),fill=$('renderProgressFill');
+ text.classList.remove('hidden');track.classList.remove('hidden');
+ track.setAttribute('aria-valuenow','0');fill.style.width='0%';
+ text.textContent='Preparing your video…';
+ try{
+  const {job_id}=await api('/api/projects/'+state.id+'/render',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({lines:state.lines,settings:state.settings})
+  });
+  for(let i=0;i<900;i++){
+   await new Promise(resolve=>setTimeout(resolve,1200));
+   const job=await api('/api/jobs/'+job_id);
+   if(job.status==='done'){
+     text.textContent='✓ Export complete. Your MP4 is ready.';
+     fill.style.width='100%';track.setAttribute('aria-valuenow','100');
+     const link=$('downloadBtn');link.href=job.download;link.classList.remove('hidden');
+     toast('Video export finished!');return;
+   }
+   if(job.status==='error')throw Error(job.error||'Rendering failed');
+   const percent=Math.max(0,Math.min(99,Number(job.progress)||0));
+   fill.style.width=percent+'%';track.setAttribute('aria-valuenow',String(percent));
+   text.textContent=job.stage==='encoding'
+     ?'Encoding video… '+percent+'% · You can continue editing'
+     :'Preparing video and subtitles…';
+  }
+  throw Error('Rendering exceeded the safety timeout.');
+ }catch(e){text.textContent='Export failed: '+e.message;toast(e.message,true);}
+ finally{$('renderBtn').disabled=false;}
+}
 function wireUI(){
  $$('.rail-item').forEach(b=>b.addEventListener('click',()=>panel(b.dataset.panel)));
  $('undoBtn').addEventListener('click',undoEdit);
@@ -696,7 +728,7 @@ function wireUI(){
  $('refreshProjects').addEventListener('click',loadLibrary);
  $('refreshStorage').addEventListener('click',loadStorage);
  $('cleanupStorage').addEventListener('click',cleanupStorage);
- ['font','fontSize','position','textColor','accentColor','outline','dim','resolution'].forEach(k=>$(k).addEventListener('input',e=>setSetting(k,k==='fontSize'||k==='position'||k==='outline'||k==='dim'?Number(e.target.value):e.target.value)));
+ ['font','fontSize','position','textColor','accentColor','outline','dim','resolution','renderSpeed'].forEach(k=>$(k).addEventListener('input',e=>setSetting(k,k==='fontSize'||k==='position'||k==='outline'||k==='dim'?Number(e.target.value):e.target.value)));
  $('upper').addEventListener('change',e=>setSetting('upper',e.target.checked));
  ['mode','animation','background','aspect'].forEach(key=>$$(`[data-${key}]`).forEach(b=>b.addEventListener('click',()=>setSetting(key,b.dataset[key]))));
  $('heroUpload').addEventListener('click',chooseSong);
