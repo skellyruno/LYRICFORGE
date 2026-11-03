@@ -96,3 +96,47 @@ def test_ffmpeg_progress_job_updates(tmp_path, monkeypatch):
         assert server.jobs[job]["progress"] == 99
     finally:
         server.jobs.pop(job, None)
+
+
+def test_upload_passes_fast_mode_and_language_hint(tmp_path, monkeypatch):
+    from fastapi.testclient import TestClient
+    import json
+    monkeypatch.setattr(server, "DATA", tmp_path)
+    monkeypatch.setattr(server, "media_duration", lambda path: 8.5)
+    monkeypatch.setattr(server.executor, "submit", lambda *args: None)
+    response = TestClient(server.app).post(
+        "/api/projects",
+        files={"file": ("song.wav", b"dummy audio", "audio/wav")},
+        data={"recognition": "fast", "language": "en"},
+    )
+    assert response.status_code == 200, response.text
+    project = tmp_path / response.json()["id"] / "project.json"
+    data = json.loads(project.read_text())
+    assert data["recognition_mode"] == "fast"
+    assert data["language_hint"] == "en"
+    assert data["status"] == "transcribing"
+
+
+def test_accurate_mode_uses_same_model_with_deeper_beam(tmp_path, monkeypatch):
+    import json
+    from types import SimpleNamespace
+    monkeypatch.setattr(server, "DATA", tmp_path)
+    folder = tmp_path / ("f" * 32)
+    folder.mkdir()
+    (folder / "project.json").write_text(json.dumps({
+        "id": folder.name, "audio_file": "song.wav", "status": "transcribing",
+        "duration": 6, "recognition_mode": "accurate", "language_hint": "en",
+    }))
+    options = {}
+    class FakeModel:
+        def transcribe(self, filename, **kwargs):
+            options.update(kwargs)
+            parts = [SimpleNamespace(end=5.0, words=[SimpleNamespace(
+                word=" Hello", start=1.0, end=2.0)])]
+            return iter(parts), SimpleNamespace(language="en")
+    monkeypatch.setattr(server, "load_model", lambda: FakeModel())
+    server.transcribe_project(folder.name)
+    assert options["beam_size"] == 5
+    assert options["language"] == "en"
+    assert options["word_timestamps"] is True
+    assert json.loads((folder / "project.json").read_text())["status"] == "review"
