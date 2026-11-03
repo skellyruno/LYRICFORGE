@@ -17,7 +17,7 @@ import studio_updater as updater
 
 def make_project(tmp, identity, saved=False):
     directory = tmp / identity
-    directory.mkdir()
+    directory.mkdir(parents=True)
     (directory / "song.wav").write_bytes(b"audio source copy")
     (directory / "project.json").write_text(json.dumps({
         "id": identity, "title": "Song " + identity[0], "status": "editor",
@@ -173,8 +173,8 @@ def test_zip_extraction_blocks_traversal_and_preserves_nonapp_files(tmp_path):
 
 
 def test_private_release_without_auth_shows_prerequisite_without_token(monkeypatch):
-    monkeypatch.setattr(updater.sys, "frozen", True, raising=False)
-    monkeypatch.setattr(updater.os, "name", "nt")
+    monkeypatch.setattr(updater, "sys", SimpleNamespace(frozen=True))
+    monkeypatch.setattr(updater, "os", SimpleNamespace(name="nt"))
     monkeypatch.setattr(updater, "latest_release", lambda: (None, "needs_auth"))
     data = updater.check_for_updates()
     assert data["status"] == "needs_auth"
