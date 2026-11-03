@@ -477,7 +477,7 @@ function drawFrame(now){
  // Prefer 30 fps while playing, 12 fps while editing and 4 fps during
  // modal/welcome screens. Keeps WebView responsive while Whisper uses the CPU.
  const covered=!$('welcome').classList.contains('hidden')||!$('reviewOverlay').classList.contains('hidden');
- const interval=document.hidden?250:covered?250:state.playing?33:80;
+ const interval=document.hidden?250:covered?250:state.playing?(state.settings.performanceMode==='eco'?67:33):120;
  if(now-lastPreviewPaint<interval)return;
  const elapsed=Math.min(.15,(now-lastFrame)/1000);lastFrame=now;lastPreviewPaint=now;
  if(state.demo&&state.playing){state.time+=elapsed;if(state.time>state.duration){state.time=0;state.playing=false;}}
@@ -686,39 +686,83 @@ async function chooseBackground(){
  $('backgroundFile').click();
 }
 function loadDemo(){resetEditHistory();const texts=['I WAS LOST INSIDE THE STATIC','NOW THE CITY KNOWS MY NAME','EVERY SHADOW HAS A STORY','WATCH ME TURN IT INTO FLAMES','I CAME BACK FROM THE DARK','AND I BROUGHT THE LIGHT WITH ME'];state.id=null;state.demo=true;state.title='DEMO / AFTER DARK';state.duration=24;state.time=2;state.waveform=Array.from({length:120},(_,i)=>.14+.42*Math.abs(Math.sin(i*7.1)*Math.cos(i*.9)));state.lines=texts.map((text,i)=>{const start=i*4;const line={id:String(i),start,end:start+3.7,text,words:[]};reflowWords(line);return line;});state.settings=defaultSettings();state.selected=0;$('welcome').classList.add('hidden');syncSettingUI();resizePreview();renderTitle();renderTimeline();renderLines();toast('Demo mode — upload your own song to enable MP4 export.');}
-async function exportVideo(){
+async function runVideoExport(preview=false){
  if(!state.id){toast('Upload a song to export a video.',true);return;}
  if(!state.lines.length){toast('Add lyric lines before exporting.',true);return;}
- panel('export');$('renderBtn').disabled=true;
- $('downloadBtn').classList.add('hidden');
- const text=$('renderStatus'),track=$('renderProgressTrack'),fill=$('renderProgressFill');
- text.classList.remove('hidden');track.classList.remove('hidden');
+ panel('export');
+ $('renderBtn').disabled=true;$('renderPreviewBtn').disabled=true;
+ if(preview){$('previewDownloadBtn').classList.add('hidden');$('renderPreviewPlayer').classList.add('hidden');}
+ else $('downloadBtn').classList.add('hidden');
+ const label=$('renderStatus'),track=$('renderProgressTrack'),fill=$('renderProgressFill');
+ label.classList.remove('hidden');track.classList.remove('hidden');
  track.setAttribute('aria-valuenow','0');fill.style.width='0%';
- text.textContent='Preparing your video…';
+ label.textContent=preview?'Preparing a 15-second preview…':'Preparing full video…';
  try{
-  const {job_id}=await api('/api/projects/'+state.id+'/render',{
-    method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({lines:state.lines,settings:state.settings})
+  const endpoint='/api/projects/'+state.id+(preview?'/preview':'/render');
+  const {job_id}=await api(endpoint,{
+   method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({lines:state.lines,settings:state.settings})
   });
   for(let i=0;i<900;i++){
    await new Promise(resolve=>setTimeout(resolve,1200));
    const job=await api('/api/jobs/'+job_id);
    if(job.status==='done'){
-     text.textContent='✓ Export complete. Your MP4 is ready.';
-     fill.style.width='100%';track.setAttribute('aria-valuenow','100');
+    fill.style.width='100%';track.setAttribute('aria-valuenow','100');
+    const message=job.cached?'Reused an identical completed render.':'Rendered successfully.';
+    label.textContent='✓ '+message+
+     (job.elapsed_seconds!=null?' '+job.elapsed_seconds+'s.':'')+
+     (job.encoder_used?' · '+job.encoder_used:'');
+    if(preview){
+     const link=$('previewDownloadBtn');link.href=job.download;link.classList.remove('hidden');
+     const player=$('renderPreviewPlayer');player.src=job.download+'?v='+Date.now();
+     player.classList.remove('hidden');
+    }else{
      const link=$('downloadBtn');link.href=job.download;link.classList.remove('hidden');
-     toast('Video export finished!');return;
+    }
+    toast(preview?'Test render ready for review!':'Full MP4 export complete!');
+    return;
    }
    if(job.status==='error')throw Error(job.error||'Rendering failed');
    const percent=Math.max(0,Math.min(99,Number(job.progress)||0));
    fill.style.width=percent+'%';track.setAttribute('aria-valuenow',String(percent));
-   text.textContent=job.stage==='encoding'
-     ?'Encoding video… '+percent+'% · You can continue editing'
-     :'Preparing video and subtitles…';
+   const speed=Number.isFinite(job.encode_fps)?' · '+job.encode_fps.toFixed(0)+' encode FPS':'';
+   const encoder=job.encoder_used?' · '+job.encoder_used:'';
+   const stage=job.stage==='checking_encoder'?'Testing video encoder…':
+     job.stage==='cpu_fallback'?'GPU failed, automatically retrying on CPU…':
+     job.stage==='encoding'?'Encoding video… '+percent+'%'+speed+encoder:
+     'Preparing background and subtitles…';
+   label.textContent=stage;
   }
-  throw Error('Rendering exceeded the safety timeout.');
- }catch(e){text.textContent='Export failed: '+e.message;toast(e.message,true);}
- finally{$('renderBtn').disabled=false;}
+  throw Error('Render exceeded the safety timeout.');
+ }catch(e){label.textContent='Export failed: '+e.message;toast(e.message,true);}
+ finally{$('renderBtn').disabled=false;$('renderPreviewBtn').disabled=false;}
+}
+async function exportVideo(){return runVideoExport(false);}
+async function previewVideo(){return runVideoExport(true);}
+
+async function loadPerformance(checkGpu=false){
+ try{
+  $('perfLastRender').textContent='Reading resource usage…';
+  const status=await api('/api/performance'+(checkGpu?'?check_gpu=true':''));
+  const res=status.resources||{};
+  $('perfCPU').textContent=res.cpu_percent==null?'—':res.cpu_percent.toFixed(1)+'%';
+  $('perfRAM').textContent=res.ram_mb==null?'—':res.ram_mb.toFixed(1)+' MB';
+  $('perfChildRAM').textContent=res.child_ram_mb==null?'—':res.child_ram_mb.toFixed(1)+' MB';
+  $('perfCores').textContent=res.logical_cores||'—';
+  if(checkGpu){
+   const enc=status.gpu_encoders||[];
+   $('gpuResult').textContent=enc.length?'Hardware H.264 encoders passed: '+enc.join(', '):
+     'No tested hardware encoder available. Software H.264 will be used.';
+  }
+  const job=status.last_render;
+  $('perfLastRender').textContent=job?
+    'Last video: '+(job.preview?'15-second preview':'Full MP4')+
+    (job.cached?' · From cache':'')+
+    (job.encoder_used?' · '+job.encoder_used:'')+
+    (job.elapsed_seconds!=null?' · '+job.elapsed_seconds+'s':'')+
+    (job.speed_ratio!=null?' · '+job.speed_ratio+'× realtime':''):
+    'No completed export measured this session.';
+ }catch(e){$('perfLastRender').textContent='Performance information unavailable: '+e.message;}
 }
 function wireUI(){
  $$('.rail-item').forEach(b=>b.addEventListener('click',()=>panel(b.dataset.panel)));
@@ -753,8 +797,11 @@ function wireUI(){
  $('nudgeForward').addEventListener('click',()=>shiftSelected(.05));
  $('refreshProjects').addEventListener('click',loadLibrary);
  $('refreshStorage').addEventListener('click',loadStorage);
+ $('refreshPerformance').addEventListener('click',()=>loadPerformance(false));
+ $('checkGPU').addEventListener('click',()=>loadPerformance(true));
+ $('renderPreviewBtn').addEventListener('click',previewVideo);
  $('cleanupStorage').addEventListener('click',cleanupStorage);
- ['font','fontSize','position','textColor','accentColor','outline','dim','resolution','renderSpeed','fps','performanceMode','encoder'].forEach(k=>$(k).addEventListener('input',e=>setSetting(k,k==='fontSize'||k==='position'||k==='outline'||k==='dim'?Number(e.target.value):e.target.value)));
+ ['font','fontSize','position','textColor','accentColor','outline','dim','resolution','renderSpeed','fps','performanceMode','encoder'].forEach(k=>$(k).addEventListener('input',e=>setSetting(k,k==='fontSize'||k==='position'||k==='outline'||k==='dim'||k==='fps'?Number(e.target.value):e.target.value)));
  $('upper').addEventListener('change',e=>setSetting('upper',e.target.checked));
  ['mode','animation','background','aspect'].forEach(key=>$$(`[data-${key}]`).forEach(b=>b.addEventListener('click',()=>setSetting(key,b.dataset[key]))));
  $('heroUpload').addEventListener('click',chooseSong);
