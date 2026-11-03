@@ -31,6 +31,32 @@ Two distributions are included in this repository:
 
 
 
+## SkellyMotion 0.5 — editing workspace upgrade
+
+This version builds on the working v0.4 desktop app. **It does not change the Whisper model, song data, saved projects, or AI cache paths.** The current Windows executable still needs to be rebuilt from GitHub Actions.
+
+### Easier editing
+
+- **Undo/redo** for lyric text, clip timings, splitting, deleting, duplicating, nudging, and style settings, with bounded 60-step history. Native text-field undo still works while typing.
+- **Clip tools** for splitting a selected lyric at the playhead (or its midpoint), duplicating it, deleting it, and moving it ±0.05 seconds.
+- **Timeline controls** for 0.1-second snap-to-grid, previous/next clip navigation, zoom in/out, and Fit.
+- **Adjustable workspace**: drag the vertical divider to resize the settings panel or the horizontal divider above the timeline to give the waveform more space. Double-click either divider to reset. Panel dimensions are remembered locally.
+- **Keyboard shortcuts**: Space play, Ctrl+Z undo, Ctrl+Y/Ctrl+Shift+Z redo, Ctrl+D duplicate, S split, Delete remove, N snap, ↑/↓ move between clips, Alt+←/→ nudge, Ctrl+S save and ? help.
+- **Style memory**: save your current typography/motion as a personal look, apply it to another song or reset to default. Personal looks are stored in that computer's webview/browser profile (they do not replace project settings).
+- **SRT subtitle export** without needing to render an MP4.
+- **Projects library**: revisit previously saved songs, with duration, status and most recent modification date. This is read-only listing; it does not delete files. When switching, the editor attempts to save your current work first.
+- **Safer autosave**: serialized project writes, with Unsaved changes → Saving → Saved/Save failed feedback. The program avoids repeated waveform redraws while adjusting clips and records drag operations as one undoable action.
+
+### Compatibility and verification
+
+- Windows portable remains a native WebView2 GUI named \`SkellyMotion.exe\`.
+- Default window remains **960 × 623** with adjustable window and editor panel sizes.
+- The actual AI model remains **Whisper \`small\`** with \`SKELLYMOTION_BEAM_SIZE=3\` (or set 5 for more thorough decoding).
+- The project folder is still \`%LOCALAPPDATA%\LyricForge\workspace\`, and model cache is still \`%LOCALAPPDATA%\LyricForge\models\`. **Do not delete or rename these folders.**
+- The Windows and Linux CI test workflows now run \`node tests/editor_smoke.mjs\`, a zero-dependency runtime smoke test for editing controls and layout, along with existing Python backend tests. Real Windows native-window and MP4 testing must be confirmed on the newly built executable.
+
+To download: GitHub **Actions → Build SkellyMotion Windows app → Run workflow** on \`main\`, then download and extract \`SkellyMotion-Windows-x64\` from the completed run's **Artifacts**. Keep your previous working folder until the new build has been tested.
+
 ## SkellyMotion 0.4 — compact, smoother studio
 
 - Windows starts at **960 × 623** pixels (25% smaller in each dimension than the old 1280 × 830 default), can resize down to 800 × 520, and retains its native WebView2 window.
