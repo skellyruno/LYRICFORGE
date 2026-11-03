@@ -19,7 +19,8 @@ def test_frontend_selectors_and_file_picker_wiring():
     assert "$$('[data-preset]').forEach" in js
     assert "$('heroUpload').addEventListener('click',chooseSong)" in js
     assert "$('backgroundUploadTrigger').addEventListener('click',chooseBackground)" in js
-    assert "bridge.choose_audio(" in js
+    assert "bridge.pick_audio_file(" in js
+    assert "bridge.import_picked_audio(" in js
     assert "bridge.choose_background(state.id)" in js
     assert '<button type="button" class="hero-upload" id="heroUpload">' in html
     assert 'id="audioFile" type="file"' in html
@@ -60,24 +61,46 @@ def test_desktop_import_rejects_wrong_extension_before_creating_project(tmp_path
     assert not any(p.is_dir() for p in tmp_path.iterdir())
 
 
-def test_native_background_import_preserves_source_and_replaces_old(tmp_path, monkeypatch):
+def test_native_background_import_stages_changes_until_explicit_save(tmp_path, monkeypatch):
     from types import SimpleNamespace
+    from fastapi.testclient import TestClient
+
     monkeypatch.setattr(server, "DATA", tmp_path / "workspace")
     server.DATA.mkdir()
     project_id = "a" * 32
     folder = server.DATA / project_id
     folder.mkdir()
     (folder / "project.json").write_text(
-        json.dumps({"id": project_id, "background_file": "background_old.jpg"}),
+        json.dumps({"id": project_id, "status": "editor", "duration": 10,
+                    "lines": [], "settings": {},
+                    "background_file": "background_old.jpg", "save_state": "saved"}),
         encoding="utf-8")
     (folder / "background_old.jpg").write_bytes(b"old")
     selected = tmp_path / "scene.png"
     selected.write_bytes(b"test png fixture")
-    monkeypatch.setattr(server, "run", lambda cmd: SimpleNamespace(stdout="1280\n"))
-    result = server.import_desktop_background_file(project_id, selected)
-    assert result["name"] == "background.png"
+    monkeypatch.setattr(server, "run", lambda cmd: SimpleNamespace(stdout="1280\\n"))
+    client = TestClient(server.app)
+
+    staged = server.import_desktop_background_file(project_id, selected)
+    assert staged["name"].startswith("background-pending-")
+    assert staged["name"].endswith(".png")
     assert selected.exists() and selected.read_bytes() == b"test png fixture"
-    assert (folder / "background.png").read_bytes() == selected.read_bytes()
+    assert (folder / staged["name"]).read_bytes() == selected.read_bytes()
+    assert (folder / "background_old.jpg").is_file()
+    assert server.read_project(project_id)["background_file"] == "background_old.jpg"
+    assert client.get(staged["background_url"]).status_code == 200
+
+    # Don't Save reverts to the previously saved background.
+    discarded = client.post("/api/projects/" + project_id + "/discard")
+    assert discarded.status_code == 200
+    assert (folder / "background_old.jpg").exists()
+    assert not (folder / staged["name"]).exists()
+
+    # Re-import and press Save: only now replace the saved image.
+    changed = server.import_desktop_background_file(project_id, selected)
+    result = client.put("/api/projects/" + project_id,
+                        json={"lines": [], "settings": {}})
+    assert result.status_code == 200, result.text
+    assert server.read_project(project_id)["background_file"] == changed["name"]
+    assert (folder / changed["name"]).exists()
     assert not (folder / "background_old.jpg").exists()
-    assert not (folder / "background_pending.png").exists()
-    assert json.loads((folder / "project.json").read_text())["background_file"] == "background.png"
