@@ -295,8 +295,8 @@ def transcribe_project(project_id: str) -> None:
         # candidate: less CPU work without changing model size, word timestamps,
         # or the ability to correct lyrics after transcription.
         mode = d.get("recognition_mode")
-        # Legacy projects still honor SKELLYMOTION_BEAM_SIZE.
-        beam = RECOGNITION_MODES.get(mode) if mode in RECOGNITION_MODES else transcription_beam_size()
+        # Keep SKELLYMOTION_BEAM_SIZE working for Balanced and legacy projects.
+        beam = 1 if mode == "fast" else 5 if mode == "accurate" else transcription_beam_size()
         language = d.get("language_hint")
         segs, info = model.transcribe(
             str(p / d["audio_file"]), word_timestamps=True,
