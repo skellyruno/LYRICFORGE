@@ -251,52 +251,122 @@ function initResizer(id,axis,variable,initial,minValue,maxValue){
 }
 
 
+const selectedProjects=new Set();
+let visibleProjects=[];
+function updateDeleteSelection(){
+ const count=selectedProjects.size,button=$('deleteSelectedProjects');
+ button.disabled=count===0;button.textContent='Delete selected ('+count+')';
+ const all=$('selectAllProjects');
+ all.checked=visibleProjects.length>0&&visibleProjects.every(x=>selectedProjects.has(x.id));
+ all.indeterminate=visibleProjects.some(x=>selectedProjects.has(x.id))&&!all.checked;
+}
 async function loadLibrary(){
- const holder=$('savedProjectsList');
- holder.innerHTML='<p class="library-empty">Loading your saved projects…</p>';
+ const saved=$('savedProjectsList'),drafts=$('draftProjectsList');
+ saved.innerHTML='<p class="library-empty">Loading saved projects…</p>';
+ drafts.innerHTML='<p class="library-empty">Loading crash-recovery drafts…</p>';
  try{
   const result=await api('/api/projects');
-  const projects=result.projects||[];
-  if(!projects.length){holder.innerHTML='<p class="library-empty">No saved songs yet. Upload your first song to get started.</p>';return;}
-  holder.innerHTML=projects.map(item=>{
+  const projects=result.projects||[],unsaved=result.drafts||[];
+  visibleProjects=[...projects,...unsaved];
+  const visibleIds=new Set(visibleProjects.map(item=>item.id));
+  for(const id of [...selectedProjects])if(!visibleIds.has(id))selectedProjects.delete(id);
+  const cards=(list)=>list.map(item=>{
    const date=Number.isFinite(item.updated_at)?new Date(item.updated_at*1000).toLocaleDateString():'';
-   const status=item.status==='editor'?'Ready':item.status==='review'?'Review lyrics':item.status==='transcribing'?'Finding lyrics':'Saved';
-   return '<div class="library-item"><div class="library-details">'+
-      '<strong title="'+safe(item.title)+'">'+safe(item.title)+'</strong>'+
-      '<span>'+shortTime(item.duration||0)+' · '+status+' · '+date+'</span></div>'+
-      '<button type="button" data-open-project="'+safe(item.id)+'">Open</button></div>';
+   const status=item.save_state==='draft'?'Unsaved draft':
+    item.status==='editor'?'Ready':item.status==='review'?'Review lyrics':
+    item.status==='transcribing'?'Finding lyrics':'Saved';
+   return '<div class="library-item"><input class="library-check" type="checkbox" '+
+     'aria-label="Select '+safe(item.title)+'" data-select-project="'+safe(item.id)+'" '+
+     (selectedProjects.has(item.id)?'checked':'')+' />'+
+     '<div class="library-details"><strong title="'+safe(item.title)+'">'+safe(item.title)+'</strong>'+
+     '<span>'+shortTime(item.duration||0)+' · '+status+' · '+date+
+     (item.has_recovery?' · Recovery available':'')+'</span></div>'+
+     '<button type="button" data-open-project="'+safe(item.id)+'">'+
+     (item.save_state==='draft'?'Recover':'Open')+'</button></div>';
   }).join('');
-  holder.querySelectorAll('[data-open-project]').forEach(button=>{
-   button.addEventListener('click',()=>openSavedProject(button.dataset.openProject));
+  saved.innerHTML=projects.length?cards(projects):
+   '<p class="library-empty">No permanently saved projects. Click Save while editing to keep one.</p>';
+  drafts.innerHTML=unsaved.length?cards(unsaved):
+   '<p class="library-empty">No unsaved drafts. Crash-recovery drafts will appear here.</p>';
+  [saved,drafts].forEach(parent=>{
+   parent.querySelectorAll('[data-open-project]').forEach(button=>
+     button.addEventListener('click',()=>openSavedProject(button.dataset.openProject)));
+   parent.querySelectorAll('[data-select-project]').forEach(box=>
+     box.addEventListener('change',()=>{
+      if(box.checked)selectedProjects.add(box.dataset.selectProject);
+      else selectedProjects.delete(box.dataset.selectProject);
+      updateDeleteSelection();
+     }));
   });
- }catch(e){holder.innerHTML='<p class="library-empty">Could not load your projects.</p>';toast(e.message,true);}
+  updateDeleteSelection();
+ }catch(e){
+  saved.innerHTML='<p class="library-empty">Could not load the project library.</p>';
+  drafts.innerHTML='';toast(e.message,true);
+ }
+}
+async function deleteSelectedProjects(){
+ const ids=[...selectedProjects];
+ if(!ids.length)return;
+ const names=visibleProjects.filter(p=>ids.includes(p.id)).map(p=>p.title);
+ if(!confirm('Permanently DELETE '+ids.length+' selected project(s)?\n\n'+
+   names.slice(0,8).join('\n')+(names.length>8?'\n…and more':'')+
+   '\n\nThis deletes their source copies, embedded renders and recovery files. '+
+   'Your downloaded MP4s and Whisper model remain untouched.'))return;
+ const button=$('deleteSelectedProjects');button.disabled=true;
+ try{
+  const result=await api('/api/projects/bulk-delete',{
+   method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({project_ids:ids,confirm:true})
+  });
+  if(result.deleted_ids.includes(state.id))resetWorkspace();
+  result.deleted_ids.forEach(id=>selectedProjects.delete(id));
+  toast('Deleted '+result.count+' selected project(s).');await loadLibrary();
+ }catch(e){toast('Could not delete selected projects: '+e.message,true);}
+ finally{updateDeleteSelection();}
 }
 async function openSavedProject(id){
  if(!/^[0-9a-f]{32}$/.test(id))return;
  if(id===state.id){panel('lyrics');return;}
  try{
-  if(state.id&&state.lines.length){
-   await save();
-   if($('projectStatus').textContent==='Save failed'){
-    toast('Save this project before switching.',true);return;
+  const project=await api('/api/projects/'+id);
+  if(!await mayLeaveProject())return;
+  let recovered=null;
+  if(project.has_recovery){
+   if(confirm('A crash-recovery draft was found for "'+project.title+
+      '".\n\nRecover the unsaved edits?')){
+    recovered=await api('/api/projects/'+id+'/recovery');
    }
   }
-  const project=await api('/api/projects/'+id);
-  if(project.status==='editor'&&project.lines&&project.lines.length){
-   loadProjectData(project);panel('lyrics');localStorage.setItem('lyricforge-last',id);return;
+  if(project.status==='editor'||(project.lines&&project.lines.length)){
+   loadProjectData(project);
+   if(recovered){
+    state.lines=recovered.lines||[];
+    state.settings={...defaultSettings(),...(recovered.settings||{})};
+    state.dirty=true;syncSettingUI();resizePreview();renderLines();renderTimeline();
+    $('projectStatus').textContent='Recovered · not yet saved';
+   }
+   panel('lyrics');localStorage.setItem('lyricforge-last',id);return;
   }
   resetEditHistory();
   state.id=project.id;state.title=project.title||'Untitled project';
   state.duration=project.duration||0;state.demo=false;state.lines=[];
+  state.persisted=project.save_state!=='draft';state.dirty=!!recovered;
   state.selected=0;state.waveform=[];state.time=0;state.playing=false;
-  state.settings={...defaultSettings(),...(project.settings||{})};
+  state.settings={...defaultSettings(),...(recovered?.settings||project.settings||{})};
   state.backgroundUrl=project.background_file?'/api/projects/'+id+'/background?v='+Date.now():null;
   state.backgroundIsVideo=!!project.background_file&&/\.(mp4|mov|webm)$/i.test(project.background_file);
   refreshBackgroundMedia();syncSettingUI();resizePreview();configureMedia();renderTitle();renderTimeline();renderLines();
   $('welcome').classList.add('hidden');$('reviewOverlay').classList.remove('hidden');
   $('transcribeProgress').classList.remove('hidden');$('lyricsText').classList.add('hidden');
-  $('confirmLyrics').disabled=true;localStorage.setItem('lyricforge-last',id);
+  $('confirmLyrics').disabled=true;
+  if(recovered&&recovered.draft_lyrics)$('lyricsText').value=recovered.draft_lyrics;
+  localStorage.setItem('lyricforge-last',id);notifyNativeSession();
   await waitForTranscript(id);
+  if(recovered&&recovered.draft_lyrics){
+   $('lyricsText').value=recovered.draft_lyrics;
+   $('confirmLyrics').disabled=!$('lyricsText').value.trim();
+   $('projectStatus').textContent='Recovered · not yet saved';
+  }
  }catch(e){toast('Could not reopen project: '+e.message,true);}
 }
 
@@ -769,6 +839,7 @@ async function finishNewSong(data,title){resetEditHistory();
 }
 async function startUpload(file){
  if(!file)return;
+ if(!await mayLeaveProject())return;
  if(!/\.(mp3|wav|flac|m4a|aac|ogg|opus|mp4|webm)$/i.test(file.name)){
    toast('Please upload an audio file (MP3, WAV, M4A, FLAC, etc.)',true);return;
  }
@@ -785,6 +856,8 @@ async function startUpload(file){
 }
 async function chooseSong(){
  const bridge=window.pywebview?.api;
+ if(state.id&&!await mayLeaveProject())return;
+ if(state.id)resetWorkspace();
  if(document.documentElement.classList.contains('desktop-mode')&&bridge?.choose_audio){
    try{
      const data=await bridge.choose_audio($('recognitionMode').value,$('languageHint').value,
@@ -1032,6 +1105,13 @@ function wireUI(){
  $('nudgeBack').addEventListener('click',()=>shiftSelected(-.05));
  $('nudgeForward').addEventListener('click',()=>shiftSelected(.05));
  $('refreshProjects').addEventListener('click',loadLibrary);
+ $('deleteSelectedProjects').addEventListener('click',deleteSelectedProjects);
+ $('selectAllProjects').addEventListener('change',e=>{
+  if(e.target.checked)visibleProjects.forEach(p=>selectedProjects.add(p.id));
+  else visibleProjects.forEach(p=>selectedProjects.delete(p.id));
+  $('.library-check').forEach(box=>box.checked=e.target.checked);
+  updateDeleteSelection();
+ });
  $('refreshStorage').addEventListener('click',loadStorage);
  $('refreshPerformance').addEventListener('click',()=>loadPerformance(false));
  $('checkGPU').addEventListener('click',()=>loadPerformance(true));
@@ -1063,7 +1143,7 @@ function wireUI(){
  $('lyricsText').addEventListener('input',()=>{$('confirmLyrics').disabled=!$('lyricsText').value.trim();queueSave();});
  $('confirmLyrics').addEventListener('click',confirmLyrics);
  $('closeReview').addEventListener('click',async()=>{if(await mayLeaveProject())resetWorkspace();});
- $('demoBtn').addEventListener('click',loadDemo);
+ $('demoBtn').addEventListener('click',async()=>{if(await mayLeaveProject()){resetWorkspace();loadDemo();}});
  $('openProjectsWelcome').addEventListener('click',()=>{$('welcome').classList.add('hidden');panel('library');});
  $('resumeLastBtn').addEventListener('click',()=>restore(true));
  $('playButton').addEventListener('click',play);$('skipBack').addEventListener('click',()=>seek(state.time-5));$('skipAhead').addEventListener('click',()=>seek(state.time+5));
