@@ -31,27 +31,27 @@ Two distributions are included in this repository:
 
 
 
-## SkellyMotion Windows native bridge repair (Python.Runtime.dll)
+## Windows runtime fix — blocked Python.NET or WebView2 DLLs
 
-If the executable shows **"Failed to resolve Python.Runtime.Loader.Initialize from ...Python.Runtime.dll"**, the failure is from the Python.NET/WinForms bridge that powers pywebview, **not** from Whisper, FFmpeg or necessarily WebView2. Windows may tag extracted DLLs as downloaded from the Internet; other causes are a broken/incomplete archive or missing .NET Framework.
+On some Windows machines, Explorer marks DLLs extracted from a downloaded ZIP as Internet-originated. The .NET Framework may then refuse to load `Python.Runtime.dll` or `Microsoft.Web.WebView2.Core.dll` with error **0x80131515**. This is different from a missing WebView2 Runtime installation.
 
-### Immediate repair on a trusted build
+### What to try immediately
 
 1. Close SkellyMotion.
-2. In the **fully extracted** Windows download, open \`_internal\pythonnet\runtime\`.
-3. Right-click \`Python.Runtime.dll\` → **Properties** → **Unblock** (if this option appears) → Apply.
-4. Relaunch \`SkellyMotion.exe\` with the adjacent \`_internal\` folder intact.
-5. For builds with the new repair helper, you can alternatively open \`Repair-SkellyMotion.cmd\` alongside \`SkellyMotion.exe\`. It detects that DLL's download marker and asks before clearing the marker on that DLL **only**. Run this only after confirming the download came from your trusted GitHub repository.
+2. Right-click your downloaded `SkellyMotion-Windows-x64.zip` → **Properties** → select **Unblock** if available → Apply.
+3. **Extract the unblocked ZIP into a new folder** (don't just overwrite an old partial extraction).
+4. Open `SkellyMotion.exe` while keeping the adjacent `_internal` folder intact.
 
-If there is **no Unblock option**, don't force it. Check that the whole artifact was extracted and inspect \`%LOCALAPPDATA%\LyricForge\logs\desktop.log\`. Python.NET on Windows needs the .NET Framework and pywebview's Edge Chromium renderer also needs WebView2. A Python.Runtime.dll initialization error does not by itself prove WebView2 is missing.
+Only unblock a ZIP that came from your own trusted GitHub repository. If a download is unfamiliar, verify its origin and scan it before opening.
 
-### Packaging safeguards
+### Built-in repair (new Windows build)
 
-- Windows CI pins \`pythonnet==3.0.5\` and \`clr-loader==0.2.7.post0\` and validates the actual bundled Python.Runtime.dll file.
-- A new \`--native-self-test\` launches the packaged executable and **imports CLR/.NET**, not just FFmpeg. A failing native runtime now fails the Windows build.
-- The onedir distribution retains its single-extraction GitHub Actions artifact and logs native initialization failures with targeted repair guidance.
-- When Windows has applied the downloaded-file security marker to the **one bundled Python.Runtime.dll**, startup shows an explicit Yes/No consent prompt before removing that marker. Declining changes nothing. This does not disable Windows security or unblock unrelated files.
-- Bundled \`Repair-SkellyMotion.cmd\` is not an installer or a generic security bypass. It only checks and, if explicitly approved, removes the download marker from the specified DLL.
+- Before opening the native window, SkellyMotion checks a narrow allowlist of its own managed UI assemblies: `_internal/pythonnet/runtime/Python.Runtime.dll`, `_internal/webview/lib/Microsoft.Web.WebView2.Core.dll`, `Microsoft.Web.WebView2.WinForms.dll` and optional WebView2 WPF assembly.
+- If Windows has blocked any of those files, the app shows a **Yes/No dialog listing the affected DLLs**. On explicit approval it removes only their `Zone.Identifier` download markers. It does not disable global Windows security or touch other binaries, project files, songs or AI models.
+- You can manually launch `Repair-SkellyMotion.cmd` beside `SkellyMotion.exe`, which runs the same targeted, consent-only repair path.
+- Windows CI now verifies that the packaged `Python.Runtime.dll`, `Microsoft.Web.WebView2.Core.dll` and `Microsoft.Web.WebView2.WinForms.dll` are present, then loads the .NET UI assemblies using the packaged GUI executable's `--native-self-test`. This catches missing or mismatched packaged assemblies. It cannot prevent Windows Explorer from applying download markers **after** GitHub's artifact is downloaded, so the startup repair handles that case.
+
+If the startup dialog continues after repair, read `%LOCALAPPDATA%\LyricForge\logs\desktop.log` and confirm the full artifact was extracted. The existing Whisper `small` model and all project folders are preserved.
 
 ## SkellyMotion 0.8.1 — faster opening and ONE extraction on Windows
 
