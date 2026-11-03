@@ -99,7 +99,7 @@ def test_native_background_import_stages_changes_until_explicit_save(tmp_path, m
     # Re-import and press Save: only now replace the saved image.
     changed = server.import_desktop_background_file(project_id, selected)
     result = client.put("/api/projects/" + project_id,
-                        json={"lines": [], "settings": {}})
+                        json={"lines": [{"id":"1","text":"One lyric line","start":1,"end":3,"words":[]}], "settings": {}})
     assert result.status_code == 200, result.text
     assert server.read_project(project_id)["background_file"] == changed["name"]
     assert (folder / changed["name"]).exists()
