@@ -126,6 +126,103 @@ function resetCurrentLook(){
 }
 
 function shiftSelected(delta){const line=state.lines[state.selected];if(!line)return;recordEdit('nudge');const originalStart=line.start,originalEnd=line.end;const duration=originalEnd-originalStart;const moved=clamp(originalStart+delta,0,Math.max(0,state.duration-duration));line.start=moved;line.end=moved+duration;retimeWords(line,originalStart,originalEnd);renderLines();renderTimeline();queueSave();}
+
+function clipId(){return typeof crypto!=='undefined'&&crypto.randomUUID?crypto.randomUUID().slice(0,18):Math.random().toString(16).slice(2,15);}
+function snapTime(t){return state.snap?Math.round(t*10)/10:t;}
+function toggleSnap(){
+ state.snap=!state.snap;
+ const b=$('snapBtn');b.textContent=state.snap?'Snap 0.1s':'Snap OFF';
+ b.setAttribute('aria-pressed',String(state.snap));b.classList.toggle('is-active',state.snap);
+ toast(state.snap?'Snap enabled (0.1s)':'Snap disabled');
+}
+function deleteAt(i){
+ if(!state.lines[i])return;
+ if(state.lines.length===1){toast('Keep at least one lyric; you can edit its words instead.');return;}
+ recordEdit('delete');state.lines.splice(i,1);state.selected=clamp(i,0,state.lines.length-1);
+ renderTitle();renderLines();renderTimeline();queueSave();
+}
+function duplicateSelected(){
+ const source=state.lines[state.selected];if(!source)return;
+ const len=source.end-source.start;
+ if(len<.1)return;
+ let start=source.end+.05;
+ if(start+len>state.duration)start=source.start-len-.05;
+ if(start<0)start=Math.max(0,state.duration-len);
+ const copy=JSON.parse(JSON.stringify(source));copy.id=clipId();
+ copy.start=Math.max(0,start);copy.end=Math.min(state.duration,copy.start+len);
+ if(copy.end-copy.start<.1){toast('Not enough room for another clip.',true);return;}
+ recordEdit('duplicate');retimeWords(copy,source.start,source.end,source.words);
+ state.lines.push(copy);state.lines.sort((a,b)=>a.start-b.start);
+ state.selected=state.lines.indexOf(copy);renderTitle();renderLines();renderTimeline();
+ seek(copy.start);queueSave();toast('Lyric duplicated');
+}
+function splitSelected(){
+ const source=state.lines[state.selected];if(!source)return;
+ const words=source.text.trim().split(/\s+/).filter(Boolean);
+ if(words.length<2){toast('Split needs at least two words.');return;}
+ if(source.end-source.start<.4){toast('Clip is too short to split.');return;}
+ const mid=state.time>source.start+.2&&state.time<source.end-.2?state.time:(source.start+source.end)/2;
+ const cut=clamp(mid,source.start+.2,source.end-.2);
+ const count=clamp(Math.round((cut-source.start)/(source.end-source.start)*words.length),1,words.length-1);
+ const left={...source,end:cut,text:words.slice(0,count).join(' '),words:[]};
+ const right={...source,id:clipId(),start:cut,text:words.slice(count).join(' '),words:[]};
+ reflowWords(left);reflowWords(right);recordEdit('split');
+ state.lines.splice(state.selected,1,left,right);state.selected++;
+ renderTitle();renderLines();renderTimeline();seek(cut);queueSave();toast('Lyric split');
+}
+function jumpClip(direction){
+ if(!state.lines.length)return;
+ state.selected=(state.selected+direction+state.lines.length)%state.lines.length;
+ selectLine(state.selected,true);
+}
+function fitTimeline(){state.zoom=1;$('zoomDisplay').textContent='100%';$('timelineScroll').scrollLeft=0;renderTimeline();}
+function exportSrt(){
+ if(!state.lines.length)return;
+ const lines=[...state.lines].sort((a,b)=>a.start-b.start);
+ const time=t=>{const ms=Math.round(Math.max(0,t)*1000);
+  return [Math.floor(ms/3600000),Math.floor(ms/60000)%60,Math.floor(ms/1000)%60].map(n=>String(n).padStart(2,'0')).join(':')+','+String(ms%1000).padStart(3,'0');};
+ const blocks=[];
+ lines.forEach((l,i)=>{const end=i+1<lines.length?Math.min(l.end,lines[i+1].start):l.end;
+  if(end-l.start>=.05)blocks.push((blocks.length+1)+'\n'+time(l.start)+' --> '+time(end)+'\n'+l.text.trim());});
+ if(!blocks.length){toast('No valid timed lyrics to export.',true);return;}
+ const blob=new Blob([blocks.join('\n\n')+'\n'],{type:'text/plain;charset=utf-8'});
+ const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;
+ a.download=(state.title||'SkellyMotion').replace(/[^\w -]/g,'_').slice(0,70)+'.srt';
+ document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000);toast('SRT subtitles downloaded');
+}
+function showShortcuts(show){
+ $('shortcutsOverlay').classList.toggle('hidden',!show);
+ if(show)$('closeShortcuts').focus();
+}
+function initResizer(id,axis,variable,initial,minValue,maxValue){
+ const el=$(id),app=$('app');let down=null;
+ const update=value=>{
+  const max=axis==='x'?Math.min(maxValue,Math.max(minValue,app.offsetWidth-570)):Math.min(maxValue,Math.max(minValue,app.offsetHeight-310));
+  app.style.setProperty(variable,clamp(value,minValue,max)+'px');
+ };
+ el.addEventListener('pointerdown',e=>{
+  if(e.button!==0)return;e.preventDefault();
+  const scale=app.getBoundingClientRect().width/app.offsetWidth||1;
+  down={coordinate:axis==='x'?e.clientX:e.clientY,
+    value:parseFloat(getComputedStyle(app).getPropertyValue(variable))||initial,scale};
+  el.setPointerCapture(e.pointerId);document.body.classList.add('resizing-studio');
+ });
+ el.addEventListener('pointermove',e=>{
+  if(!down)return;
+  const diff=((axis==='x'?e.clientX:e.clientY)-down.coordinate)/down.scale;
+  update(down.value+(axis==='x'?diff:-diff));
+ });
+ const finish=()=>{if(!down)return;down=null;document.body.classList.remove('resizing-studio');resizePreview();drawWaveform()};
+ ['pointerup','pointercancel','lostpointercapture'].forEach(event=>el.addEventListener(event,finish));
+ el.addEventListener('dblclick',()=>{update(initial);resizePreview();drawWaveform()});
+ el.addEventListener('keydown',e=>{
+  const keys=axis==='x'?['ArrowLeft','ArrowRight']:['ArrowDown','ArrowUp'];
+  if(!keys.includes(e.key))return;e.preventDefault();
+  const sign=e.key===keys[0]?-1:1;
+  update((parseFloat(getComputedStyle(app).getPropertyValue(variable))||initial)+20*sign);
+ });
+}
+
 const fileSize=bytes=>bytes>=1024**3?(bytes/1024**3).toFixed(2)+' GB':bytes>=1024**2?(bytes/1024**2).toFixed(1)+' MB':bytes>=1024?(bytes/1024).toFixed(1)+' KB':bytes+' B';
 async function loadStorage(){try{const params=state.id?'?keep_project_id='+encodeURIComponent(state.id):'';const d=await api('/api/storage'+params);$('storageUsed').textContent=fileSize(d.workspace_bytes);$('storageExports').textContent=fileSize(d.exports_bytes);$('storageReclaim').textContent=fileSize(d.cleanup_bytes)+' · '+d.cleanup_files+' files';$('storageProjects').textContent=d.projects;}catch(e){toast('Storage info unavailable: '+e.message,true);}}
 async function cleanupStorage(){try{const params=state.id?'?keep_project_id='+encodeURIComponent(state.id):'';const data=await api('/api/storage'+params);if(!data.cleanup_files){toast('No old render files to clean.');return;}if(!confirm('Delete '+data.cleanup_files+' generated files from OTHER projects and free about '+fileSize(data.cleanup_bytes)+'? Original songs, edits, backgrounds, the current video, and AI models are kept.'))return;const result=await api('/api/storage/cleanup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({keep_project_id:state.id,confirm:true})});toast('Cleaned '+result.removed_files+' files · Freed '+fileSize(result.freed_bytes));loadStorage();}catch(e){toast('Cleanup failed: '+e.message,true);}}
@@ -212,9 +309,9 @@ function retimeWords(line,oldStart,oldEnd,sourceWords){
 function renderLines(){const holder=$('lyricsEditor');if(!state.lines.length){holder.innerHTML='<div class="empty-caption"><div class="empty-caption-icon">♫</div><strong>No lyrics yet</strong><span>Upload a song to detect lyrics automatically.</span></div>';return;}
  holder.innerHTML=state.lines.map((l,i)=>`<div class="lyric-row ${i===state.selected?'selected':''}" data-line="${i}"><div class="lyric-row-top"><span class="lyric-n">LINE ${String(i+1).padStart(2,'0')}</span><div class="lyric-row-actions"><button data-action="jump" data-i="${i}" class="tiny-btn" title="Seek to lyric">▶</button><button data-action="delete" data-i="${i}" class="tiny-btn danger" title="Delete line">×</button></div></div><input class="lyric-input" data-text="${i}" value="${safe(l.text)}" aria-label="Line ${i+1} text"/><div class="timing-row"><label>IN<input type="number" data-start="${i}" step="0.01" min="0" max="${state.duration}" value="${prettyTime(l.start)}" /></label><span class="timing-arrow">→</span><label>OUT<input type="number" data-end="${i}" step="0.01" min="0" max="${state.duration}" value="${prettyTime(l.end)}" /></label></div></div>`).join('');
  holder.querySelectorAll('.lyric-row').forEach(el=>el.addEventListener('click',e=>{if(e.target.closest('input,button'))return;selectLine(+el.dataset.line,true)}));
- holder.querySelectorAll('[data-action]').forEach(b=>b.addEventListener('click',()=>{const i=+b.dataset.i;if(b.dataset.action==='jump'){selectLine(i,true);return;}state.lines.splice(i,1);selectLine(Math.min(i,state.lines.length-1));queueSave();}));
- holder.querySelectorAll('.lyric-input').forEach(el=>el.addEventListener('input',()=>{const ln=state.lines[+el.dataset.text];ln.text=el.value;reflowWords(ln);renderTimeline();queueSave();}));
- holder.querySelectorAll('input[data-start],input[data-end]').forEach(el=>el.addEventListener('change',()=>{const i=+(el.dataset.start??el.dataset.end),ln=state.lines[i];const start=el.hasAttribute('data-start');const oldStart=ln.start,oldEnd=ln.end;const val=Number(el.value);if(!Number.isFinite(val))return;if(start)ln.start=clamp(val,0,Math.max(0,ln.end-.06));else ln.end=clamp(val,ln.start+.06,state.duration);retimeWords(ln,oldStart,oldEnd);renderLines();renderTimeline();queueSave();}));
+ holder.querySelectorAll('[data-action]').forEach(b=>b.addEventListener('click',()=>{const i=+b.dataset.i;if(b.dataset.action==='jump'){selectLine(i,true);return;}deleteAt(i);}));
+ holder.querySelectorAll('.lyric-input').forEach(el=>el.addEventListener('input',()=>{const i=+el.dataset.text,ln=state.lines[i];if(ln.text===el.value)return;recordEdit('text:'+i);ln.text=el.value;reflowWords(ln);renderTimeline();queueSave();}));
+ holder.querySelectorAll('input[data-start],input[data-end]').forEach(el=>el.addEventListener('change',()=>{const i=+(el.dataset.start??el.dataset.end),ln=state.lines[i];const start=el.hasAttribute('data-start');const oldStart=ln.start,oldEnd=ln.end;const val=Number(el.value);if(!Number.isFinite(val))return;recordEdit('timing:'+i);if(start)ln.start=clamp(val,0,Math.max(0,ln.end-.06));else ln.end=clamp(val,ln.start+.06,state.duration);retimeWords(ln,oldStart,oldEnd);renderLines();renderTimeline();queueSave();}));
 }
 function renderTimeline(){const d=state.duration||1;const clips=$('lyricTrack');clips.innerHTML=state.lines.map((l,i)=>`<div class="lyric-clip ${i===state.selected?'selected':''}" data-index="${i}" style="left:${clamp(100*l.start/d,0,100)}%;width:${clamp(100*(l.end-l.start)/d,.3,100)}%;"><span class="clip-grab"></span>${safe(trimLine(l.text))}</div>`).join('');
  $('clipCount').textContent=`${state.lines.length} clips`;$('timelineInner').style.width=`${Math.max(100,state.zoom*100)}%`;
@@ -351,6 +448,19 @@ function wireUI(){
  $('loadLookBtn').addEventListener('click',loadSavedLook);
  $('resetLookBtn').addEventListener('click',resetCurrentLook);
  $$('[data-preset]').forEach(b=>b.addEventListener('click',()=>applyLook(b.dataset.preset)));
+ $('splitLineBtn').addEventListener('click',splitSelected);
+ $('duplicateLineBtn').addEventListener('click',duplicateSelected);
+ $('deleteLineBtn').addEventListener('click',()=>deleteAt(state.selected));
+ $('exportSrtBtn').addEventListener('click',exportSrt);
+ $('snapBtn').addEventListener('click',toggleSnap);
+ $('prevClipBtn').addEventListener('click',()=>jumpClip(-1));
+ $('nextClipBtn').addEventListener('click',()=>jumpClip(1));
+ $('zoomFit').addEventListener('click',fitTimeline);
+ $('shortcutsBtn').addEventListener('click',()=>showShortcuts(true));
+ $('closeShortcuts').addEventListener('click',()=>showShortcuts(false));
+ $('shortcutsOverlay').addEventListener('click',e=>{if(e.target===$('shortcutsOverlay'))showShortcuts(false)});
+ initResizer('panelResizer','x','--panel-width',312,240,470);
+ initResizer('timelineResizer','y','--timeline-height',210,145,400);
  $('nudgeBack').addEventListener('click',()=>shiftSelected(-.05));
  $('nudgeForward').addEventListener('click',()=>shiftSelected(.05));
  $('refreshStorage').addEventListener('click',loadStorage);
@@ -373,7 +483,7 @@ function wireUI(){
  $('saveBtn').addEventListener('click',()=>{save();toast('Saving project…');});
  $('topExport').addEventListener('click',()=>panel('export'));
  $('renderBtn').addEventListener('click',exportVideo);
- $('addLineBtn').addEventListener('click',()=>{let start=clamp(state.time,0,Math.max(0,state.duration-.5));let line={id:Math.random().toString(16).slice(2,12),text:'New lyric',start,end:Math.min(state.duration,start+2),words:[]};reflowWords(line);state.lines.push(line);state.lines.sort((a,b)=>a.start-b.start);selectLine(state.lines.indexOf(line),true);queueSave();});
+ $('addLineBtn').addEventListener('click',()=>{let start=clamp(state.time,0,Math.max(0,state.duration-.5));let line={id:clipId(),text:'New lyric',start,end:Math.min(state.duration,start+2),words:[]};reflowWords(line);recordEdit('add');state.lines.push(line);state.lines.sort((a,b)=>a.start-b.start);selectLine(state.lines.indexOf(line),true);queueSave();});
  $('newBtn').addEventListener('click',()=>{if(state.id&&state.lines.length&&!confirm('Start a new project? Your current changes are saved locally.'))return;state.playing=false;audio.pause();state.id=null;state.demo=false;state.lines=[];resetEditHistory();state.waveform=[];state.duration=0;state.time=0;state.title='Untitled project';state.settings=defaultSettings();state.backgroundUrl=null;state.selected=0;localStorage.removeItem('lyricforge-last');$('welcome').classList.remove('hidden');syncSettingUI();resizePreview();renderTitle();renderTimeline();renderLines();});
  $('previewFull').addEventListener('click',()=>{const stage=$('stage');if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});else stage.requestFullscreen?.().catch(()=>{});});
  window.addEventListener('resize',()=>{
