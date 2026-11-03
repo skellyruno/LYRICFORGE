@@ -346,3 +346,52 @@ html.desktop-mode .welcome-features{margin-top:8px}
  .recognition-controls{grid-template-columns:1fr}
  .recognition-controls small{grid-column:1}
 }
+
+
+/* SkellyMotion 0.7 / 0.8: compact hardware controls, real metrics, lyric review */
+.perf-metrics{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:12px 0}
+.perf-metrics>div{padding:13px 11px;background:#19271d;border:1px solid #35513a;border-radius:9px;
+ display:flex;flex-direction:column;gap:8px}
+.perf-metrics span{color:#94b09a;font-size:10px}
+.perf-metrics strong{color:#ddffda;font-size:16px;font-weight:700}
+.perf-result{font-size:11px;line-height:1.6;color:#b4d6b6;
+ padding:12px;background:#18251b;border:1px solid #324938;border-radius:9px;white-space:normal}
+.export-actions{display:grid;grid-template-columns:1fr;gap:9px;margin:12px 0}
+.export-actions button{width:100%;min-height:42px;white-space:normal}
+.export-preview-video{width:100%;height:auto;aspect-ratio:9/16;max-height:330px;
+ background:#050907;border:1px solid #365b3a;border-radius:9px;object-fit:contain}
+.recognition-advanced{grid-column:1/-1;background:#14201a;border:1px solid #365138;
+ border-radius:10px;padding:9px 11px;margin-top:3px}
+.recognition-advanced summary{font-size:11px;color:#d2ebd3;font-weight:700;cursor:pointer}
+.recognition-advanced[open]{display:grid;gap:11px;padding-bottom:14px}
+.recognition-advanced label{font-size:11px;color:#c2d5c3;display:block}
+.recognition-advanced select,.recognition-advanced textarea{
+ margin-top:5px;background:#17251b;color:#d6efd5;border:1px solid #48654a;
+ border-radius:8px;padding:8px;width:100%;min-width:0;font-size:11px;resize:vertical}
+.recognition-advanced small{color:#829b85;font-size:10px}
+.uncertain-review{display:flex;flex-direction:column;gap:10px;min-width:0;
+ border:1px solid #4c6139;border-radius:10px;background:#1b2619;
+ padding:13px;margin:12px 0;max-height:210px;overflow:auto}
+.uncertain-review>strong{font-size:12px;color:#deedc2}
+.uncertain-review>small{font-size:10px;color:#a9bc99;line-height:1.5}
+.uncertain-list{display:flex;flex-wrap:wrap;gap:6px;max-height:75px;overflow:auto}
+.uncertain-list button{display:flex;flex-direction:column;gap:3px;text-align:left;
+ background:#2b3926;color:#e6edcc;border:1px solid #687849;border-radius:7px;
+ padding:7px 9px;max-width:165px}
+.uncertain-list button b{font-size:11px;white-space:nowrap;text-overflow:ellipsis;overflow:hidden}
+.uncertain-list button span{font-size:9px;color:#bac6a2}
+.uncertain-review>button{border:1px solid #5d8a5b;background:#27442e;color:#dffddb;
+ border-radius:8px;padding:9px;font-size:11px;font-weight:700}
+.uncertain-review>button:hover{background:#3a6042}
+.uncertain-review #refineStatus{font-size:10px;line-height:1.5;color:#d1debd}
+.refine-suggestions{max-height:125px;overflow:auto;display:flex;flex-direction:column;gap:7px}
+.refine-option{display:flex;flex-direction:column;gap:5px;padding:8px;
+ border:1px solid #3d6544;border-radius:7px;background:#17261b}
+.refine-option b{font-size:10px;color:#bce2af}
+.refine-option span{font-size:10px;color:#b5bbac}
+.refine-option strong{font-size:11px;color:#e7ffdd}
+html.desktop-mode .recognition-advanced{padding:6px 10px}
+html.desktop-mode .uncertain-review{max-height:160px;margin:7px 0}
+html.desktop-mode .perf-metrics{gap:6px}
+@media(max-width:760px){.perf-metrics{grid-template-columns:1fr 1fr}}
+@media(prefers-reduced-motion:reduce){.export-actions button,.uncertain-list button{transition:none}}
