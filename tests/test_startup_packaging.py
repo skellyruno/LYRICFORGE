@@ -84,73 +84,114 @@ def test_native_runtime_failure_is_checked_by_windows_ci():
     assert "clr-loader==0.2.7.post0" in workflow
 
 
-def test_opt_in_runtime_repair_is_packaged_and_targets_only_pythonnet_dll():
-    script = (ROOT / "Repair-SkellyMotion.cmd").read_text(encoding="utf-8")
+def test_native_runtime_validates_webview2_managed_dependencies():
     workflow = (ROOT / ".github/workflows/windows-release.yml").read_text(encoding="utf-8")
-    assert r"_internal\pythonnet\runtime\Python.Runtime.dll" in script
-    assert "Zone.Identifier" in script
-    assert "Read-Host" in script
-    assert "Unblock-File -LiteralPath $dll" in script
-    assert "Unblock-File -Path *" not in script
+    launcher = (ROOT / "desktop_launcher.py").read_text(encoding="utf-8")
+    assert "--native-self-test" in workflow
+    assert 'def native_runtime_self_test() -> int:' in launcher
+    assert "import clr" in launcher
+    assert "clr.AddReference(str(path))" in launcher
+    assert "Microsoft.Web.WebView2.Core.dll" in workflow
+    assert "Microsoft.Web.WebView2.WinForms.dll" in workflow
+    assert "pythonnet==3.0.5" in workflow
+    assert "clr-loader==0.2.7.post0" in workflow
+
+
+def test_runtime_repair_is_packaged_and_uses_narrow_allowlist():
+    script = (ROOT / "Repair-SkellyMotion.cmd").read_text(encoding="utf-8")
+    launcher = (ROOT / "desktop_launcher.py").read_text(encoding="utf-8")
+    workflow = (ROOT / ".github/workflows/windows-release.yml").read_text(encoding="utf-8")
+    assert "--repair-runtime" in script
+    assert "MANAGED_UI_DLL_PATHS" in launcher
+    assert '"Python.Runtime.dll"' in launcher
+    assert '"Microsoft.Web.WebView2.Core.dll"' in launcher
+    assert '"Microsoft.Web.WebView2.WinForms.dll"' in launcher
+    assert "Zone.Identifier" in launcher
+    assert "if response != 6:" in launcher
     assert "Repair-SkellyMotion.cmd" in workflow
+    assert "loadFromRemoteSources" not in launcher
+    assert "Unblock-File -Path *" not in script
 
 
-def test_error_diagnostic_is_about_pythonnet_not_just_webview2():
+def test_error_diagnostic_identifies_actual_webview_dll_failure():
     import desktop_launcher
     message = desktop_launcher.desktop_runtime_error(
-        RuntimeError("Failed to resolve Python.Runtime.Loader.Initialize from bundled DLL"))
-    assert "Python.NET" in message
-    assert "Python.Runtime.dll" in message
-    assert "Unblock" in message
+        RuntimeError("Could not load Microsoft.Web.WebView2.Core.dll: 0x80131515"))
+    assert "WebView2" in message
     assert "Repair-SkellyMotion.cmd" in message
+    assert "Unblock" in message
+    clr_message = desktop_launcher.desktop_runtime_error(
+        RuntimeError("Failed to resolve Python.Runtime.Loader.Initialize from bundled DLL"))
+    assert "Python.NET" in clr_message
     generic = desktop_launcher.desktop_runtime_error(RuntimeError("Missing WebView2"))
     assert "WebView2 Runtime" in generic
 
 
-def test_windows_download_marker_preflight_requires_explicit_consent(tmp_path, monkeypatch):
+def test_windows_repair_requires_approval_for_pythonnet_and_webview2(tmp_path, monkeypatch):
     import ctypes
     import io
     import desktop_launcher
 
-    dll = tmp_path / "Python.Runtime.dll"
-    dll.write_bytes(b"verified packaged DLL placeholder")
-    marker = Path(str(dll) + ":Zone.Identifier")
-    marker.write_text("[ZoneTransfer]\nZoneId=3\n", encoding="utf-8")
-    class FakeMessageBox:
-        def __init__(self, answer):
-            self.answer = answer
+    # Simulate Windows alternate data streams as colon-suffixed files on Linux.
+    python_dll = tmp_path / "pythonnet" / "runtime" / "Python.Runtime.dll"
+    core_dll = tmp_path / "webview" / "lib" / "Microsoft.Web.WebView2.Core.dll"
+    winforms_dll = tmp_path / "webview" / "lib" / "Microsoft.Web.WebView2.WinForms.dll"
+    for dll in (python_dll, core_dll, winforms_dll):
+        dll.parent.mkdir(parents=True, exist_ok=True)
+        dll.write_bytes(b"trusted code placeholder")
+    for dll in (python_dll, core_dll):
+        Path(str(dll) + ":Zone.Identifier").write_text(
+            "[ZoneTransfer]\nZoneId=3\n", encoding="utf-8")
+
+    class FakeUser32:
+        def __init__(self, decision):
+            self.decision = decision
             self.shown = 0
-        def MessageBoxW(self, *args):
+            self.message = ""
+
+        def MessageBoxW(self, _hwnd, message, _title, _flags):
             self.shown += 1
-            return self.answer
+            self.message = message
+            return self.decision
 
     fake_sys = SimpleNamespace(frozen=True, stderr=io.StringIO())
-    fake_os = SimpleNamespace(name="nt", remove=lambda name: Path(name).unlink())
+    fake_os = SimpleNamespace(name="nt", remove=lambda filename: Path(filename).unlink())
     monkeypatch.setattr(desktop_launcher, "os", fake_os)
     monkeypatch.setattr(desktop_launcher, "sys", fake_sys)
-    monkeypatch.setattr(desktop_launcher, "bundled_python_runtime", lambda: dll)
+    monkeypatch.setattr(desktop_launcher, "runtime_dir", lambda: tmp_path)
 
-    denied = FakeMessageBox(7)
-    monkeypatch.setattr(ctypes, "windll", SimpleNamespace(user32=denied), raising=False)
+    marked = desktop_launcher.blocked_managed_assemblies()
+    assert set(marked) == {python_dll, core_dll}
+    declined = FakeUser32(7)
+    monkeypatch.setattr(ctypes, "windll", SimpleNamespace(user32=declined),
+                        raising=False)
     assert desktop_launcher.offer_download_marker_repair() is False
-    assert marker.is_file()
-    assert denied.shown == 1
+    assert declined.shown == 1
+    assert "Microsoft.Web.WebView2.Core.dll" in declined.message
+    assert all(Path(str(d) + ":Zone.Identifier").exists() for d in marked)
 
-    accepted = FakeMessageBox(6)
-    monkeypatch.setattr(ctypes, "windll", SimpleNamespace(user32=accepted), raising=False)
+    approved = FakeUser32(6)
+    monkeypatch.setattr(ctypes, "windll", SimpleNamespace(user32=approved),
+                        raising=False)
     assert desktop_launcher.offer_download_marker_repair() is True
-    assert not marker.exists()
-    assert dll.is_file()
-    assert accepted.shown == 1
+    assert approved.shown == 1
+    assert all(not Path(str(d) + ":Zone.Identifier").exists() for d in marked)
+    assert all(d.is_file() for d in (python_dll, core_dll, winforms_dll))
+    assert desktop_launcher.blocked_managed_assemblies() == []
     assert desktop_launcher.offer_download_marker_repair() is False
-    assert accepted.shown == 1
+    assert approved.shown == 1
 
 
-def test_windows_download_marker_preflight_skips_unmarked_dll(tmp_path, monkeypatch):
+def test_windows_repair_skips_unmarked_and_outside_paths(tmp_path, monkeypatch):
     import desktop_launcher
-    dll = tmp_path / "Python.Runtime.dll"
-    dll.write_bytes(b"some dll")
+    bundled = tmp_path / "webview" / "lib" / "Microsoft.Web.WebView2.Core.dll"
+    bundled.parent.mkdir(parents=True)
+    bundled.write_bytes(b"good assembly")
+    outside = tmp_path.parent / "not-ours.dll"
+    # The function never scans arbitrary DLLs outside the packaged allowlist.
     monkeypatch.setattr(desktop_launcher, "os", SimpleNamespace(name="nt"))
     monkeypatch.setattr(desktop_launcher, "sys", SimpleNamespace(frozen=True))
-    monkeypatch.setattr(desktop_launcher, "bundled_python_runtime", lambda: dll)
+    monkeypatch.setattr(desktop_launcher, "runtime_dir", lambda: tmp_path)
+    assert desktop_launcher.blocked_managed_assemblies() == []
     assert desktop_launcher.offer_download_marker_repair() is False
+    assert outside not in desktop_launcher.bundled_managed_assemblies()
