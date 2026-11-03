@@ -76,7 +76,7 @@ function setSetting(name,value){
    accentColor:['accentColorVal',String(value).toUpperCase()]};
  if(labels[name])$(labels[name][0]).textContent=labels[name][1];
  if(['mode','animation','background','aspect'].includes(name)){
-   $('[data-'+name+']').forEach(button=>button.classList.toggle('selected',button.dataset[name]===value));
+   $$('[data-'+name+']').forEach(button=>button.classList.toggle('selected',button.dataset[name]===value));
  }
  if(name==='aspect'){
    const labels={portrait:'9:16 · VERTICAL',landscape:'16:9 · HORIZONTAL',square:'1:1 · SQUARE'};
@@ -492,7 +492,7 @@ function loadDemo(){resetEditHistory();const texts=['I WAS LOST INSIDE THE STATI
 async function exportVideo(){if(!state.id){toast('Upload your song to export a lyric video.',true);return;}if(!state.lines.length){toast('Add some lyric lines before exporting.',true);return;}panel('export');$('renderBtn').disabled=true;$('downloadBtn').classList.add('hidden');$('renderStatus').classList.remove('hidden');$('renderStatus').textContent='Preparing video render…';
  try{const {job_id}=await api(`/api/projects/${state.id}/render`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lines:state.lines,settings:state.settings})});for(let i=0;i<900;i++){await new Promise(r=>setTimeout(r,1200));const job=await api(`/api/jobs/${job_id}`);if(job.status==='done'){$('renderStatus').textContent='✓ Render complete. Your MP4 is ready.';const dl=$('downloadBtn');dl.href=job.download;dl.classList.remove('hidden');toast('Video export finished!');return;}if(job.status==='error')throw Error(job.error||'Rendering failed');$('renderStatus').textContent=`Rendering your video… ${Math.floor((i+1)*1.2)}s elapsed`; }throw Error('Render timed out after 18 minutes.');}catch(e){$('renderStatus').textContent='Render failed: '+e.message;toast(e.message,true);}finally{$('renderBtn').disabled=false;}}
 function wireUI(){
- $('.rail-item').forEach(b=>b.addEventListener('click',()=>panel(b.dataset.panel)));
+ $$('.rail-item').forEach(b=>b.addEventListener('click',()=>panel(b.dataset.panel)));
  $('undoBtn').addEventListener('click',undoEdit);
  $('redoBtn').addEventListener('click',redoEdit);
  $('saveLookBtn').addEventListener('click',saveCurrentLook);
