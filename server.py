@@ -58,7 +58,7 @@ transcript_cache_lock = threading.Lock()
 _model: Any = None
 jobs: dict[str, dict[str, Any]] = {}
 job_lock = threading.Lock()
-app = FastAPI(title="SkellyMotion", version="0.8.0")
+app = FastAPI(title="SkellyMotion", version="0.8.1")
 
 
 @app.middleware("http")
