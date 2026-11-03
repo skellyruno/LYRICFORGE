@@ -132,10 +132,12 @@ jobs:
         shell: pwsh
         run: |
           Compress-Archive -Path dist/SkellyMotion -DestinationPath dist/SkellyMotion-Windows-x64.zip -Force
+      # Artifacts are ZIP archives automatically. Upload the folder itself,
+      # not the release ZIP, so downloads need ONE extraction instead of two.
       - uses: actions/upload-artifact@v4
         with:
           name: SkellyMotion-Windows-x64
-          path: dist/SkellyMotion-Windows-x64.zip
+          path: dist/SkellyMotion/
           retention-days: 14
           if-no-files-found: error
       - name: Publish GitHub Release on version tags
