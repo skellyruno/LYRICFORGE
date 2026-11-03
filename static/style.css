@@ -150,3 +150,92 @@ html.desktop-mode .stage{flex-shrink:1;aspect-ratio:9 / 16}
 html.desktop-mode .lyric-input{min-width:0}
 html.desktop-mode .panel-content{overscroll-behavior:contain}
 html.desktop-mode .topbar{white-space:nowrap}
+
+
+/* SkellyMotion pro workflow v0.5: compact native-friendly editing tools. */
+.app{--panel-width:312px;--timeline-height:210px}
+.main-layout{min-width:0}
+.settings-panel{width:var(--panel-width);flex:0 0 var(--panel-width)}
+.timeline-pane{height:var(--timeline-height);min-height:0;flex:0 0 var(--timeline-height)}
+html.desktop-mode .settings-panel{
+ width:var(--panel-width);flex:0 0 var(--panel-width);
+ min-width:0;max-width:none
+}
+html.desktop-mode .timeline-pane{
+ height:var(--timeline-height);flex:0 0 var(--timeline-height);
+ min-height:0
+}
+.panel-resizer{width:7px;flex:0 0 7px;cursor:col-resize;position:relative;
+ background:#121a15;border-right:1px solid #263a2a;z-index:4;touch-action:none}
+.panel-resizer:hover,.panel-resizer:focus-visible{background:#355b3a}
+.panel-resizer:after{content:"";position:absolute;top:42%;bottom:42%;left:2px;width:2px;
+ background:#739476;border-radius:3px}
+.timeline-resizer{height:8px;flex:0 0 8px;cursor:row-resize;display:flex;
+ align-items:center;justify-content:center;background:#121c15;border-top:1px solid #293c2d;
+ border-bottom:1px solid #293c2d;z-index:4;touch-action:none}
+.timeline-resizer span{display:block;width:54px;height:2px;border-radius:2px;background:#5e8861}
+.timeline-resizer:hover,.timeline-resizer:focus-visible{background:#28482d}
+body.resizing-studio,body.resizing-studio *{user-select:none!important}
+.top-actions .icon-action{width:34px;min-width:34px;padding:0;font-size:20px;line-height:1}
+.top-actions .icon-action:disabled{opacity:.35}
+.clip-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:0 0 13px}
+.clip-actions button{background:#1c2d21;border:1px solid #35513a;border-radius:8px;
+ color:#d8f5d5;padding:10px 3px;min-width:0;font-size:10px;font-weight:700;
+ transition:border-color .16s,background .16s}
+.clip-actions button:hover:not(:disabled){background:#28462e;border-color:#9af480}
+.clip-actions button:disabled{opacity:.35;cursor:not-allowed}
+.secondary-action{margin-top:9px;background:#151f18;color:#a9c7a7}
+.preset-tools{display:flex;flex-wrap:wrap;gap:6px;margin:-10px 0 20px}
+.compact-action{flex:1;min-width:75px;background:#1c2b20;color:#cbe6c9;
+ border:1px solid #38533c;border-radius:7px;font-size:10px;min-height:36px}
+.compact-action:hover{background:#263e2b;border-color:var(--accent)}
+.timeline-top .timeline-controls{flex-wrap:nowrap;gap:5px;min-width:0}
+.timeline-controls .timeline-toggle{min-width:38px;width:auto;padding:0 8px;
+ font-size:10px;font-weight:700;white-space:nowrap;border-radius:6px}
+.timeline-controls .timeline-toggle.is-active{color:#132517;background:var(--accent);border-color:var(--accent)}
+.timeline-controls button:hover{border-color:var(--accent);background:#283b2a}
+.timeline-controls .timeline-toggle.is-active:hover{background:#b3ffa5}
+.shortcuts-overlay{position:absolute;inset:0;background:#040a06c9;z-index:30;
+ display:grid;place-items:center;padding:24px}
+.shortcuts-card{width:min(480px,100%);background:#142019;border:1px solid #537357;
+ border-radius:15px;padding:22px 24px;box-shadow:0 16px 65px #000b;max-height:90%;overflow:auto}
+.shortcuts-heading{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:16px}
+.shortcuts-heading h2{margin:0;color:#e9f6e9;font-size:19px}
+.shortcuts-heading button{width:30px;height:30px;border:1px solid #435c47;
+ border-radius:7px;background:#253629;color:#fff;font-size:20px}
+.shortcut-grid{display:grid;grid-template-columns:minmax(130px,1fr) auto;align-items:center;gap:12px 14px}
+.shortcut-grid span{font-size:12px;color:#c5d9c6}
+.shortcut-grid kbd{font-family:inherit;font-size:11px;font-weight:700;color:#ceffc9;
+ background:#213526;padding:6px 9px;border:1px solid #47634a;border-radius:5px;text-align:right}
+.lyric-clip{transition:background .13s,border-color .13s;touch-action:none}
+.lyric-clip:hover{border-color:#8bed7d}
+.lyric-clip.selected{box-shadow:0 0 0 1px #96ff7f77 inset}
+button:focus-visible,.clip-actions button:focus-visible,.timeline-controls button:focus-visible{
+ outline:2px solid var(--accent);outline-offset:2px
+}
+html.desktop-mode .topbar{gap:10px}
+html.desktop-mode .brand{width:240px}
+html.desktop-mode .brand-name{font-size:19px}
+html.desktop-mode .top-actions{gap:5px}
+html.desktop-mode .top-actions .ghost-btn{padding:0 12px}
+html.desktop-mode .top-actions .icon-action{padding:0;width:31px;min-width:31px}
+html.desktop-mode .panel-resizer{width:7px;flex-basis:7px}
+html.desktop-mode .timeline-resizer{height:8px;flex-basis:8px}
+html.desktop-mode .timeline-top{padding:0 13px}
+html.desktop-mode .timeline-controls{gap:5px}
+html.desktop-mode .timeline-controls button{height:25px;min-width:25px}
+html.desktop-mode .timeline-controls .timeline-toggle{width:auto;font-size:10px;padding:0 6px}
+@media(max-width:1000px){
+ html:not(.desktop-mode) .panel-resizer{display:none}
+ html:not(.desktop-mode) .settings-panel{width:280px;flex-basis:280px}
+ .timeline-controls .timeline-toggle{padding:0 5px}
+}
+@media(max-width:760px){
+ html:not(.desktop-mode) .timeline-top{height:auto;min-height:48px;flex-wrap:wrap;gap:6px}
+ html:not(.desktop-mode) .timeline-controls{overflow-x:auto;width:100%;padding-bottom:4px}
+ html:not(.desktop-mode) .timeline-resizer{display:none}
+ html:not(.desktop-mode) .top-actions .icon-action{display:inline-flex}
+}
+@media(prefers-reduced-motion:reduce){
+ .clip-actions button,.lyric-clip{transition:none!important}
+}
