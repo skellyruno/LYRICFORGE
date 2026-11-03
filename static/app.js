@@ -4,11 +4,12 @@ const $ = (id) => document.getElementById(id);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 const defaultSettings = () => ({aspect:'portrait',resolution:'720p',renderSpeed:'balanced',fps:30,performanceMode:'balanced',encoder:'auto',mode:'line',animation:'pop',font:'Arial',fontSize:60,textColor:'#FFFFFF',accentColor:'#81FF71',outline:2.5,position:55,background:'midnight',dim:.15,upper:false});
 const backgrounds = {midnight:['#101418','#020605','#6fff87'],acid:['#15372b','#07120f','#72ff68'],violet:['#35244a','#0e0c1c','#bb8cfa'],crimson:['#4b1d2d','#130911','#fb5d88'],ocean:['#16445d','#06121f','#6be4ff'],noir:['#282b31','#050505','#b3b8bc']};
-const state = {id:null, title:'Untitled project', duration:0, lines:[], settings:defaultSettings(), time:0, playing:false, selected:0, demo:false, zoom:1, snap:false, sourceObjectUrl:null, backgroundUrl:null, pendingSave:null, backgroundIsVideo:false, waveform:[]};
+const state = {id:null, title:'Untitled project', duration:0, lines:[], settings:defaultSettings(), time:0, playing:false, selected:0, demo:false, zoom:1, snap:false, sourceObjectUrl:null, backgroundUrl:null, pendingSave:null, backgroundIsVideo:false, waveform:[],persisted:false,dirty:false};
 const audio=$('songAudio'), canvas=$('previewCanvas'), ctx=canvas.getContext('2d'), bgImg=$('backgroundImage'),bgVid=$('backgroundVideo');
 let lastFrame=performance.now(), lastPreviewPaint=0, pollTimer=null, backgroundVersion=0;
 let resizeTimer=null;
-let saveSerial=Promise.resolve(), editRevision=0;
+let saveSerial=Promise.resolve(), recoverySerial=Promise.resolve(), editRevision=0;
+let transitionBusy=false,downloadBusy=false;
 const undoHistory=[],redoHistory=[];
 let lastEditKind='',lastEditAt=0;
 
@@ -19,7 +20,8 @@ const safe=(s)=>String(s??'').replaceAll('&','&amp;').replaceAll('<','&lt;').rep
 const trimLine=(s)=>s.length>95?s.slice(0,92)+'…':s;
 const toast=(msg,error=false)=>{const el=document.createElement('div');el.className='toast'+(error?' error':'');el.textContent=msg;$('toasts').appendChild(el);setTimeout(()=>el.remove(),4700);};
 function api(path,options={}){return fetch(path,options).then(async response=>{if(!response.ok){let reason;try{reason=(await response.json()).detail;}catch{}throw Error(typeof reason==='string'?reason:`Request failed (${response.status})`);}return response.json();});}
-function renderTitle(){updateEditButtons();syncClipInspector();$('projectTitle').textContent=state.title;$('trackName').textContent=state.id||state.demo?state.title:'No audio loaded';$('totalTime').textContent=shortTime(state.duration);$('exportDuration').textContent=shortTime(state.duration);$('clipCount').textContent=`${state.lines.length} clip${state.lines.length===1?'':'s'}`;const enabled=!!state.id;['topExport','saveBtn','renderBtn','renderPreviewBtn'].forEach(x=>$(x).disabled=!enabled);$('addLineBtn').disabled=!state.id&&!state.demo;$('projectStatus').textContent=state.demo?'Demo · upload to export':state.id?'Editing':'Ready to create';}
+function renderTitle(){updateEditButtons();syncClipInspector();$('projectTitle').textContent=state.title;$('trackName').textContent=state.id||state.demo?state.title:'No audio loaded';$('totalTime').textContent=shortTime(state.duration);$('exportDuration').textContent=shortTime(state.duration);$('clipCount').textContent=`${state.lines.length} clip${state.lines.length===1?'':'s'}`;const enabled=!!state.id;['topExport','saveBtn','renderBtn','renderPreviewBtn'].forEach(x=>$(x).disabled=!enabled);$('addLineBtn').disabled=!state.id&&!state.demo;$('projectStatus').textContent=state.demo?'Demo · upload to export':!state.id?'Ready to create':
+ state.dirty?'Unsaved · crash recovery on':state.persisted?'Saved project':'Draft · not saved';}
 function panel(name){if(name==='storage')loadStorage();if(name==='library')loadLibrary();if(name==='performance')loadPerformance(false);$$('.rail-item').forEach(b=>b.classList.toggle('active',b.dataset.panel===name));$$('.panel').forEach(p=>p.classList.toggle('hidden',p.id!==`panel-${name}`));}
 
 function snapshotEdit(){return JSON.stringify({lines:state.lines,settings:state.settings,selected:state.selected});}
@@ -637,29 +639,115 @@ function drawWaveform(){
  c.globalAlpha=1;
 }
 async function loadWaveform(){if(!state.id)return;const id=state.id;try{const result=await api(`/api/projects/${id}/waveform`);if(state.id===id){state.waveform=result.peaks||[];drawWaveform();}}catch{}}
+function notifyNativeSession(){
+ try{const bridge=window.pywebview?.api;
+  bridge?.session_active?.(!!state.id).catch?.(()=>{});
+ }catch{}
+}
 function queueSave(){
  if(!state.id)return;
- editRevision++;
- $('projectStatus').textContent='Unsaved changes';
- clearTimeout(state.pendingSave);state.pendingSave=setTimeout(save,900);
+ state.dirty=true;editRevision++;
+ $('projectStatus').textContent='Unsaved · crash recovery on';
+ clearTimeout(state.pendingSave);
+ state.pendingSave=setTimeout(()=>writeRecovery(),750);
+}
+function writeRecovery(){
+ if(!state.id)return Promise.resolve();
+ const id=state.id;
+ const draft=$('reviewOverlay').classList.contains('hidden')?'':$('lyricsText').value;
+ const payload=JSON.stringify({lines:state.lines,settings:state.settings,draft_lyrics:draft});
+ // Crash-only recovery; never overwrite project.json.
+ recoverySerial=recoverySerial.catch(()=>{}).then(()=>api('/api/projects/'+id+'/recovery',{
+  method:'PUT',headers:{'Content-Type':'application/json'},body:payload
+ }));
+ return recoverySerial.catch(e=>{if(state.id===id)toast('Crash recovery failed: '+e.message,true);});
 }
 async function save(){
- if(!state.id||!state.lines.length)return;
+ if(!state.id||state.demo)return false;
  clearTimeout(state.pendingSave);
  const id=state.id,revision=editRevision;
+ // Complete pending recovery writes before committing and clearing the cache.
+ await recoverySerial.catch(()=>{});
  const payload=JSON.stringify({settings:state.settings,lines:state.lines});
  $('projectStatus').textContent='Saving…';
- // Serialize writes: older slow requests cannot overwrite newer edits.
  saveSerial=saveSerial.catch(()=>{}).then(()=>api('/api/projects/'+id,{
   method:'PUT',headers:{'Content-Type':'application/json'},body:payload
  }));
  try{
   await saveSerial;
-  if(state.id===id&&revision===editRevision)$('projectStatus').textContent='Saved';
+  if(state.id===id){
+   state.persisted=true;
+   state.dirty=revision!==editRevision;
+   $('projectStatus').textContent=state.dirty?'Unsaved · crash recovery on':'Saved';
+   if(state.dirty)queueSave();
+  }
+  toast('Project saved.');
+  return true;
  }catch(e){
   if(state.id===id)$('projectStatus').textContent='Save failed';
   toast('Save failed: '+e.message,true);
+  return false;
  }
+}
+function askSaveDecision(reason='leave'){
+ if(!state.id||(!state.dirty&&state.persisted))return Promise.resolve('skip');
+ $('saveDecisionText').textContent=state.persisted?
+  'Save changes to "'+state.title+'"? Don’t Save keeps the last saved version and clears only the crash recovery.':
+  'Save "'+state.title+'"? Don’t Save permanently deletes this unsaved draft and its temporary media.';
+ $('saveDecisionOverlay').classList.remove('hidden');
+ return new Promise(resolve=>{
+  let settled=false;
+  const finish=(answer)=>{
+   if(settled)return;settled=true;
+   $('saveDecisionOverlay').classList.add('hidden');
+   ['decisionSave','decisionDiscard','decisionCancel'].forEach(k=>$(k).onclick=null);
+   resolve(answer);
+  };
+  $('decisionSave').onclick=()=>finish('save');
+  $('decisionDiscard').onclick=()=>finish('discard');
+  $('decisionCancel').onclick=()=>finish('cancel');
+ });
+}
+async function mayLeaveProject(){
+ if(transitionBusy)return false;
+ if(!state.id)return true;
+ transitionBusy=true;
+ try{
+  const decision=await askSaveDecision();
+  if(decision==='cancel')return false;
+  if(decision==='save')return await save();
+  if(decision==='discard'){
+   clearTimeout(state.pendingSave);
+   await recoverySerial.catch(()=>{});
+   const id=state.id;
+   await api('/api/projects/'+id+'/discard',{method:'POST'});
+   if(localStorage.getItem('lyricforge-last')===id)
+    localStorage.removeItem('lyricforge-last');
+   return true;
+  }
+  return true;
+ }catch(e){toast('Cannot leave this project: '+e.message,true);return false;}
+ finally{transitionBusy=false;}
+}
+async function quitStudio(){
+ if(!await mayLeaveProject())return;
+ if(window.pywebview?.api?.approve_close){
+  try{await window.pywebview.api.approve_close();}catch(e){toast('Could not close: '+e.message,true);}
+ }else{
+  resetWorkspace();
+  toast('You can close this browser tab now.');
+ }
+}
+function resetWorkspace(){
+ clearTimeout(state.pendingSave);
+ state.playing=false;audio.pause();state.id=null;state.persisted=false;state.dirty=false;
+ state.demo=false;state.lines=[];resetEditHistory();state.waveform=[];state.duration=0;
+ state.time=0;state.title='Untitled project';state.settings=defaultSettings();
+ state.backgroundUrl=null;state.selected=0;
+ localStorage.removeItem('lyricforge-last');
+ $('reviewOverlay').classList.add('hidden');$('welcome').classList.remove('hidden');
+ syncSettingUI();resizePreview();configureMedia();renderTitle();renderTimeline();renderLines();
+ notifyNativeSession();
 }
 function configureMedia(){if(state.id){audio.src=`/api/projects/${state.id}/audio`;audio.load();}else{audio.removeAttribute('src');audio.load();}
  $('totalTime').textContent=shortTime(state.duration);$('exportDuration').textContent=shortTime(state.duration);}
@@ -673,6 +761,7 @@ function prepareNewSongUI(){
 }
 async function finishNewSong(data,title){resetEditHistory();
  state.id=data.id;state.title=title;state.duration=data.duration;state.demo=false;state.lines=[];
+ state.persisted=false;state.dirty=false;notifyNativeSession();
  state.waveform=[];state.time=0;state.settings={...defaultSettings(),performanceMode:$('startupPerformance').value};state.backgroundUrl=null;
  state.backgroundIsVideo=false;syncSettingUI();resizePreview();configureMedia();renderTitle();
  renderTimeline();renderLines();localStorage.setItem('lyricforge-last',state.id);
@@ -798,7 +887,8 @@ function updateTranscriptProgress(project){
 async function waitForTranscript(projectId){for(let attempts=0;attempts<300;attempts++){if(state.id!==projectId)return;try{const project=await api(`/api/projects/${projectId}`);if(project.status==='transcribing')updateTranscriptProgress(project);if(project.status==='review'||project.status==='editor'){if(project.status==='editor'){loadProjectData(project);$('reviewOverlay').classList.add('hidden');return;}$('transcribeProgress').classList.add('hidden');$('lyricsText').classList.remove('hidden');$('lyricsText').value=project.draft_lyrics||'';$('reviewTitle').textContent='Review your lyrics.';$('reviewDescription').textContent='Correct any misheard words and put each lyric line on a new line. Your edits are applied before syncing.';showUncertainReview(project);$('confirmLyrics').disabled=!$('lyricsText').value.trim();if(project.transcription_error){const warning=$('reviewWarning');warning.textContent='Automatic transcription was unavailable: '+project.transcription_error+'. You can still paste your lyrics and create a video, but manual timing adjustments may be needed.';warning.classList.remove('hidden');}else if(!project.draft_lyrics){const warning=$('reviewWarning');warning.textContent='No clear vocals were detected. You can paste lyrics manually, though the timing will only be an estimate.';warning.classList.remove('hidden');}return;}}catch(e){toast(e.message,true);return;}await new Promise(r=>setTimeout(r,1400));}
  $('transcribeProgress').classList.add('hidden');$('lyricsText').classList.remove('hidden');$('reviewTitle').textContent='Enter your lyrics.';$('confirmLyrics').disabled=false;toast('Transcription timed out. You can paste the lyrics manually.',true);
 }
-function loadProjectData(project){resetEditHistory();state.id=project.id;state.title=project.title;state.duration=project.duration;state.lines=project.lines||[];state.settings={...defaultSettings(),...(project.settings||{})};state.demo=false;state.time=0;state.selected=0;state.playing=false;state.waveform=[];state.backgroundUrl=project.background_file?`/api/projects/${state.id}/background?v=${Date.now()}`:null;state.backgroundIsVideo=!!project.background_file&&/\.(mp4|mov|webm)$/i.test(project.background_file);refreshBackgroundMedia();
+function loadProjectData(project){resetEditHistory();state.id=project.id;state.title=project.title;state.duration=project.duration;state.lines=project.lines||[];
+ state.persisted=project.save_state!=='draft';state.dirty=false;notifyNativeSession();state.settings={...defaultSettings(),...(project.settings||{})};state.demo=false;state.time=0;state.selected=0;state.playing=false;state.waveform=[];state.backgroundUrl=project.background_file?`/api/projects/${state.id}/background?v=${Date.now()}`:null;state.backgroundIsVideo=!!project.background_file&&/\.(mp4|mov|webm)$/i.test(project.background_file);refreshBackgroundMedia();
  $('welcome').classList.add('hidden');$('reviewOverlay').classList.add('hidden');syncSettingUI();resizePreview();configureMedia();renderTitle();renderTimeline();renderLines();
  // Allow the window and timeline to paint before asking FFmpeg for waveform data.
  // The request stays asynchronous and cancels naturally when another song opens.
@@ -958,12 +1048,21 @@ function wireUI(){
  $('upper').addEventListener('change',e=>setSetting('upper',e.target.checked));
  ['mode','animation','background','aspect'].forEach(key=>$$(`[data-${key}]`).forEach(b=>b.addEventListener('click',()=>setSetting(key,b.dataset[key]))));
  $('heroUpload').addEventListener('click',chooseSong);
+ $('exitBtn').addEventListener('click',quitStudio);
+ window.addEventListener('skellymotion-close-request',()=>{quitStudio();});
+ window.addEventListener('beforeunload',e=>{
+  // Browser tab closes cannot synchronously run Save/Discard. A regular
+  // browser warning and persistent crash recovery are the safe fallback.
+  if(!window.pywebview?.api&&state.id&&(state.dirty||!state.persisted)){
+   e.preventDefault();e.returnValue='';
+  }
+ });
  $('backgroundUploadTrigger').addEventListener('click',chooseBackground);
  $('audioFile').addEventListener('change',e=>{startUpload(e.target.files[0]);e.target.value='';});
  $('backgroundFile').addEventListener('change',e=>{uploadBackground(e.target.files[0]);e.target.value='';});
- $('lyricsText').addEventListener('input',()=>{$('confirmLyrics').disabled=!$('lyricsText').value.trim();});
+ $('lyricsText').addEventListener('input',()=>{$('confirmLyrics').disabled=!$('lyricsText').value.trim();queueSave();});
  $('confirmLyrics').addEventListener('click',confirmLyrics);
- $('closeReview').addEventListener('click',()=>{$('reviewOverlay').classList.add('hidden');if(!state.lines.length)$('welcome').classList.remove('hidden');});
+ $('closeReview').addEventListener('click',async()=>{if(await mayLeaveProject())resetWorkspace();});
  $('demoBtn').addEventListener('click',loadDemo);
  $('openProjectsWelcome').addEventListener('click',()=>{$('welcome').classList.add('hidden');panel('library');});
  $('resumeLastBtn').addEventListener('click',()=>restore(true));
@@ -971,11 +1070,11 @@ function wireUI(){
  $('zoomIn').addEventListener('click',()=>{state.zoom=clamp(state.zoom+.25,1,5);$('zoomDisplay').textContent=`${Math.round(state.zoom*100)}%`;renderTimeline();});
  $('zoomOut').addEventListener('click',()=>{state.zoom=clamp(state.zoom-.25,1,5);$('zoomDisplay').textContent=`${Math.round(state.zoom*100)}%`;renderTimeline();});
  $('timelineInner').addEventListener('click',e=>{if(e.target.closest('.lyric-clip'))return;const rect=$('ruler').getBoundingClientRect();seek(((e.clientX-rect.left)/rect.width)*state.duration);});
- $('saveBtn').addEventListener('click',()=>{save();toast('Saving project…');});
+ $('saveBtn').addEventListener('click',save);
  $('topExport').addEventListener('click',()=>panel('export'));
  $('renderBtn').addEventListener('click',exportVideo);
  $('addLineBtn').addEventListener('click',()=>{let start=clamp(state.time,0,Math.max(0,state.duration-.5));let line={id:clipId(),text:'New lyric',start,end:Math.min(state.duration,start+2),words:[]};reflowWords(line);recordEdit('add');state.lines.push(line);state.lines.sort((a,b)=>a.start-b.start);selectLine(state.lines.indexOf(line),true);queueSave();});
- $('newBtn').addEventListener('click',()=>{if(state.id&&state.lines.length&&!confirm('Start a new project? Your current changes are saved locally.'))return;state.playing=false;audio.pause();state.id=null;state.demo=false;state.lines=[];resetEditHistory();state.waveform=[];state.duration=0;state.time=0;state.title='Untitled project';state.settings=defaultSettings();state.backgroundUrl=null;state.selected=0;localStorage.removeItem('lyricforge-last');$('welcome').classList.remove('hidden');syncSettingUI();resizePreview();renderTitle();renderTimeline();renderLines();});
+ $('newBtn').addEventListener('click',async()=>{if(await mayLeaveProject())resetWorkspace();});
  $('previewFull').addEventListener('click',()=>{const stage=$('stage');if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});else stage.requestFullscreen?.().catch(()=>{});});
  window.addEventListener('resize',()=>{
    clearTimeout(resizeTimer);
