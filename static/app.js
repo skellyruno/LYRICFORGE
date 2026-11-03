@@ -314,6 +314,7 @@ function syncSettingUI(){const s=state.settings;
 }
 function resizePreview(){const shapes={portrait:[450,800],landscape:[800,450],square:[650,650]};const [w,h]=shapes[state.settings.aspect];if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;}const stage=$('stage');stage.style.aspectRatio=`${w}/${h}`;stage.style.height='min(100%, 660px)';}
 let cachedBackgroundKey='', cachedBackgroundCanvas=null;
+let cachedPhotoKey='', cachedPhotoCanvas=null;
 function presetBackgroundSurface(w,h,s){
  const key=[w,h,s.background,s.dim].join('|');
  if(cachedBackgroundCanvas&&cachedBackgroundKey===key)return cachedBackgroundCanvas;
@@ -338,6 +339,24 @@ function drawBackground(w,h,t){
  if(s.background!=='custom'||!state.backgroundUrl){
    ctx.drawImage(presetBackgroundSurface(w,h,s),0,0,w,h);
    return;
+ }
+ // Static photo: composite once, not once per animation frame.
+ if(!state.backgroundIsVideo&&bgImg.complete&&bgImg.naturalWidth>0){
+  const key=[w,h,state.backgroundUrl,s.dim].join('|');
+  if(!cachedPhotoCanvas||cachedPhotoKey!==key){
+   const surface=document.createElement('canvas');surface.width=w;surface.height=h;
+   const p=surface.getContext('2d');
+   p.fillStyle='#060b07';p.fillRect(0,0,w,h);
+   const scale=Math.max(w/bgImg.naturalWidth,h/bgImg.naturalHeight);
+   const W=bgImg.naturalWidth*scale,H=bgImg.naturalHeight*scale;
+   p.drawImage(bgImg,(w-W)/2,(h-H)/2,W,H);
+   p.fillStyle='rgba(0,0,0,'+clamp(s.dim*.7,0,.6)+')';p.fillRect(0,0,w,h);
+   const vignette=p.createRadialGradient(w/2,h*.45,h*.03,w/2,h*.45,Math.max(w,h)*.78);
+   vignette.addColorStop(0,'#00000000');vignette.addColorStop(1,'#00000066');
+   p.fillStyle=vignette;p.fillRect(0,0,w,h);
+   cachedPhotoKey=key;cachedPhotoCanvas=surface;
+  }
+  ctx.drawImage(cachedPhotoCanvas,0,0,w,h);return;
  }
  ctx.fillStyle='#060b07';ctx.fillRect(0,0,w,h);
  const media=state.backgroundIsVideo?bgVid:bgImg;
