@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import difflib
 import gc
+import hashlib
 import base64
 import secrets
 import tempfile
@@ -53,6 +54,7 @@ executor = ThreadPoolExecutor(max_workers=2)
 ai_executor = ThreadPoolExecutor(max_workers=1)  # Do not run two CPU-heavy AI passes at once.
 model_lock = threading.Lock()
 model_request = threading.local()  # First model load uses the selected CPU profile.
+transcript_cache_lock = threading.Lock()
 _model: Any = None
 jobs: dict[str, dict[str, Any]] = {}
 job_lock = threading.Lock()
@@ -175,6 +177,65 @@ def load_model():
                 options["num_workers"] = 1
             _model = WhisperModel(name, **options)
     return _model
+
+
+def audio_digest(path: Path) -> str:
+    """Stream-hash an uploaded song without loading it fully into memory."""
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def transcription_cache_key(audio: Path, options: dict) -> str:
+    data = {"version": 1, "audio": audio_digest(audio),
+            "model": os.getenv("WHISPER_MODEL", "small"),
+            "device": os.getenv("WHISPER_DEVICE", "cpu"),
+            "mode": options.get("recognition_mode", "balanced"),
+            "language": options.get("language_hint", "auto"),
+            "vocabulary": options.get("vocabulary_hint", "")}
+    return hashlib.sha256(json.dumps(data, sort_keys=True).encode("utf-8")).hexdigest()
+
+
+def lookup_transcript(data: dict, audio: Path) -> bool:
+    """Reuse machine-generated timings only; never copy another project's manual edits."""
+    key = transcription_cache_key(audio, data)
+    data["transcription_cache_key"] = key
+    with transcript_cache_lock:
+        entry = perf.read_cache(DATA / "transcription_cache.json").get(key)
+    if not isinstance(entry, dict) or not isinstance(entry.get("words"), list):
+        return False
+    words = entry["words"]
+    if not words or len(words) > 10000:
+        return False
+    data["original_words"] = words
+    data["draft_lyrics"] = "\n".join(line["text"] for line in build_lines(words))
+    data["review_uncertain"] = perf.uncertain_words(words)
+    data["language"] = entry.get("language")
+    data["status"] = "review"
+    data["transcription_stage"] = "cached"
+    data["transcription_progress"] = 100
+    data["transcription_cached"] = True
+    return True
+
+
+def remember_transcript(data: dict) -> None:
+    key = data.get("transcription_cache_key")
+    words = data.get("original_words") or []
+    if not isinstance(key, str) or not isinstance(words, list) or not words:
+        return
+    with transcript_cache_lock:
+        cache = perf.read_cache(DATA / "transcription_cache.json")
+        cache[key] = {"words": words, "language": data.get("language"),
+                      "created": time.time()}
+        if len(cache) > 40:
+            for obsolete in sorted(cache, key=lambda k: cache[k].get("created", 0))[:-40]:
+                cache.pop(obsolete, None)
+        try:
+            perf.store_cache(DATA / "transcription_cache.json", cache)
+        except OSError:
+            pass
 
 
 def build_lines(words: list[dict], max_words: int = 6) -> list[dict]:
