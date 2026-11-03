@@ -141,8 +141,40 @@ def run(cmd: list[str]) -> subprocess.CompletedProcess[str]:
 
 
 def media_duration(path: Path) -> float:
-    result = run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=nokey=1:noprint_wrappers=1", str(path)])
-    return float(result.stdout.strip())
+    """Read audio/video duration with already-bundled PyAV; no FFprobe binary.
+
+    Container timestamps are most reliable for MP3, WAV, M4A, MP4 and other
+    supported uploads. Some formats expose only stream time bases, so try
+    those as a fallback. Nothing is decoded into RAM.
+    """
+    import av
+    with av.open(str(path)) as media:
+        if media.duration is not None and media.duration > 0:
+            duration = float(media.duration) / float(av.time_base)
+            if math.isfinite(duration):
+                return duration
+        values = []
+        for stream in media.streams:
+            if stream.duration is not None and stream.time_base is not None:
+                seconds = float(stream.duration * stream.time_base)
+                if math.isfinite(seconds) and seconds > 0:
+                    values.append(seconds)
+        if values:
+            return max(values)
+    raise ValueError("The uploaded audio/video has no readable duration")
+
+
+def video_stream_width(path: Path) -> int:
+    """Check a picture or video has a readable picture stream via PyAV."""
+    import av
+    with av.open(str(path)) as media:
+        for stream in media.streams:
+            if stream.type == "video":
+                width = int(stream.codec_context.width or 0)
+                height = int(stream.codec_context.height or 0)
+                if width > 0 and height > 0:
+                    return width
+    raise ValueError("Background file has no readable video/image stream")
 
 
 async def save_upload(file: UploadFile, dest: Path) -> None:
@@ -806,10 +838,7 @@ def import_desktop_background_file(project_id: str, source: Path) -> dict:
     dest = background_destination(project_id, ext)
     try:
         shutil.copyfile(source, dest)
-        probe = run(["ffprobe", "-v", "error", "-select_streams", "v:0",
-                     "-show_entries", "stream=width", "-of", "csv=p=0", str(dest)])
-        if not probe.stdout.strip().isdigit():
-            raise ValueError("Cannot read the selected image or video")
+        video_stream_width(dest)
         return register_background(project_id, dest)
     except Exception:
         dest.unlink(missing_ok=True)
@@ -906,10 +935,7 @@ async def upload_background(project_id: str, file: UploadFile = File(...)):
     dest = background_destination(project_id, ext)
     await save_upload(file, dest)
     try:
-        probe = run(["ffprobe", "-v", "error", "-select_streams", "v:0",
-                     "-show_entries", "stream=width", "-of", "csv=p=0", str(dest)])
-        if not probe.stdout.strip().isdigit():
-            raise RuntimeError("No readable video or image stream")
+        video_stream_width(dest)
         return register_background(project_id, dest)
     except Exception:
         dest.unlink(missing_ok=True)
