@@ -327,6 +327,34 @@ def index():
     return FileResponse(STATIC / "index.html")
 
 
+@app.get("/api/projects")
+def list_saved_projects():
+    """Show locally saved projects without exposing their files or model cache."""
+    recent = []
+    if not DATA.exists():
+        return {"projects": []}
+    for folder in DATA.iterdir():
+        if not folder.is_dir() or folder.is_symlink() or not re.fullmatch(r"[0-9a-f]{32}", folder.name):
+            continue
+        manifest = folder / "project.json"
+        if not manifest.is_file() or manifest.is_symlink():
+            continue
+        try:
+            data = json.loads(manifest.read_text(encoding="utf-8"))
+            recent.append({
+                "id": folder.name,
+                "title": str(data.get("title") or "Untitled project")[:100],
+                "duration": float(data.get("duration") or 0),
+                "status": str(data.get("status") or "unknown")[:30],
+                "updated_at": manifest.stat().st_mtime,
+                "lines": len(data.get("lines") or []),
+            })
+        except (OSError, ValueError, TypeError, AttributeError):
+            continue
+    recent.sort(key=lambda item: item["updated_at"], reverse=True)
+    return {"projects": recent[:100]}
+
+
 @app.post("/api/projects")
 async def create_project(file: UploadFile = File(...)):
     ext = Path(file.filename or "").suffix.lower()
