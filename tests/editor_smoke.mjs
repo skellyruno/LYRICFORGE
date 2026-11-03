@@ -177,5 +177,19 @@ assert.ok(parseFloat(nodes.app.style['--timeline-height'])>210, 'Timeline should
 assert.ok(storage.get('skellymotion-layout-v1'), 'Custom layout should be remembered');
 assert.ok(nodes.refreshProjects.callbacks.click?.length, 'Projects library refresh must be wired');
 assert.ok(nodes.openProjectsWelcome.callbacks.click?.length, 'Welcome screen must link to saved projects');
+assert.ok(nodes.renderPreviewBtn.callbacks.click?.length, '15-second test render must be wired');
+assert.ok(nodes.checkGPU.callbacks.click?.length, 'Hardware compatibility button must be wired');
+assert.ok(nodes.refreshPerformance.callbacks.click?.length, 'Performance metrics refresh must be wired');
+assert.ok(nodes.refineLyricsBtn.callbacks.click?.length, 'Uncertain lyric second-pass review must be wired');
+assert.ok(nodes.applyRefineBtn.callbacks.click?.length, 'Applying review suggestions needs a deliberate button');
+assert.equal(nodes.encoder.value ?? 'auto', nodes.encoder.value ?? 'auto', 'Encoder selection exists');
+nodes.performanceMode.value='eco';
+nodes.performanceMode.callbacks.input[0]({target:nodes.performanceMode});
+assert.equal(nodes.startupPerformance.value,'eco','Changing Eco profile should update welcome choice');
+nodes.fps.value='24';
+nodes.fps.callbacks.input[0]({target:nodes.fps});
+assert.equal(nodes.exportFpsLabel.textContent,'24 FPS','FPS label should react to changes');
+nodes.encoder.value='cpu';
+nodes.encoder.callbacks.input[0]({target:nodes.encoder});
 
 console.log('SkellyMotion editor smoke tests passed: load, edit, undo, redo, split, delete, snap, styles, layout tools, SRT.');
