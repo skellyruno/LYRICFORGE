@@ -133,28 +133,37 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $folder = (Resolve-Path 'dist/SkellyMotion').Path
-          $dll = Join-Path $folder '_internal/pythonnet/runtime/Python.Runtime.dll'
-          if (-not (Test-Path -LiteralPath $dll)) {
-            throw 'PyInstaller did not bundle Python.Runtime.dll'
+          $managedAssemblies = @(
+            '_internal/pythonnet/runtime/Python.Runtime.dll',
+            '_internal/webview/lib/Microsoft.Web.WebView2.Core.dll',
+            '_internal/webview/lib/Microsoft.Web.WebView2.WinForms.dll'
+          )
+          foreach ($relativePath in $managedAssemblies) {
+            $dll = Join-Path $folder $relativePath
+            if (-not (Test-Path -LiteralPath $dll)) {
+              throw "PyInstaller did not bundle required managed UI DLL: $relativePath"
+            }
+            $bytes = (Get-Item -LiteralPath $dll).Length
+            if ($bytes -lt 50000) {
+              throw "Bundled UI assembly is unexpectedly small ($bytes bytes): $relativePath"
+            }
           }
-          $bytes = (Get-Item -LiteralPath $dll).Length
-          if ($bytes -lt 50000) { throw "Bundled Python.Runtime.dll is unexpectedly small ($bytes bytes)" }
           Copy-Item -LiteralPath 'Repair-SkellyMotion.cmd' -Destination (Join-Path $folder 'Repair-SkellyMotion.cmd')
           if (-not (Test-Path (Join-Path $folder 'Repair-SkellyMotion.cmd'))) {
             throw 'Trusted Windows runtime repair helper was not packaged'
           }
           $exe = Join-Path $folder 'SkellyMotion.exe'
           $log = Join-Path $env:LOCALAPPDATA 'LyricForge/logs/desktop.log'
-          Write-Host "Validating native Python.NET runtime and .NET Framework assembly loader"
+          Write-Host "Validating Python.NET plus Core/WinForms WebView2 assemblies"
           $process = Start-Process -FilePath $exe -ArgumentList '--native-self-test' -WorkingDirectory $folder -Wait -PassThru
           Write-Host "Native Python.NET self-test exit code: $($process.ExitCode)"
           if (Test-Path $log) {
             Get-Content -Path $log -Tail 65
           }
           if ($process.ExitCode -ne 0) {
-            throw "The packaged native window bridge could not initialize pythonnet. Exit code: $($process.ExitCode)"
+            throw "Packaged Python.NET or WebView2 managed DLL failed to load. Exit code: $($process.ExitCode)"
           }
-          Write-Host "Packaged Python.Runtime.dll self-test passed"
+          Write-Host "Packaged Python.NET and WebView2 managed assembly self-test passed"
       # The release page needs a standalone ZIP. Manual Actions downloads
       # already arrive as an archive, so skip the redundant compression there.
       - name: Package GitHub Release ZIP
