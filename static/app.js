@@ -183,7 +183,7 @@ function exportSrt(){
   return [Math.floor(ms/3600000),Math.floor(ms/60000)%60,Math.floor(ms/1000)%60].map(n=>String(n).padStart(2,'0')).join(':')+','+String(ms%1000).padStart(3,'0');};
  const blocks=[];
  lines.forEach((l,i)=>{const end=i+1<lines.length?Math.min(l.end,lines[i+1].start):l.end;
-  if(end-l.start>=.05)blocks.push((blocks.length+1)+'\n'+time(l.start)+' --> '+time(end)+'\n'+l.text.trim());});
+  if(end-l.start>=.1)blocks.push((blocks.length+1)+'\n'+time(l.start)+' --> '+time(end)+'\n'+l.text.trim());});
  if(!blocks.length){toast('No valid timed lyrics to export.',true);return;}
  const blob=new Blob([blocks.join('\n\n')+'\n'],{type:'text/plain;charset=utf-8'});
  const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;
@@ -194,6 +194,27 @@ function showShortcuts(show){
  $('shortcutsOverlay').classList.toggle('hidden',!show);
  if(show)$('closeShortcuts').focus();
 }
+
+const layoutKey='skellymotion-layout-v1';
+function saveLayout(){
+ try{
+  const app=$('app'),css=getComputedStyle(app);
+  localStorage.setItem(layoutKey,JSON.stringify({
+   panel:parseFloat(css.getPropertyValue('--panel-width'))||312,
+   timeline:parseFloat(css.getPropertyValue('--timeline-height'))||210
+  }));
+ }catch{}
+}
+function restoreLayout(){
+ try{
+  const options=JSON.parse(localStorage.getItem(layoutKey)||'null');
+  if(!options)return;
+  const app=$('app');
+  if(Number.isFinite(options.panel))app.style.setProperty('--panel-width',clamp(options.panel,240,470)+'px');
+  if(Number.isFinite(options.timeline))app.style.setProperty('--timeline-height',clamp(options.timeline,145,400)+'px');
+ }catch{}
+}
+
 function initResizer(id,axis,variable,initial,minValue,maxValue){
  const el=$(id),app=$('app');let down=null;
  const update=value=>{
@@ -212,14 +233,14 @@ function initResizer(id,axis,variable,initial,minValue,maxValue){
   const diff=((axis==='x'?e.clientX:e.clientY)-down.coordinate)/down.scale;
   update(down.value+(axis==='x'?diff:-diff));
  });
- const finish=()=>{if(!down)return;down=null;document.body.classList.remove('resizing-studio');resizePreview();drawWaveform()};
+ const finish=()=>{if(!down)return;down=null;document.body.classList.remove('resizing-studio');resizePreview();drawWaveform();saveLayout()};
  ['pointerup','pointercancel','lostpointercapture'].forEach(event=>el.addEventListener(event,finish));
- el.addEventListener('dblclick',()=>{update(initial);resizePreview();drawWaveform()});
+ el.addEventListener('dblclick',()=>{update(initial);resizePreview();drawWaveform();saveLayout()});
  el.addEventListener('keydown',e=>{
   const keys=axis==='x'?['ArrowLeft','ArrowRight']:['ArrowDown','ArrowUp'];
   if(!keys.includes(e.key))return;e.preventDefault();
   const sign=e.key===keys[0]?-1:1;
-  update((parseFloat(getComputedStyle(app).getPropertyValue(variable))||initial)+20*sign);
+  update((parseFloat(getComputedStyle(app).getPropertyValue(variable))||initial)+20*sign);saveLayout();
  });
 }
 
@@ -328,7 +349,7 @@ function renderTimeline(){const d=state.duration||1;const clips=$('lyricTrack');
  // event causes the editor to stutter and invalidates drag targets.
  const live=clips.querySelector('.lyric-clip[data-index="'+i+'"]');
  if(live){live.style.left=clamp(100*line.start/d,0,100)+'%';live.style.width=clamp(100*(line.end-line.start)/d,.3,100)+'%';}
-};const up=()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);renderLines();renderTimeline();if(moved)queueSave();};window.addEventListener('pointermove',move);window.addEventListener('pointerup',up,{once:true});}));
+};const up=()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);if(moved){state.lines.sort((a,b)=>a.start-b.start);state.selected=state.lines.indexOf(line);}renderLines();renderTimeline();if(moved)queueSave();};window.addEventListener('pointermove',move);window.addEventListener('pointerup',up,{once:true});}));
 }
 function drawWaveform(){
  const holder=$('audioWave');holder.style.backgroundImage='none';
@@ -531,6 +552,7 @@ function wireUI(){
   if(ctrl&&e.code==='KeyZ'){e.preventDefault();if(e.shiftKey)redoEdit();else undoEdit();return;}
   if(ctrl&&(e.code==='KeyY')){e.preventDefault();redoEdit();return;}
   if(ctrl&&e.code==='KeyD'){e.preventDefault();duplicateSelected();return;}
+  if((e.key==='?'||e.code==='Slash')&&!e.altKey){e.preventDefault();showShortcuts(true);return;}
   if(ctrl||e.shiftKey||e.repeat)return;
   if(e.altKey&&['ArrowLeft','ArrowRight'].includes(e.code)){
    e.preventDefault();shiftSelected(e.code==='ArrowLeft'?-.05:.05);return;
@@ -542,9 +564,8 @@ function wireUI(){
   if(e.code==='Delete'||e.code==='Backspace'){e.preventDefault();deleteAt(state.selected);return;}
   if(e.code==='ArrowUp'){e.preventDefault();jumpClip(-1);return;}
   if(e.code==='ArrowDown'){e.preventDefault();jumpClip(1);return;}
-  if(e.key==='?'||e.code==='Slash'){e.preventDefault();showShortcuts(true);}
  });
 }
 async function restore(){const last=localStorage.getItem('lyricforge-last');if(!last)return;try{const p=await api(`/api/projects/${last}`);if(p.status==='editor'&&p.lines?.length){loadProjectData(p);}else if(p.status==='review'||p.status==='transcribing'){state.id=p.id;state.title=p.title;state.duration=p.duration;configureMedia();renderTitle();$('welcome').classList.add('hidden');$('reviewOverlay').classList.remove('hidden');$('transcribeProgress').classList.remove('hidden');$('lyricsText').classList.add('hidden');$('confirmLyrics').disabled=true;waitForTranscript(p.id);}}catch{localStorage.removeItem('lyricforge-last');}}
-wireUI();syncSettingUI();resizePreview();renderTimeline();updateEditButtons();requestAnimationFrame(drawFrame);restore();
+restoreLayout();wireUI();syncSettingUI();resizePreview();renderTimeline();updateEditButtons();requestAnimationFrame(drawFrame);restore();
 })();
