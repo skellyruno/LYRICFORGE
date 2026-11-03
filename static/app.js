@@ -840,6 +840,7 @@ async function finishNewSong(data,title){resetEditHistory();
 async function startUpload(file){
  if(!file)return;
  if(!await mayLeaveProject())return;
+ if(state.id)resetWorkspace();
  if(!/\.(mp3|wav|flac|m4a|aac|ogg|opus|mp4|webm)$/i.test(file.name)){
    toast('Please upload an audio file (MP3, WAV, M4A, FLAC, etc.)',true);return;
  }
@@ -856,20 +857,24 @@ async function startUpload(file){
 }
 async function chooseSong(){
  const bridge=window.pywebview?.api;
- if(state.id&&!await mayLeaveProject())return;
- if(state.id)resetWorkspace();
- if(document.documentElement.classList.contains('desktop-mode')&&bridge?.choose_audio){
-   try{
-     const data=await bridge.choose_audio($('recognitionMode').value,$('languageHint').value,
-        $('vocabularyHint').value,$('startupPerformance').value); // Native file dialog; original Whisper model retained
-     if(!data)return; // The user cancelled
-     prepareNewSongUI();
-     await finishNewSong(data,data.title||'My song');
-   }catch(e){toast('Unable to import song: '+(e.message||String(e)),true);
-     $('reviewOverlay').classList.add('hidden');if(!state.id)$('welcome').classList.remove('hidden');}
-   return;
+ if(document.documentElement.classList.contains('desktop-mode')&&bridge?.pick_audio_file){
+  try{
+   const picked=await bridge.pick_audio_file();
+   if(!picked)return; // Cancelled native picker; current project stays untouched.
+   if(!await mayLeaveProject())return;
+   resetWorkspace();prepareNewSongUI();
+   const data=await bridge.import_picked_audio(
+      $('recognitionMode').value,$('languageHint').value,
+      $('vocabularyHint').value,$('startupPerformance').value);
+   await finishNewSong(data,data.title||picked.name||'My song');
+  }catch(err){
+   toast('Unable to import song: '+(err.message||String(err)),true);
+   $('reviewOverlay').classList.add('hidden');
+   if(!state.id)$('welcome').classList.remove('hidden');
+  }
+  return;
  }
- // Normal browser and fallback if pywebview is not initialized yet.
+ // Browser picker: Save/Discard decision occurs only after a file is chosen.
  $('audioFile').click();
 }
 function showUncertainReview(project){
