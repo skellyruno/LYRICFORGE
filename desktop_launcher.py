@@ -50,9 +50,8 @@ def native_error(message: str) -> None:
 def check_subtitle_renderer() -> None:
     """Actually render ASS into H.264; do not parse ffmpeg's filters listing."""
     ffmpeg = shutil.which("ffmpeg")
-    ffprobe = shutil.which("ffprobe")
-    if not ffmpeg or not ffprobe:
-        raise RuntimeError("FFmpeg and FFprobe were not included in the app.")
+    if not ffmpeg:
+        raise RuntimeError("FFmpeg was not included in the app.")
     with tempfile.TemporaryDirectory(prefix="lyricforge-check-") as temp:
         root = Path(temp)
         ass = """[Script Info]
@@ -75,6 +74,13 @@ Dialogue: 0,0:00:00.00,0:00:00.40,Main,,0,0,0,,SkellyMotion
             capture_output=True, text=True, timeout=45, **child_flags)
         if result.returncode or not (root / "check.mp4").exists():
             raise RuntimeError("FFmpeg cannot render lyrics: " + result.stderr[-500:])
+        # A full portable smoke test must prove PyAV can probe what FFprobe
+        # previously handled, including reading the compressed video stream.
+        import server
+        if not 0 < server.media_duration(root / "check.mp4") < 1:
+            raise RuntimeError("Bundled PyAV could not read the rendered video duration")
+        if server.video_stream_width(root / "check.mp4") != 320:
+            raise RuntimeError("Bundled PyAV could not read the rendered video stream")
 
 
 def self_test() -> int:
