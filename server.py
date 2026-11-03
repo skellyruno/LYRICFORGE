@@ -20,7 +20,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, File, HTTPException, UploadFile, Request
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile, Request
 from fastapi.responses import FileResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -254,6 +254,18 @@ def align_confirmed(lyrics: str, old_words: list[dict], duration: float) -> list
     return lines
 
 
+RECOGNITION_MODES = {"fast": 1, "balanced": 3, "accurate": 5}
+RECOGNITION_LANGUAGES = {"auto", "en", "es", "fr", "pt", "de", "it", "ja", "ko"}
+
+
+def recognition_options(mode: str, language: str) -> dict:
+    """User-selectable decoding effort without downloading or changing the model."""
+    return {
+        "recognition_mode": mode if mode in RECOGNITION_MODES else "balanced",
+        "language_hint": language if language in RECOGNITION_LANGUAGES else "auto",
+    }
+
+
 def transcription_beam_size() -> int:
     """Faster decoding on the SAME Whisper small model, with an accuracy override."""
     try:
@@ -282,9 +294,13 @@ def transcribe_project(project_id: str) -> None:
         # Beam search 3 (previously 5), one decoding temperature and one
         # candidate: less CPU work without changing model size, word timestamps,
         # or the ability to correct lyrics after transcription.
+        mode = d.get("recognition_mode", "balanced")
+        beam = RECOGNITION_MODES.get(mode, transcription_beam_size())
+        language = d.get("language_hint")
         segs, info = model.transcribe(
             str(p / d["audio_file"]), word_timestamps=True,
-            beam_size=transcription_beam_size(), best_of=1, temperature=0,
+            beam_size=beam, best_of=1, temperature=0,
+            language=language if language in RECOGNITION_LANGUAGES and language != "auto" else None,
             vad_filter=False, condition_on_previous_text=False)
         words = []
         duration = max(0.1, float(d.get("duration", 1)))
@@ -364,7 +380,8 @@ def list_saved_projects():
 
 
 @app.post("/api/projects")
-async def create_project(file: UploadFile = File(...)):
+async def create_project(file: UploadFile = File(...), recognition: str = Form("balanced"),
+                         language: str = Form("auto")):
     ext = Path(file.filename or "").suffix.lower()
     if ext not in AUDIO_EXT:
         raise HTTPException(400, "Upload MP3, WAV, M4A, FLAC, OGG, AAC, MP4 or WebM")
@@ -380,7 +397,8 @@ async def create_project(file: UploadFile = File(...)):
         data = {"id": project_id, "title": Path(file.filename or "My Song").stem[:100],
                 "audio_file": name, "duration": duration, "status": "transcribing",
                 "draft_lyrics": "", "original_words": [], "lines": [], "settings": {}, "language": None,
-                "transcription_stage": "queued", "transcription_progress": 0}
+                "transcription_stage": "queued", "transcription_progress": 0,
+                **recognition_options(recognition, language)}
         save_project(p, data)
         executor.submit(transcribe_project, project_id)
         return {"id": project_id, "duration": duration, "status": "transcribing"}
@@ -389,7 +407,8 @@ async def create_project(file: UploadFile = File(...)):
         raise
 
 
-def import_desktop_audio_file(source: Path) -> dict:
+def import_desktop_audio_file(source: Path, recognition: str = "balanced",
+                              language: str = "auto") -> dict:
     """Import only the file explicitly selected in the native Windows dialog.
 
     This is a Python-only function, not an HTTP endpoint, so a web page cannot
@@ -417,7 +436,8 @@ def import_desktop_audio_file(source: Path) -> dict:
                 "duration": duration, "status": "transcribing",
                 "draft_lyrics": "", "original_words": [], "lines": [],
                 "settings": {}, "language": None,
-                "transcription_stage": "queued", "transcription_progress": 0}
+                "transcription_stage": "queued", "transcription_progress": 0,
+                **recognition_options(recognition, language)}
         save_project(p, data)
         executor.submit(transcribe_project, project_id)
         return {"id": project_id, "duration": duration,
