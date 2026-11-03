@@ -31,6 +31,18 @@ Two distributions are included in this repository:
 
 
 
+## SkellyMotion 0.8.1 — faster opening and ONE extraction on Windows
+
+**Why it seemed to freeze:** The desktop edition previously reopened the last project immediately, which could trigger media loading, waveform generation, and hundreds of timeline controls while the WebView2 window was still starting. The Windows app now opens the welcome screen first; use **Resume last project** to reopen your song when ready. The Projects tab still works and **no songs or AI models are removed**. The browser edition keeps automatic restoration.
+
+- Waveform decoding is deferred until the editor has painted, then FFmpeg uses **one decoding thread** and below-normal Windows process priority. Previously generated waveforms remain cached.
+- Video backgrounds now preload metadata rather than the whole video. Saved project files, Whisper `small` and model-cache directories are unchanged.
+- Startup stages (Python imports, local API readiness, native window creation) are recorded in `%LOCALAPPDATA%\LyricForge\logs\desktop.log`. If the app still stalls before the welcome screen, check those stages: Windows Defender's first-run scanning, a slow disk, and WebView2 initialization can also delay the first launch.
+- **GitHub Actions downloads require just one extraction.** The `SkellyMotion-Windows-x64` artifact now contains `SkellyMotion.exe` and its `_internal` folder directly, rather than an extra ZIP inside another ZIP. Keep them together in one folder.
+- Manual Actions builds skip redundant release ZIP compression, saving packaging time. GitHub **Releases** still provides one self-contained ZIP for tagged versions.
+
+Build the updated executable using **GitHub Actions → Build SkellyMotion Windows app → Run workflow** on `main`. Download `SkellyMotion-Windows-x64` from the completed run and **extract only once**. Keep the previous working build until you've tested launch, importing, preview, and exporting.
+
 ## SkellyMotion 0.8 — speed, quality and CPU overhaul
 
 **Backwards compatibility:** Uses the same Whisper \`small\` model by default and the same \`%LOCALAPPDATA%\LyricForge\workspace\` and \`%LOCALAPPDATA%\LyricForge\models\` paths. Existing song files, corrected lyrics, and projects aren't migrated or deleted.
