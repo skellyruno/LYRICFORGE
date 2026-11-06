@@ -28,7 +28,8 @@ const trimLine=(s)=>s.length>95?s.slice(0,92)+'…':s;
 const toast=(msg,error=false)=>{const el=document.createElement('div');el.className='toast'+(error?' error':'');el.textContent=msg;$('toasts').appendChild(el);setTimeout(()=>el.remove(),4700);};
 async function api(path,options={}){
  const method=(options.method||'GET').toUpperCase();
- const controller=method==='GET'&&!options.signal?new AbortController():null;
+ const shortPoll=path.startsWith('/api/jobs/')||/^\/api\/projects\/[0-9a-f]{32}$/.test(path);
+ const controller=method==='GET'&&shortPoll&&!options.signal?new AbortController():null;
  const timer=controller?setTimeout(()=>controller.abort(),20000):null;
  try{
   const response=await fetch(path,controller?{...options,signal:controller.signal}:options);
