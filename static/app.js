@@ -93,6 +93,7 @@ function setSetting(name,value){
  if(name==='animation')renderTimeline();
  if(name==='fps')$('exportFpsLabel').textContent=value+' FPS';
  if(name==='performanceMode'){$('startupPerformance').value=value;try{localStorage.setItem('skellymotion-perf-mode',value)}catch{};if(previewQuality==='auto')resizePreview();}
+ requestPreviewNow();
  queueSave();
 }
 
@@ -647,8 +648,26 @@ function showText(t){const w=canvas.width,h=canvas.height,s=state.settings,ln=ac
  }
  ctx.restore();
 }
+let pendingPreviewFrame=false,previewWakeTimer=null;
+function schedulePreviewFrame(delay=0){
+ if(pendingPreviewFrame)return;
+ if(previewWakeTimer!==null){
+  if(delay>0)return;
+  clearTimeout(previewWakeTimer);previewWakeTimer=null;
+ }
+ const schedule=()=>{
+  pendingPreviewFrame=true;
+  requestAnimationFrame(t=>{pendingPreviewFrame=false;drawFrame(t);});
+ };
+ if(delay>0){
+  previewWakeTimer=setTimeout(()=>{previewWakeTimer=null;schedule();},delay);
+ }else schedule();
+}
+function requestPreviewNow(){schedulePreviewFrame(0);}
 function drawFrame(now){
- requestAnimationFrame(drawFrame);
+ // No 60-Hz callback loop while paused: schedule one low-frequency wake.
+ // Playback still uses requestAnimationFrame for smooth timing.
+ schedulePreviewFrame(document.hidden?750:state.playing?0:220);
  // Don't paint or read timeline layout behind the welcome overlay. On Windows,
  // startup competes with WebView2 GPU/process initialization and no media is
  // playing yet. Keep the entire idle welcome view static.
@@ -666,8 +685,8 @@ function drawFrame(now){
  if(state.backgroundIsVideo&&state.playing&&bgVid.paused)bgVid.play().catch(()=>{});
  if(state.backgroundIsVideo&&!state.playing&&!bgVid.paused)bgVid.pause();
 }
-function seek(seconds){state.time=clamp(seconds,0,state.duration);if(state.id&&audio.readyState)audio.currentTime=state.time;if(state.backgroundIsVideo&&Number.isFinite(bgVid.duration)&&bgVid.duration>0)bgVid.currentTime=state.time%bgVid.duration;}
-function play(){if(!state.duration){toast('Upload a song to preview lyrics.');return;}state.playing=!state.playing;if(state.id){if(state.playing)audio.play().catch(e=>{state.playing=false;toast(e.message,true);});else audio.pause();}}
+function seek(seconds){state.time=clamp(seconds,0,state.duration);if(state.id&&audio.readyState)audio.currentTime=state.time;if(state.backgroundIsVideo&&Number.isFinite(bgVid.duration)&&bgVid.duration>0)bgVid.currentTime=state.time%bgVid.duration;requestPreviewNow();}
+function play(){if(!state.duration){toast('Upload a song to preview lyrics.');return;}state.playing=!state.playing;requestPreviewNow();if(state.id){if(state.playing)audio.play().catch(e=>{state.playing=false;toast(e.message,true);});else audio.pause();}}
 function selectLine(index,jump=false){state.selected=clamp(index,0,Math.max(0,state.lines.length-1));if(jump&&state.lines[state.selected])seek(state.lines[state.selected].start+.07);syncClipInspector();renderLines();renderTimeline();}
 function reflowWords(line){
  const parts=line.text.trim().split(/\s+/).filter(Boolean);
@@ -1300,7 +1319,7 @@ try{const savedMode=localStorage.getItem('skellymotion-perf-mode');
   $('startupPerformance').value=savedMode;state.settings.performanceMode=savedMode;
  }}catch{}
 wireUI();syncSettingUI();syncClipInspector();resizePreview();renderTimeline();updateEditButtons();
-requestAnimationFrame(drawFrame);
+schedulePreviewFrame();
 let lastSession=null;
 try{lastSession=localStorage.getItem('lyricforge-last')}catch{}
 $('resumeLastBtn').classList.toggle('hidden',!lastSession);
