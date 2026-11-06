@@ -197,6 +197,15 @@
                 <option value="balanced" selected>Balanced · Recommended</option>
                 <option value="turbo">Turbo · Maximum speed</option>
               </select></div>
+            <div class="control-group preview-quality-control">
+              <label for="previewQuality">Live preview detail</label>
+              <select id="previewQuality" aria-describedby="previewQualityHelp">
+                <option value="auto" selected>Auto · Adapts to CPU profile</option>
+                <option value="light">Light · Smoother on slower PCs</option>
+                <option value="sharp">Sharp · Full preview detail</option>
+              </select>
+              <p id="previewQualityHelp" class="motion-hint">Only changes editor preview resolution, not your exported MP4. Light mode reduces canvas workload.</p>
+            </div>
             <div class="control-group"><label for="encoder">Video encoder</label>
               <select id="encoder">
                 <option value="auto" selected>Auto · GPU if available</option>
@@ -237,7 +246,7 @@
           <div class="stage" id="stage"><canvas id="previewCanvas" width="450" height="800" aria-label="Lyric video preview"></canvas><div class="stage-corner tl"></div><div class="stage-corner tr"></div><div class="stage-corner bl"></div><div class="stage-corner br"></div></div>
           <div class="stage-hint" id="stageHint">PREVIEW · DRAG LYRIC TEXT TO MOVE IT</div>
         </div>
-        <div class="playback-bar"><div class="play-left"><button id="playButton" class="play-button" title="Play or pause">▶</button><button id="skipBack" class="transport" title="Back 5 seconds">↶</button><button id="skipAhead" class="transport" title="Forward 5 seconds">↷</button><span class="time-indicator"><span id="currentTime">00:00</span> <span class="time-muted">/</span> <span id="totalTime">00:00</span></span></div><div class="play-right"><span class="audio-symbol">♫</span><span id="trackName">No audio loaded</span><span class="quality-tag">30 FPS</span></div></div>
+        <div class="playback-bar"><div class="play-left"><button id="playButton" class="play-button" title="Play or pause">▶</button><button id="skipBack" class="transport" title="Back 5 seconds">↶</button><button id="skipAhead" class="transport" title="Forward 5 seconds">↷</button><span class="time-indicator"><span id="currentTime">00:00</span> <span class="time-muted">/</span> <span id="totalTime">00:00</span></span></div><div class="play-right"><span class="audio-symbol">♫</span><span id="trackName">No audio loaded</span><span class="quality-tag" id="previewResolutionLabel" title="Preview resolution; exports use separate settings">Preview auto</span></div></div>
       </main>
     </div>
 
