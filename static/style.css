@@ -523,3 +523,28 @@ html.desktop-mode .control-group{margin-bottom:15px}
  .app button,.lyric-row{transition:none}
  .app button:active:not(:disabled){transform:none}
 }
+
+/* SkellyMotion 0.9: precision sync and compact pro workflow */
+.word-timing-editor{
+ flex:0 0 auto;max-height:190px;padding:9px 12px 8px;
+ border-top:1px solid #304a35;background:#111c15;min-height:0
+}
+.word-timing-header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:3px 10px;margin-bottom:6px}
+.word-timing-header strong{font-size:10px;letter-spacing:1.2px;color:#b9ffaa}
+.word-timing-header small,.word-timing-empty{font-size:10px;color:#a3b9a7;line-height:1.4}
+.word-timing-list{max-height:128px;overflow-y:auto;overscroll-behavior:contain}
+.word-timing-row{display:grid;grid-template-columns:25px minmax(42px,1fr) 68px 68px;align-items:center;gap:5px;padding:4px 0;border-bottom:1px solid #263b2a}
+.word-timing-row>span{font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#e0f1df}
+.word-timing-row button{background:#22372a;border:1px solid #3a6340;color:#bdffb2;border-radius:5px;min-height:27px}
+.word-timing-row label{display:flex;flex-direction:column;gap:1px;font-size:8px;color:#90aa93;letter-spacing:.5px}
+.word-timing-row input{width:100%;min-width:0;padding:3px 2px;background:#0b1710;color:#d6ffcc;border:1px solid #36523c;border-radius:4px;font-size:11px;font-variant-numeric:tabular-nums}
+.word-timing-row input:focus-visible{border-color:#baff9b}
+.platform-presets{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin:7px 0 10px}
+.platform-presets button{padding:8px 3px;border-radius:6px;background:#19281c;border:1px solid #3b5741;color:#d9f3d4;font-size:10px}
+.platform-presets button:hover,.platform-presets button:focus-visible{background:#28412d;border-color:#94ff73}
+.bg-tile.sunset{background:linear-gradient(150deg,#4a2449,#170c23 65%,#ffad7a)}
+.bg-tile.arctic{background:linear-gradient(150deg,#234c61,#071c29 65%,#a7edff)}
+@media(max-width:850px){
+ .word-timing-row{grid-template-columns:23px minmax(36px,1fr) 62px 62px;gap:3px}
+ .word-timing-editor{padding-inline:8px}
+}
