@@ -2,6 +2,19 @@
 
 **Upload a song → AI transcript → review & confirm lyrics → adjust timing → style, animate and change backgrounds → export a synced MP4.**
 
+## SkellyMotion 0.9 — precision editor and reliability update
+
+This update preserves the existing Whisper model, project manifests, WebView2 desktop launcher, saved-project workflows and H.264 export pipeline.
+
+- **Precise lyric timing:** select a clip in Lyrics, edit each word's IN/OUT time in the Word Timing strip, or press its ▶ control to audition the song at that word. Times are retained in saved project data and honored in karaoke/word exports.
+- **Word Pulse:** select the Pulse animation globally or per clip. Pulse follows the existing/transcript or manually adjusted **word boundaries** in the live preview and exported ASS subtitles. It does **not** detect musical beats and is **not** a new acoustic forced aligner.
+- **Design:** two new backgrounds (Sunset and Arctic), Cinema and Ice style presets, three platform aspect/quality templates, compact timing controls, and right-click clip actions.
+- **Reliability:** one import and one render at a time in the desktop editor; stale render polls cannot overwrite a newly opened project; bounded GET status requests and additional crash-recovery writes when a browser tab is hidden. Previously saved projects remain protected by Save / Don't Save / Cancel.
+- **Resource control:** completed in-memory render jobs are pruned after long sessions. Existing waveform caching, GPU detection/fallback, and adaptive preview quality remain enabled.
+- **Verification:** GitHub's Test app workflow runs JavaScript syntax and interaction smoke tests plus Python/API and actual MP4 tests. A separate Windows workflow packages and smoke-tests the native executable.
+
+**Scope note:** The update adds manual word-level correction, not a licensed vocal-only acoustic aligner. Preview and subtitle-export pulses should be checked against real vocal material before publishing. No new claims are made about CPU reduction or an additional portable bundle-size reduction without Windows measurements.
+
 Two distributions are included in this repository:
 
 | | Online studio | Windows portable app |

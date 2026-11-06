@@ -3,13 +3,13 @@
 const $ = (id) => document.getElementById(id);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 const defaultSettings = () => ({aspect:'portrait',resolution:'720p',renderSpeed:'balanced',fps:30,performanceMode:'balanced',encoder:'auto',mode:'line',animation:'pop',font:'Arial',fontSize:60,textColor:'#FFFFFF',accentColor:'#81FF71',outline:2.5,position:55,background:'midnight',dim:.15,upper:false});
-const backgrounds = {midnight:['#101418','#020605','#6fff87'],acid:['#15372b','#07120f','#72ff68'],violet:['#35244a','#0e0c1c','#bb8cfa'],crimson:['#4b1d2d','#130911','#fb5d88'],ocean:['#16445d','#06121f','#6be4ff'],noir:['#282b31','#050505','#b3b8bc']};
+const backgrounds = {midnight:['#101418','#020605','#6fff87'],acid:['#15372b','#07120f','#72ff68'],violet:['#35244a','#0e0c1c','#bb8cfa'],crimson:['#4b1d2d','#130911','#fb5d88'],ocean:['#16445d','#06121f','#6be4ff'],noir:['#282b31','#050505','#b3b8bc'],sunset:['#4a2449','#170c23','#ffad7a'],arctic:['#234c61','#071c29','#a7edff']};
 const state = {id:null, title:'Untitled project', duration:0, lines:[], settings:defaultSettings(), time:0, playing:false, selected:0, demo:false, zoom:1, snap:false, sourceObjectUrl:null, backgroundUrl:null, pendingSave:null, backgroundIsVideo:false, waveform:[],persisted:false,dirty:false};
 const audio=$('songAudio'), canvas=$('previewCanvas'), ctx=canvas.getContext('2d'), bgImg=$('backgroundImage'),bgVid=$('backgroundVideo');
 let lastFrame=performance.now(), lastPreviewPaint=0, pollTimer=null, backgroundVersion=0;
 let resizeTimer=null;
 let saveSerial=Promise.resolve(), recoverySerial=Promise.resolve(), editRevision=0;
-let transitionBusy=false,downloadBusy=false;
+let transitionBusy=false,downloadBusy=false,renderBusy=false,uploadBusy=false;
 let timelineTravelWidth=0;
 let previewQuality='auto';
 try {
@@ -26,7 +26,23 @@ const prettyTime=(x)=>Number(x||0).toFixed(2);
 const safe=(s)=>String(s??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;');
 const trimLine=(s)=>s.length>95?s.slice(0,92)+'…':s;
 const toast=(msg,error=false)=>{const el=document.createElement('div');el.className='toast'+(error?' error':'');el.textContent=msg;$('toasts').appendChild(el);setTimeout(()=>el.remove(),4700);};
-function api(path,options={}){return fetch(path,options).then(async response=>{if(!response.ok){let reason;try{reason=(await response.json()).detail;}catch{}throw Error(typeof reason==='string'?reason:`Request failed (${response.status})`);}return response.json();});}
+async function api(path,options={}){
+ const method=(options.method||'GET').toUpperCase();
+ const shortPoll=path.startsWith('/api/jobs/')||/^\/api\/projects\/[0-9a-f]{32}$/.test(path);
+ const controller=method==='GET'&&shortPoll&&!options.signal?new AbortController():null;
+ const timer=controller?setTimeout(()=>controller.abort(),20000):null;
+ try{
+  const response=await fetch(path,controller?{...options,signal:controller.signal}:options);
+  if(!response.ok){
+   let reason;try{reason=(await response.json()).detail;}catch{}
+   throw Error(typeof reason==='string'?reason:'Request failed ('+response.status+')');
+  }
+  return await response.json();
+ }catch(e){
+  if(e?.name==='AbortError')throw Error('Server response timed out. Retry the request.');
+  throw e;
+ }finally{if(timer!==null)clearTimeout(timer);}
+}
 function renderTitle(){updateEditButtons();syncClipInspector();$('projectTitle').textContent=state.title;$('trackName').textContent=state.id||state.demo?state.title:'No audio loaded';$('totalTime').textContent=shortTime(state.duration);$('exportDuration').textContent=shortTime(state.duration);$('clipCount').textContent=`${state.lines.length} clip${state.lines.length===1?'':'s'}`;const enabled=!!state.id;['topExport','saveBtn','renderBtn','renderPreviewBtn'].forEach(x=>$(x).disabled=!enabled);$('addLineBtn').disabled=!state.id&&!state.demo;$('projectStatus').textContent=state.demo?'Demo · upload to export':!state.id?'Ready to create':
  state.dirty?'Unsaved · crash recovery on':state.persisted?'Saved project':'Draft · not saved';}
 function panel(name){if(name==='storage')loadStorage();if(name==='library')loadLibrary();if(name==='performance')loadPerformance(false);$$('.rail-item').forEach(b=>b.classList.toggle('active',b.dataset.panel===name));$$('.panel').forEach(p=>p.classList.toggle('hidden',p.id!==`panel-${name}`));}
@@ -102,10 +118,20 @@ const looks={
  neon:{mode:'karaoke',animation:'pop',font:'Impact',fontSize:65,textColor:'#FFFFFF',accentColor:'#81FF71',outline:3,background:'acid',dim:.15,upper:true},
  minimal:{mode:'line',animation:'fade',font:'Arial',fontSize:53,textColor:'#FFFFFF',accentColor:'#FFFFFF',outline:1,background:'noir',dim:.05,upper:false},
  dream:{mode:'line',animation:'blur',font:'Georgia',fontSize:57,textColor:'#FFFFFF',accentColor:'#BB8CFA',outline:2,background:'violet',dim:.16,upper:false},
- bold:{mode:'line',animation:'bounce',font:'Impact',fontSize:78,textColor:'#FFFFFF',accentColor:'#FB5D88',outline:4,background:'crimson',dim:.23,upper:true}
+ bold:{mode:'line',animation:'bounce',font:'Impact',fontSize:78,textColor:'#FFFFFF',accentColor:'#FB5D88',outline:4,background:'crimson',dim:.23,upper:true},
+ cinema:{mode:'line',animation:'fade',font:'Georgia',fontSize:58,textColor:'#FFFFFF',accentColor:'#FFAD7A',outline:1.5,background:'sunset',dim:.18,upper:false},
+ ice:{mode:'karaoke',animation:'pulse',font:'Arial',fontSize:60,textColor:'#FFFFFF',accentColor:'#A7EDFF',outline:2,background:'arctic',dim:.12,upper:false}
 };
 function applyLook(name){if(!looks[name])return;recordEdit('look');state.settings={...state.settings,...looks[name]};syncSettingUI();resizePreview();queueSave();toast('Applied '+name+' look to all lyrics');}
 
+function applyPlatformPreset(name){
+ const options={shorts:{aspect:'portrait',resolution:'1080p',fps:30},
+  youtube:{aspect:'landscape',resolution:'1080p',fps:30},
+  square:{aspect:'square',resolution:'1080p',fps:30}};
+ if(!options[name])return;
+ recordEdit('platform');state.settings={...state.settings,...options[name]};
+ syncSettingUI();resizePreview();queueSave();toast('Applied '+name+' video format.');
+}
 const savedStyleKey='skellymotion-my-look-v1';
 const styleFields=['mode','animation','font','fontSize','textColor','accentColor','outline','position','background','dim','upper'];
 function saveCurrentLook(){
@@ -188,6 +214,22 @@ function jumpClip(direction){
  if(!state.lines.length)return;
  state.selected=(state.selected+direction+state.lines.length)%state.lines.length;
  selectLine(state.selected,true);
+}
+function hideClipMenu(){$('clipContextMenu').classList.add('hidden');}
+function showClipMenu(e){
+ const clip=e.target.closest?.('.lyric-clip');if(!clip)return;
+ e.preventDefault();selectLine(Number(clip.dataset.index),false);
+ const menu=$('clipContextMenu');
+ menu.classList.remove('hidden');
+ menu.style.left=Math.max(8,Math.min(e.clientX,(window.innerWidth||1200)-190))+'px';
+ menu.style.top=Math.max(8,Math.min(e.clientY,(window.innerHeight||900)-170))+'px';
+}
+function runClipMenuAction(action){
+ hideClipMenu();
+ if(action==='split')splitSelected();
+ else if(action==='duplicate')duplicateSelected();
+ else if(action==='delete')deleteAt(state.selected);
+ else if(action==='motion')panel('animation');
 }
 function fitTimeline(){state.zoom=1;$('zoomDisplay').textContent='100%';$('timelineScroll').scrollLeft=0;renderTimeline();}
 function exportSrt(){
@@ -533,9 +575,39 @@ function activeLyric(t){
 }
 function easing(t){return 1-Math.pow(1-clamp(t,0,1),3);}
 
-const clipAnimations=['pop','fade','slide','typewriter','zoom','bounce','blur','none'];
-const clipAnimationName=name=>({pop:'Pop',fade:'Fade',slide:'Slide',typewriter:'Type-on',zoom:'Zoom',bounce:'Bounce',blur:'Blur',none:'None'})[name]||'Global';
+const clipAnimations=['pop','fade','slide','typewriter','zoom','bounce','blur','pulse','none'];
+const clipAnimationName=name=>({pop:'Pop',fade:'Fade',slide:'Slide',typewriter:'Type-on',zoom:'Zoom',bounce:'Bounce',blur:'Blur',pulse:'Pulse',none:'None'})[name]||'Global';
 function selectedClip(){return state.lines[state.selected]||null;}
+function renderWordTiming(){
+ const holder=$('wordTimingRows'),clip=selectedClip();
+ if(!clip||!clip.words?.length){
+  holder.innerHTML='<p class="word-timing-empty">Select a lyric to fine-tune its words.</p>';
+  return;
+ }
+ holder.innerHTML=clip.words.map((w,i)=>'<div class="word-timing-row">'+
+  '<button type="button" data-word-play="'+i+'" title="Listen from this word">▶</button>'+
+  '<span title="'+safe(w.text)+'">'+safe(w.text)+'</span>'+
+  '<label>IN<input data-word-start="'+i+'" type="number" min="0" step="0.01" value="'+prettyTime(w.start)+'" aria-label="'+safe(w.text)+' start" /></label>'+
+  '<label>OUT<input data-word-end="'+i+'" type="number" min="0" step="0.01" value="'+prettyTime(w.end)+'" aria-label="'+safe(w.text)+' end" /></label></div>').join('');
+ holder.querySelectorAll('[data-word-play]').forEach(button=>button.addEventListener('click',()=>{
+  const w=selectedClip()?.words?.[+button.dataset.wordPlay];
+  if(w){seek(w.start);if(!state.playing)play();}
+ }));
+ holder.querySelectorAll('[data-word-start],[data-word-end]').forEach(input=>input.addEventListener('change',()=>{
+  const begin=input.hasAttribute('data-word-start');
+  const index=+(begin?input.dataset.wordStart:input.dataset.wordEnd);
+  const line=selectedClip(),word=line?.words?.[index],value=Number(input.value);
+  if(!word||!Number.isFinite(value)){renderWordTiming();return;}
+  const before=line.words[index-1],after=line.words[index+1];
+  const min=begin?Math.max(line.start,before?.end??line.start):word.start+.03;
+  const max=begin?word.end-.03:Math.min(line.end,after?.start??line.end);
+  if(max<min){toast('Make room between neighboring words first.',true);renderWordTiming();return;}
+  const next=Math.round(clamp(value,min,max)*1000)/1000;
+  const key=begin?'start':'end';
+  if(next!==word[key]){recordEdit('word-timing');word[key]=next;queueSave();requestPreviewNow();}
+  renderWordTiming();
+ }));
+}
 function clipMotionName(clip){return clipAnimations.includes(clip?.animation)?clip.animation:state.settings.animation;}
 function clipMotionMs(clip){return Number.isFinite(Number(clip?.effectMs))?clamp(Number(clip.effectMs),120,650):230;}
 function clipLocation(clip){return {x:Number.isFinite(Number(clip?.x))?clamp(Number(clip.x),8,92):50,
@@ -647,6 +719,12 @@ function showText(t){const w=canvas.width,h=canvas.height,s=state.settings,ln=ac
  if(anim==='zoom'){scale=1.25-.25*easing(clamp((t-ln.start)/duration,0,1));alpha=Math.min(1,entry*5,outro*5);}
  if(anim==='bounce'){const x=clamp((t-ln.start)/duration,0,1);scale=x<.42?.65+(.5*x/.42):1.15-.15*easing((x-.42)/.58);alpha=Math.min(1,entry*6,outro*6);}
  if(anim==='blur'){alpha=Math.min(entry,outro);}
+ if(anim==='pulse'){
+  let onset=ln.start;
+  for(const word of ln.words||[]){if(word.start>t)break;onset=word.start;}
+  scale=1+.08*(1-easing(clamp((t-onset)/.18,0,1)));
+  alpha=Math.min(1,entry*6,outro*6);
+ }
  let words=(ln.words||[]).length?ln.words.map(x=>({...x,text:s.upper?x.text.toUpperCase():x.text})):text.split(/\s+/).map(x=>({text:x,start:ln.start,end:ln.end}));
  if(s.mode==='word') {let active=words.find(x=>x.start<=t&&x.end>t)||words.find(x=>x.start<=t)||words[0];if(!active)return;text=active.text;words=[active];}
  if(anim==='typewriter'&&s.mode==='line')text=text.split(/\s+/).slice(0,Math.max(1,Math.ceil(progress*text.split(/\s+/).length))).join(' ');
@@ -716,7 +794,7 @@ function selectLine(index,jump=false){
  const previous=state.selected;
  state.selected=clamp(index,0,Math.max(0,state.lines.length-1));
  if(jump&&state.lines[state.selected])seek(state.lines[state.selected].start+.07);
- syncClipInspector();
+ syncClipInspector();renderWordTiming();
  // Selecting a clip must not destroy and rebuild all DOM nodes (especially
  // when beginning a drag). Update the selected classes only.
  if(previous!==state.selected){
@@ -735,11 +813,11 @@ function retimeWords(line,oldStart,oldEnd,sourceWords){
  const span=Math.max(.01,oldEnd-oldStart),newSpan=line.end-line.start;
  line.words=(sourceWords||line.words||[]).map(w=>({text:w.text,start:line.start+(w.start-oldStart)*newSpan/span,end:line.start+(w.end-oldStart)*newSpan/span}));
 }
-function renderLines(){syncClipInspector();const holder=$('lyricsEditor');if(!state.lines.length){holder.innerHTML='<div class="empty-caption"><div class="empty-caption-icon">♫</div><strong>No lyrics yet</strong><span>Upload a song to detect lyrics automatically.</span></div>';return;}
+function renderLines(){syncClipInspector();renderWordTiming();const holder=$('lyricsEditor');if(!state.lines.length){holder.innerHTML='<div class="empty-caption"><div class="empty-caption-icon">♫</div><strong>No lyrics yet</strong><span>Upload a song to detect lyrics automatically.</span></div>';return;}
  holder.innerHTML=state.lines.map((l,i)=>`<div class="lyric-row ${i===state.selected?'selected':''}" data-line="${i}"><div class="lyric-row-top"><span class="lyric-n">LINE ${String(i+1).padStart(2,'0')}</span><div class="lyric-row-actions"><button data-action="jump" data-i="${i}" class="tiny-btn" title="Seek to lyric">▶</button><button data-action="delete" data-i="${i}" class="tiny-btn danger" title="Delete line">×</button></div></div><input class="lyric-input" data-text="${i}" value="${safe(l.text)}" aria-label="Line ${i+1} text"/><div class="timing-row"><label>IN<input type="number" data-start="${i}" step="0.01" min="0" max="${state.duration}" value="${prettyTime(l.start)}" /></label><span class="timing-arrow">→</span><label>OUT<input type="number" data-end="${i}" step="0.01" min="0" max="${state.duration}" value="${prettyTime(l.end)}" /></label></div></div>`).join('');
  holder.querySelectorAll('.lyric-row').forEach(el=>el.addEventListener('click',e=>{if(e.target.closest('input,button'))return;selectLine(+el.dataset.line,true)}));
  holder.querySelectorAll('[data-action]').forEach(b=>b.addEventListener('click',()=>{const i=+b.dataset.i;if(b.dataset.action==='jump'){selectLine(i,true);return;}deleteAt(i);}));
- holder.querySelectorAll('.lyric-input').forEach(el=>el.addEventListener('input',()=>{const i=+el.dataset.text,ln=state.lines[i];if(ln.text===el.value)return;recordEdit('text:'+i);ln.text=el.value;reflowWords(ln);
+ holder.querySelectorAll('.lyric-input').forEach(el=>el.addEventListener('input',()=>{const i=+el.dataset.text,ln=state.lines[i];if(ln.text===el.value)return;recordEdit('text:'+i);ln.text=el.value;reflowWords(ln);renderWordTiming();
  const clip=$('lyricTrack').querySelector('.lyric-clip[data-index="'+i+'"]');
  if(clip){const handle=clip.querySelector('.clip-grab');clip.textContent=trimLine(ln.text);if(handle)clip.prepend(handle);}
  scheduleTimelineRefresh();queueSave();requestPreviewNow();}));
@@ -940,6 +1018,10 @@ async function finishNewSong(data,title){resetEditHistory();
 }
 async function startUpload(file){
  if(!file)return;
+ if(uploadBusy){toast('A song is already being imported.');return;}
+ if(file.size>250*1024*1024){toast('Song exceeds the 250 MB upload limit.',true);return;}
+ uploadBusy=true;
+ try{
  if(!await mayLeaveProject())return;
  if(state.id)resetWorkspace();
  if(!/\.(mp3|wav|flac|m4a|aac|ogg|opus|mp4|webm)$/i.test(file.name)){
@@ -955,10 +1037,13 @@ async function startUpload(file){
    data=await api('/api/projects',{method:'POST',body:fd});}
  catch(e){toast('Song import failed: '+e.message,true);$('reviewOverlay').classList.add('hidden');$('welcome').classList.remove('hidden');return;}
  await finishNewSong(data,file.name.replace(/\.[^.]+$/,''));
+ }finally{uploadBusy=false;}
 }
 async function chooseSong(){
+ if(uploadBusy){toast('A song is already being imported.');return;}
  const bridge=window.pywebview?.api;
  if(document.documentElement.classList.contains('desktop-mode')&&bridge?.pick_audio_file){
+  uploadBusy=true;
   try{
    const picked=await bridge.pick_audio_file();
    if(!picked)return; // Cancelled native picker; current project stays untouched.
@@ -972,7 +1057,7 @@ async function chooseSong(){
    toast('Unable to import song: '+(err.message||String(err)),true);
    $('reviewOverlay').classList.add('hidden');
    if(!state.id)$('welcome').classList.remove('hidden');
-  }
+  }finally{uploadBusy=false;}
   return;
  }
  // Browser picker: Save/Discard decision occurs only after a file is chosen.
@@ -1136,8 +1221,11 @@ async function downloadVideo(e,preview=false){
  }
 }
 async function runVideoExport(preview=false){
+ if(renderBusy){toast('An export is already running for this window.');return;}
  if(!state.id){toast('Upload a song to export a video.',true);return;}
  if(!state.lines.length){toast('Add lyric lines before exporting.',true);return;}
+ const projectId=state.id;
+ renderBusy=true;
  panel('export');
  $('renderBtn').disabled=true;$('renderPreviewBtn').disabled=true;
  if(preview){$('previewDownloadBtn').classList.add('hidden');$('renderPreviewPlayer').classList.add('hidden');}
@@ -1147,7 +1235,7 @@ async function runVideoExport(preview=false){
  track.setAttribute('aria-valuenow','0');fill.style.width='0%';
  label.textContent=preview?'Preparing a 15-second preview…':'Preparing full video…';
  try{
-  const endpoint='/api/projects/'+state.id+(preview?'/preview':'/render');
+  const endpoint='/api/projects/'+projectId+(preview?'/preview':'/render');
   const {job_id}=await api(endpoint,{
    method:'POST',headers:{'Content-Type':'application/json'},
    body:JSON.stringify({lines:state.lines,settings:state.settings})
@@ -1155,6 +1243,7 @@ async function runVideoExport(preview=false){
   for(let i=0;i<900;i++){
    await new Promise(resolve=>setTimeout(resolve,1200));
    const job=await api('/api/jobs/'+job_id);
+   if(state.id!==projectId)return;
    if(job.status==='done'){
     fill.style.width='100%';track.setAttribute('aria-valuenow','100');
     const message=job.cached?'Reused an identical completed render.':'Rendered successfully.';
@@ -1183,8 +1272,12 @@ async function runVideoExport(preview=false){
    label.textContent=stage;
   }
   throw Error('Render exceeded the safety timeout.');
- }catch(e){label.textContent='Export failed: '+e.message;toast(e.message,true);}
- finally{$('renderBtn').disabled=false;$('renderPreviewBtn').disabled=false;}
+ }catch(e){
+  if(state.id===projectId){label.textContent='Export failed: '+e.message;toast(e.message,true);}
+ }finally{
+  renderBusy=false;
+  if(state.id===projectId){$('renderBtn').disabled=false;$('renderPreviewBtn').disabled=false;}
+ }
 }
 async function exportVideo(){return runVideoExport(false);}
 async function previewVideo(){return runVideoExport(true);}
@@ -1236,7 +1329,11 @@ function wireUI(){
  $('resetClipMotion').addEventListener('click',resetClipMotion);
  $('applyClipMotionAll').addEventListener('click',applyClipMotionAll);
  $('previewClipMotion').addEventListener('click',previewSelectedMotion);
- bindPreviewPositionDragging();
+ $$('[data-platform]').forEach(b=>b.addEventListener('click',()=>applyPlatformPreset(b.dataset.platform)));
+  bindPreviewPositionDragging();
+  $('lyricTrack').addEventListener('contextmenu',showClipMenu);
+  $$('[data-clip-menu]').forEach(b=>b.addEventListener('click',()=>runClipMenuAction(b.dataset.clipMenu)));
+  document.addEventListener('click',hideClipMenu);
  $('shortcutsBtn').addEventListener('click',()=>showShortcuts(true));
  $('closeShortcuts').addEventListener('click',()=>showShortcuts(false));
  $('shortcutsOverlay').addEventListener('click',e=>{if(e.target===$('shortcutsOverlay'))showShortcuts(false)});
@@ -1273,7 +1370,11 @@ function wireUI(){
  $('heroUpload').addEventListener('click',chooseSong);
  $('exitBtn').addEventListener('click',quitStudio);
  window.addEventListener('skellymotion-close-request',()=>{quitStudio();});
- window.addEventListener('beforeunload',e=>{
+ document.addEventListener('visibilitychange',()=>{
+   // Tab hiding can happen before the normal recovery debounce elapses.
+   if(document.hidden&&state.id&&state.dirty){clearTimeout(state.pendingSave);writeRecovery();}
+  });
+  window.addEventListener('beforeunload',e=>{
   // Browser tab closes cannot synchronously run Save/Discard. A regular
   // browser warning and persistent crash recovery are the safe fallback.
   if(!window.pywebview?.api&&state.id&&(state.dirty||!state.persisted)){
@@ -1310,6 +1411,7 @@ function wireUI(){
  audio.addEventListener('ended',()=>{state.playing=false;});audio.addEventListener('pause',()=>{if(!audio.ended)state.playing=false;});audio.addEventListener('play',()=>{state.playing=true;});
  document.addEventListener('keydown',e=>{
   const ctrl=e.ctrlKey||e.metaKey;
+   if(e.key==='Escape')hideClipMenu();
   const typing=!!e.target.closest('input,textarea,select,[contenteditable="true"]');
   if(e.key==='Escape'&&!$('shortcutsOverlay').classList.contains('hidden')){e.preventDefault();showShortcuts(false);return;}
   if(ctrl&&e.code==='KeyS'){e.preventDefault();save();return;}

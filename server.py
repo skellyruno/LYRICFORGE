@@ -44,9 +44,11 @@ PRESETS = {
     "crimson": ("#4b1d2d", "#130911", "#fb5d88"),
     "ocean": ("#16445d", "#06121f", "#6be4ff"),
     "noir": ("#282b31", "#050505", "#b3b8bc"),
+    "sunset": ("#4a2449", "#170c23", "#ffad7a"),
+    "arctic": ("#234c61", "#071c29", "#a7edff"),
 }
 FONTS = {"Arial", "DejaVu Sans", "Liberation Sans", "Impact", "Georgia", "Courier New"}
-ANIMATIONS = {"fade", "pop", "slide", "typewriter", "zoom", "bounce", "blur", "none"}
+ANIMATIONS = {"fade", "pop", "slide", "typewriter", "zoom", "bounce", "blur", "pulse", "none"}
 MODES = {"line", "word", "karaoke"}
 SIZES = {"portrait": (720, 1280), "landscape": (1280, 720), "square": (720, 720)}
 executor = ThreadPoolExecutor(max_workers=2)
@@ -1079,6 +1081,8 @@ def animation_tags(name: str, W: int, H: int, y: int,
         return rf"\fscx65\fscy65\t(0,{first},\fscx115\fscy115)\t({first},{ms},\fscx100\fscy100)\fad(40,100)"
     if name == "blur":
         return rf"\blur6\t(0,{ms},\blur0.5)\fad({min(170,fade)},140)"
+    if name == "pulse":
+        return r"\fad(30,100)"
     return ""
 
 
@@ -1143,6 +1147,16 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         # Do not combine \pos and \move, which conflicts on some ASS renderers.
         base = rf"\an5" + ("" if motion == "slide" else rf"\pos({cx},{cy})")
         effect = animation_tags(motion, W, H, cy, cx, ms)
+        if motion == "pulse" and mode != "word":
+            # Timed to word starts, including hand-adjusted timings. ASS uses
+            # subtitle-relative transitions rather than extra video frames.
+            for word in line.get("words", [])[:80]:
+                tick = round((word["start"] - start) * 1000)
+                if 0 <= tick < (end - start) * 1000:
+                    rise = min(tick + 65, round((end - start) * 1000))
+                    fall = min(tick + 185, round((end - start) * 1000))
+                    effect += (rf"\t({tick},{rise},\fscx108\fscy108)"
+                               rf"\t({rise},{fall},\fscx100\fscy100)")
         tags = base + effect
         if mode == "word" and line["words"]:
             for word in line["words"]:
@@ -1374,6 +1388,14 @@ def queue_render(project_id: str, body: RenderRequest, preview: bool = False) ->
     settings = sanitize_settings(body.settings)
     lines = validate_lines(body.lines, d["duration"])
     with job_lock:
+        # Avoid accumulating completed render results forever in a long session.
+        if len(jobs) > 250:
+            finished = sorted(
+                (key for key, item in jobs.items()
+                 if item.get("status") in {"done", "error"}),
+                key=lambda key: jobs[key].get("created", 0))
+            for stale in finished[:max(0, len(jobs) - 180)]:
+                jobs.pop(stale, None)
         # Two simultaneous renders of the same project would share ASS/assets.
         if any(item.get("project_id") == project_id and item.get("status") == "rendering"
                for item in jobs.values()):
