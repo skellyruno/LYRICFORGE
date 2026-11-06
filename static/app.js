@@ -3,13 +3,13 @@
 const $ = (id) => document.getElementById(id);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 const defaultSettings = () => ({aspect:'portrait',resolution:'720p',renderSpeed:'balanced',fps:30,performanceMode:'balanced',encoder:'auto',mode:'line',animation:'pop',font:'Arial',fontSize:60,textColor:'#FFFFFF',accentColor:'#81FF71',outline:2.5,position:55,background:'midnight',dim:.15,upper:false});
-const backgrounds = {midnight:['#101418','#020605','#6fff87'],acid:['#15372b','#07120f','#72ff68'],violet:['#35244a','#0e0c1c','#bb8cfa'],crimson:['#4b1d2d','#130911','#fb5d88'],ocean:['#16445d','#06121f','#6be4ff'],noir:['#282b31','#050505','#b3b8bc']};
+const backgrounds = {midnight:['#101418','#020605','#6fff87'],acid:['#15372b','#07120f','#72ff68'],violet:['#35244a','#0e0c1c','#bb8cfa'],crimson:['#4b1d2d','#130911','#fb5d88'],ocean:['#16445d','#06121f','#6be4ff'],noir:['#282b31','#050505','#b3b8bc'],sunset:['#4a2449','#170c23','#ffad7a'],arctic:['#234c61','#071c29','#a7edff']};
 const state = {id:null, title:'Untitled project', duration:0, lines:[], settings:defaultSettings(), time:0, playing:false, selected:0, demo:false, zoom:1, snap:false, sourceObjectUrl:null, backgroundUrl:null, pendingSave:null, backgroundIsVideo:false, waveform:[],persisted:false,dirty:false};
 const audio=$('songAudio'), canvas=$('previewCanvas'), ctx=canvas.getContext('2d'), bgImg=$('backgroundImage'),bgVid=$('backgroundVideo');
 let lastFrame=performance.now(), lastPreviewPaint=0, pollTimer=null, backgroundVersion=0;
 let resizeTimer=null;
 let saveSerial=Promise.resolve(), recoverySerial=Promise.resolve(), editRevision=0;
-let transitionBusy=false,downloadBusy=false;
+let transitionBusy=false,downloadBusy=false,renderBusy=false,uploadBusy=false;
 let timelineTravelWidth=0;
 let previewQuality='auto';
 try {
@@ -102,10 +102,20 @@ const looks={
  neon:{mode:'karaoke',animation:'pop',font:'Impact',fontSize:65,textColor:'#FFFFFF',accentColor:'#81FF71',outline:3,background:'acid',dim:.15,upper:true},
  minimal:{mode:'line',animation:'fade',font:'Arial',fontSize:53,textColor:'#FFFFFF',accentColor:'#FFFFFF',outline:1,background:'noir',dim:.05,upper:false},
  dream:{mode:'line',animation:'blur',font:'Georgia',fontSize:57,textColor:'#FFFFFF',accentColor:'#BB8CFA',outline:2,background:'violet',dim:.16,upper:false},
- bold:{mode:'line',animation:'bounce',font:'Impact',fontSize:78,textColor:'#FFFFFF',accentColor:'#FB5D88',outline:4,background:'crimson',dim:.23,upper:true}
+ bold:{mode:'line',animation:'bounce',font:'Impact',fontSize:78,textColor:'#FFFFFF',accentColor:'#FB5D88',outline:4,background:'crimson',dim:.23,upper:true},
+ cinema:{mode:'line',animation:'fade',font:'Georgia',fontSize:58,textColor:'#FFFFFF',accentColor:'#FFAD7A',outline:1.5,background:'sunset',dim:.18,upper:false},
+ ice:{mode:'karaoke',animation:'pulse',font:'Arial',fontSize:60,textColor:'#FFFFFF',accentColor:'#A7EDFF',outline:2,background:'arctic',dim:.12,upper:false}
 };
 function applyLook(name){if(!looks[name])return;recordEdit('look');state.settings={...state.settings,...looks[name]};syncSettingUI();resizePreview();queueSave();toast('Applied '+name+' look to all lyrics');}
 
+function applyPlatformPreset(name){
+ const options={shorts:{aspect:'portrait',resolution:'1080p',fps:30},
+  youtube:{aspect:'landscape',resolution:'1080p',fps:30},
+  square:{aspect:'square',resolution:'1080p',fps:30}};
+ if(!options[name])return;
+ recordEdit('platform');state.settings={...state.settings,...options[name]};
+ syncSettingUI();resizePreview();queueSave();toast('Applied '+name+' video format.');
+}
 const savedStyleKey='skellymotion-my-look-v1';
 const styleFields=['mode','animation','font','fontSize','textColor','accentColor','outline','position','background','dim','upper'];
 function saveCurrentLook(){
@@ -533,8 +543,8 @@ function activeLyric(t){
 }
 function easing(t){return 1-Math.pow(1-clamp(t,0,1),3);}
 
-const clipAnimations=['pop','fade','slide','typewriter','zoom','bounce','blur','none'];
-const clipAnimationName=name=>({pop:'Pop',fade:'Fade',slide:'Slide',typewriter:'Type-on',zoom:'Zoom',bounce:'Bounce',blur:'Blur',none:'None'})[name]||'Global';
+const clipAnimations=['pop','fade','slide','typewriter','zoom','bounce','blur','pulse','none'];
+const clipAnimationName=name=>({pop:'Pop',fade:'Fade',slide:'Slide',typewriter:'Type-on',zoom:'Zoom',bounce:'Bounce',blur:'Blur',pulse:'Pulse',none:'None'})[name]||'Global';
 function selectedClip(){return state.lines[state.selected]||null;}
 function clipMotionName(clip){return clipAnimations.includes(clip?.animation)?clip.animation:state.settings.animation;}
 function clipMotionMs(clip){return Number.isFinite(Number(clip?.effectMs))?clamp(Number(clip.effectMs),120,650):230;}
@@ -647,6 +657,12 @@ function showText(t){const w=canvas.width,h=canvas.height,s=state.settings,ln=ac
  if(anim==='zoom'){scale=1.25-.25*easing(clamp((t-ln.start)/duration,0,1));alpha=Math.min(1,entry*5,outro*5);}
  if(anim==='bounce'){const x=clamp((t-ln.start)/duration,0,1);scale=x<.42?.65+(.5*x/.42):1.15-.15*easing((x-.42)/.58);alpha=Math.min(1,entry*6,outro*6);}
  if(anim==='blur'){alpha=Math.min(entry,outro);}
+ if(anim==='pulse'){
+  let onset=ln.start;
+  for(const word of ln.words||[]){if(word.start>t)break;onset=word.start;}
+  scale=1+.08*(1-easing(clamp((t-onset)/.18,0,1)));
+  alpha=Math.min(1,entry*6,outro*6);
+ }
  let words=(ln.words||[]).length?ln.words.map(x=>({...x,text:s.upper?x.text.toUpperCase():x.text})):text.split(/\s+/).map(x=>({text:x,start:ln.start,end:ln.end}));
  if(s.mode==='word') {let active=words.find(x=>x.start<=t&&x.end>t)||words.find(x=>x.start<=t)||words[0];if(!active)return;text=active.text;words=[active];}
  if(anim==='typewriter'&&s.mode==='line')text=text.split(/\s+/).slice(0,Math.max(1,Math.ceil(progress*text.split(/\s+/).length))).join(' ');
@@ -1236,7 +1252,8 @@ function wireUI(){
  $('resetClipMotion').addEventListener('click',resetClipMotion);
  $('applyClipMotionAll').addEventListener('click',applyClipMotionAll);
  $('previewClipMotion').addEventListener('click',previewSelectedMotion);
- bindPreviewPositionDragging();
+ $('[data-platform]').forEach(b=>b.addEventListener('click',()=>applyPlatformPreset(b.dataset.platform)));
+  bindPreviewPositionDragging();
  $('shortcutsBtn').addEventListener('click',()=>showShortcuts(true));
  $('closeShortcuts').addEventListener('click',()=>showShortcuts(false));
  $('shortcutsOverlay').addEventListener('click',e=>{if(e.target===$('shortcutsOverlay'))showShortcuts(false)});
