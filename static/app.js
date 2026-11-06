@@ -26,7 +26,22 @@ const prettyTime=(x)=>Number(x||0).toFixed(2);
 const safe=(s)=>String(s??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;');
 const trimLine=(s)=>s.length>95?s.slice(0,92)+'…':s;
 const toast=(msg,error=false)=>{const el=document.createElement('div');el.className='toast'+(error?' error':'');el.textContent=msg;$('toasts').appendChild(el);setTimeout(()=>el.remove(),4700);};
-function api(path,options={}){return fetch(path,options).then(async response=>{if(!response.ok){let reason;try{reason=(await response.json()).detail;}catch{}throw Error(typeof reason==='string'?reason:`Request failed (${response.status})`);}return response.json();});}
+async function api(path,options={}){
+ const method=(options.method||'GET').toUpperCase();
+ const controller=method==='GET'&&!options.signal?new AbortController():null;
+ const timer=controller?setTimeout(()=>controller.abort(),20000):null;
+ try{
+  const response=await fetch(path,controller?{...options,signal:controller.signal}:options);
+  if(!response.ok){
+   let reason;try{reason=(await response.json()).detail;}catch{}
+   throw Error(typeof reason==='string'?reason:'Request failed ('+response.status+')');
+  }
+  return await response.json();
+ }catch(e){
+  if(e?.name==='AbortError')throw Error('Server response timed out. Retry the request.');
+  throw e;
+ }finally{if(timer!==null)clearTimeout(timer);}
+}
 function renderTitle(){updateEditButtons();syncClipInspector();$('projectTitle').textContent=state.title;$('trackName').textContent=state.id||state.demo?state.title:'No audio loaded';$('totalTime').textContent=shortTime(state.duration);$('exportDuration').textContent=shortTime(state.duration);$('clipCount').textContent=`${state.lines.length} clip${state.lines.length===1?'':'s'}`;const enabled=!!state.id;['topExport','saveBtn','renderBtn','renderPreviewBtn'].forEach(x=>$(x).disabled=!enabled);$('addLineBtn').disabled=!state.id&&!state.demo;$('projectStatus').textContent=state.demo?'Demo · upload to export':!state.id?'Ready to create':
  state.dirty?'Unsaved · crash recovery on':state.persisted?'Saved project':'Draft · not saved';}
 function panel(name){if(name==='storage')loadStorage();if(name==='library')loadLibrary();if(name==='performance')loadPerformance(false);$$('.rail-item').forEach(b=>b.classList.toggle('active',b.dataset.panel===name));$$('.panel').forEach(p=>p.classList.toggle('hidden',p.id!==`panel-${name}`));}
@@ -986,6 +1001,10 @@ async function finishNewSong(data,title){resetEditHistory();
 }
 async function startUpload(file){
  if(!file)return;
+ if(uploadBusy){toast('A song is already being imported.');return;}
+ if(file.size>250*1024*1024){toast('Song exceeds the 250 MB upload limit.',true);return;}
+ uploadBusy=true;
+ try{
  if(!await mayLeaveProject())return;
  if(state.id)resetWorkspace();
  if(!/\.(mp3|wav|flac|m4a|aac|ogg|opus|mp4|webm)$/i.test(file.name)){
@@ -1001,10 +1020,13 @@ async function startUpload(file){
    data=await api('/api/projects',{method:'POST',body:fd});}
  catch(e){toast('Song import failed: '+e.message,true);$('reviewOverlay').classList.add('hidden');$('welcome').classList.remove('hidden');return;}
  await finishNewSong(data,file.name.replace(/\.[^.]+$/,''));
+ }finally{uploadBusy=false;}
 }
 async function chooseSong(){
+ if(uploadBusy){toast('A song is already being imported.');return;}
  const bridge=window.pywebview?.api;
  if(document.documentElement.classList.contains('desktop-mode')&&bridge?.pick_audio_file){
+  uploadBusy=true;
   try{
    const picked=await bridge.pick_audio_file();
    if(!picked)return; // Cancelled native picker; current project stays untouched.
@@ -1018,7 +1040,7 @@ async function chooseSong(){
    toast('Unable to import song: '+(err.message||String(err)),true);
    $('reviewOverlay').classList.add('hidden');
    if(!state.id)$('welcome').classList.remove('hidden');
-  }
+  }finally{uploadBusy=false;}
   return;
  }
  // Browser picker: Save/Discard decision occurs only after a file is chosen.
@@ -1182,8 +1204,11 @@ async function downloadVideo(e,preview=false){
  }
 }
 async function runVideoExport(preview=false){
+ if(renderBusy){toast('An export is already running for this window.');return;}
  if(!state.id){toast('Upload a song to export a video.',true);return;}
  if(!state.lines.length){toast('Add lyric lines before exporting.',true);return;}
+ const projectId=state.id;
+ renderBusy=true;
  panel('export');
  $('renderBtn').disabled=true;$('renderPreviewBtn').disabled=true;
  if(preview){$('previewDownloadBtn').classList.add('hidden');$('renderPreviewPlayer').classList.add('hidden');}
@@ -1193,7 +1218,7 @@ async function runVideoExport(preview=false){
  track.setAttribute('aria-valuenow','0');fill.style.width='0%';
  label.textContent=preview?'Preparing a 15-second preview…':'Preparing full video…';
  try{
-  const endpoint='/api/projects/'+state.id+(preview?'/preview':'/render');
+  const endpoint='/api/projects/'+projectId+(preview?'/preview':'/render');
   const {job_id}=await api(endpoint,{
    method:'POST',headers:{'Content-Type':'application/json'},
    body:JSON.stringify({lines:state.lines,settings:state.settings})
@@ -1201,6 +1226,7 @@ async function runVideoExport(preview=false){
   for(let i=0;i<900;i++){
    await new Promise(resolve=>setTimeout(resolve,1200));
    const job=await api('/api/jobs/'+job_id);
+   if(state.id!==projectId)return;
    if(job.status==='done'){
     fill.style.width='100%';track.setAttribute('aria-valuenow','100');
     const message=job.cached?'Reused an identical completed render.':'Rendered successfully.';
@@ -1229,8 +1255,12 @@ async function runVideoExport(preview=false){
    label.textContent=stage;
   }
   throw Error('Render exceeded the safety timeout.');
- }catch(e){label.textContent='Export failed: '+e.message;toast(e.message,true);}
- finally{$('renderBtn').disabled=false;$('renderPreviewBtn').disabled=false;}
+ }catch(e){
+  if(state.id===projectId){label.textContent='Export failed: '+e.message;toast(e.message,true);}
+ }finally{
+  renderBusy=false;
+  if(state.id===projectId){$('renderBtn').disabled=false;$('renderPreviewBtn').disabled=false;}
+ }
 }
 async function exportVideo(){return runVideoExport(false);}
 async function previewVideo(){return runVideoExport(true);}
@@ -1320,7 +1350,11 @@ function wireUI(){
  $('heroUpload').addEventListener('click',chooseSong);
  $('exitBtn').addEventListener('click',quitStudio);
  window.addEventListener('skellymotion-close-request',()=>{quitStudio();});
- window.addEventListener('beforeunload',e=>{
+ document.addEventListener('visibilitychange',()=>{
+   // Tab hiding can happen before the normal recovery debounce elapses.
+   if(document.hidden&&state.id&&state.dirty){clearTimeout(state.pendingSave);writeRecovery();}
+  });
+  window.addEventListener('beforeunload',e=>{
   // Browser tab closes cannot synchronously run Save/Discard. A regular
   // browser warning and persistent crash recovery are the safe fallback.
   if(!window.pywebview?.api&&state.id&&(state.dirty||!state.persisted)){
