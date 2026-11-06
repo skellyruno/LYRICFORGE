@@ -31,6 +31,35 @@ Two distributions are included in this repository:
 
 
 
+## Compact + smoother SkellyMotion — November 2026
+
+This iteration reduces idle rendering work, simplifies the editor hierarchy, and removes an unused runtime from the portable app without changing the Whisper small model, project formats, lyric animations, or H.264 export.
+
+### Verified portable sizes
+
+| Windows build | GitHub download | Extracted folder |
+| --- | ---: | ---: |
+| Original | ~197.22 MB | 473.97 MiB |
+| First optimization (no FFprobe binary) | 157.66 MB | 373.62 MiB |
+| **Current optimization** | **141.17 MB** | **330.81 MiB** |
+
+Current GitHub Windows run: [Build SkellyMotion Windows app](https://github.com/skellyruno/LYRICFORGE/actions/runs/42291711664). All CI steps passed, including frozen Whisper/CTranslate2/PyAV imports, native Python.NET assemblies, a real WebView2 window, and a subtitle MP4.
+
+**What was removed:** ONNX Runtime's ~42 MB Silero VAD backend. SkellyMotion currently transcribes with vad_filter=False, so that optional engine is unused. If future features enable ONNX speech activity detection, its dependencies must be bundled again. The downloaded Whisper transcription model remains separate in the existing user model cache.
+
+### Editing and CPU improvements
+
+- **Live Preview Detail (Speed panel):** Auto selects a smaller canvas for Balanced and Eco profiles; Light further reduces drawing pixels, while Sharp restores maximum preview detail. Video exports stay at the chosen 540p/720p/1080p and 24/30 FPS regardless of preview setting.
+- **Less idle work:** preview schedules low-frequency wakeups while paused or hidden instead of a continuous high-frequency animation-frame loop; playback wakes promptly for play, seek, and style changes.
+- **Fewer DOM rebuilds:** selecting lyric clips updates only selected highlights, and typing updates a single clip immediately while batching full timeline updates.
+- **Better lyric lookup:** playhead preview uses an indexed, binary-searched lyric timeline rather than two full scans on every playback frame. The index is invalidated after edits, preserving current motion timing.
+- **Smoother timeline:** the playhead uses a GPU-friendly CSS transform instead of continuously changing its layout position. Clock labels are only updated when changed.
+- **Cleaner UI:** compact controls, more legible tabs, improved focus states, calmer shadows and clearer green selected states. The user-customizable panel/timeline sizes remain intact.
+
+The tests verify preview pixel dimensions and selection/timing edits. The Windows GUI smoke test checks whether the packaged editor opens and stays responsive. These results do not establish a measured CPU percentage reduction on every computer; compare playback and export locally for your hardware.
+
+**Installation:** Download the SkellyMotion-Windows-x64 artifact from the successful run above, extract it once, keep the EXE and _internal folder together. Previous projects and model cache remain under %LOCALAPPDATA%\LyricForge.
+
 ## Smaller Windows portable package (November 2026)
 
 The Windows portable app now uses the already-bundled **PyAV** library to read song durations and validate image/video backgrounds. This removes the duplicate 100 MB `ffprobe.exe` while retaining the verified FFmpeg `ffmpeg.exe` needed for lyric rendering and H.264 exports. Whisper `small`, native WebView2, supported media imports and existing project/model storage remain unchanged.
