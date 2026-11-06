@@ -1,7 +1,7 @@
 name: Test app
 on:
   push:
-    branches: [main, 'feature/skellymotion-0-9-six-upgrades']
+    branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:
