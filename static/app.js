@@ -10,6 +10,12 @@ let lastFrame=performance.now(), lastPreviewPaint=0, pollTimer=null, backgroundV
 let resizeTimer=null;
 let saveSerial=Promise.resolve(), recoverySerial=Promise.resolve(), editRevision=0;
 let transitionBusy=false,downloadBusy=false;
+let previewQuality='auto';
+try {
+ const stored=localStorage.getItem('skellymotion-preview-quality-v1');
+ if(['auto','light','sharp'].includes(stored))previewQuality=stored;
+} catch {}
+
 const undoHistory=[],redoHistory=[];
 let lastEditKind='',lastEditAt=0;
 
@@ -86,7 +92,7 @@ function setSetting(name,value){
  }
  if(name==='animation')renderTimeline();
  if(name==='fps')$('exportFpsLabel').textContent=value+' FPS';
- if(name==='performanceMode'){$('startupPerformance').value=value;try{localStorage.setItem('skellymotion-perf-mode',value)}catch{}}
+ if(name==='performanceMode'){$('startupPerformance').value=value;try{localStorage.setItem('skellymotion-perf-mode',value)}catch{};if(previewQuality==='auto')resizePreview();}
  queueSave();
 }
 
@@ -384,7 +390,31 @@ function syncSettingUI(){const s=state.settings;
  $$('[data-aspect]').forEach(x=>x.classList.toggle('selected',x.dataset.aspect===s.aspect));
  const labels={portrait:'9:16 · VERTICAL',landscape:'16:9 · HORIZONTAL',square:'1:1 · SQUARE'};$('canvasFormat').textContent=labels[s.aspect];
 }
-function resizePreview(){const shapes={portrait:[450,800],landscape:[800,450],square:[650,650]};const [w,h]=shapes[state.settings.aspect];if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;}const stage=$('stage');stage.style.aspectRatio=`${w}/${h}`;stage.style.height='min(100%, 660px)';}
+function previewDimensions(aspect,quality=previewQuality,mode=state.settings.performanceMode){
+ const base={portrait:[450,800],landscape:[800,450],square:[650,650]};
+ const [width,height]=base[aspect]||base.portrait;
+ // Lower internal canvas resolution when the user is on a compact window.
+ // Export resolution and typography are independent from this preview.
+ const scale=quality==='sharp'?1:quality==='light'?.60:
+   mode==='eco'?.60:mode==='turbo'?1:.80;
+ const even=n=>Math.max(2,Math.round(n*scale/2)*2);
+ return [even(width),even(height)];
+}
+function resizePreview(){
+ const [w,h]=previewDimensions(state.settings.aspect);
+ if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;}
+ $('previewQuality').value=previewQuality;
+ $('previewResolutionLabel').textContent='Preview '+w+'×'+h;
+ $('previewResolutionLabel').title='Editor preview only · export quality unchanged';
+ const stage=$('stage');
+ stage.style.aspectRatio=w+'/'+h;stage.style.height='min(100%, 660px)';
+}
+function setPreviewQuality(mode){
+ if(!['auto','light','sharp'].includes(mode))return;
+ previewQuality=mode;
+ try{localStorage.setItem('skellymotion-preview-quality-v1',mode)}catch{}
+ resizePreview();
+}
 let cachedBackgroundKey='', cachedBackgroundCanvas=null;
 let cachedPhotoKey='', cachedPhotoCanvas=null;
 function presetBackgroundSurface(w,h,s){
@@ -1154,6 +1184,7 @@ function wireUI(){
  $('refreshStorage').addEventListener('click',loadStorage);
  $('refreshPerformance').addEventListener('click',()=>loadPerformance(false));
  $('checkGPU').addEventListener('click',()=>loadPerformance(true));
+ $('previewQuality').addEventListener('change',e=>setPreviewQuality(e.target.value));
  $('refineLyricsBtn').addEventListener('click',refineUncertainLyrics);
  $('applyRefineBtn').addEventListener('click',applyRefinement);
  $('startupPerformance').addEventListener('change',e=>{
