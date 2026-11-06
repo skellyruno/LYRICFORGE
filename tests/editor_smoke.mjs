@@ -9,6 +9,8 @@ import vm from 'node:vm';
 
 const html = fs.readFileSync('static/index.html', 'utf8');
 const script = fs.readFileSync('static/app.js', 'utf8');
+const instrumentedScript = script.replace('function easing(t){',
+  'window.__studioDebug = { state, activeLyric, invalidatePlaybackIndex, previewDimensions };\nfunction easing(t){');
 const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map(m => m[1]);
 assert.equal(new Set(ids).size, ids.length, 'HTML contains duplicate IDs');
 
@@ -110,7 +112,7 @@ const context = {
   Blob, URL: { createObjectURL() { return 'blob:test'; }, revokeObjectURL() {} },
   console
 };
-vm.runInNewContext(script, context, { filename: 'static/app.js' });
+vm.runInNewContext(instrumentedScript, context, { filename: 'static/app.js' });
 nodes.demoBtn.click();
 assert.equal(nodes.clipCount.textContent, '6 clips', 'Demo should load six lyric clips');
 
@@ -183,6 +185,42 @@ assert.ok(nodes.deleteSelectedProjects.callbacks.click?.length, 'Checked-only de
 assert.ok(nodes.downloadBtn.callbacks.click?.length, 'Full MP4 Save As action must be wired');
 assert.ok(nodes.previewDownloadBtn.callbacks.click?.length, 'Preview MP4 Save As action must be wired');
 assert.ok(nodes.exitBtn.callbacks.click?.length, 'Explicit close/save workflow must be wired');
+
+assert.ok(nodes.previewQuality.callbacks.change?.length,
+ 'Live preview quality selector must be wired');
+const beforePreviewPixels=nodes.previewCanvas.width*nodes.previewCanvas.height;
+nodes.previewQuality.value='light';
+nodes.previewQuality.callbacks.change[0]({target:nodes.previewQuality});
+const afterPreviewPixels=nodes.previewCanvas.width*nodes.previewCanvas.height;
+assert.ok(afterPreviewPixels<beforePreviewPixels,
+ 'Light preview must significantly reduce canvas pixel count');
+assert.equal(storage.get('skellymotion-preview-quality-v1'),'light',
+ 'Preview preference must survive restarts');
+assert.equal(nodes.fps.value||'30',nodes.fps.value||'30',
+ 'Preview quality must not change export frame rate');
+nodes.previewQuality.value='sharp';
+nodes.previewQuality.callbacks.change[0]({target:nodes.previewQuality});
+assert.ok(nodes.previewCanvas.width*nodes.previewCanvas.height>afterPreviewPixels,
+ 'Sharp preview must restore higher resolution');
+assert.ok(nodes.previewResolutionLabel.textContent.includes('Preview '),
+ 'Editor should display the preview resolution');
+
+const debug=win.__studioDebug;
+assert.ok(debug,'Playback optimization test hooks available in smoke test');
+debug.state.lines=[
+ {id:'intro',text:'Start',start:0,end:3},
+ {id:'middle',text:'Middle',start:4,end:6},
+ {id:'ending',text:'Ending',start:7,end:10}
+];
+debug.invalidatePlaybackIndex();
+assert.equal(debug.activeLyric(1.4)?.id,'intro');
+assert.equal(debug.activeLyric(5)?.id,'middle');
+assert.equal(debug.activeLyric(6.5),null);
+assert.equal(debug.activeLyric(9)?.id,'ending');
+debug.state.lines[1].start=3.5;
+debug.invalidatePlaybackIndex();
+assert.equal(debug.activeLyric(3.7)?.id,'middle',
+ 'Edited timings invalidate cached playback index');
 
 assert.ok(nodes.renderPreviewBtn.callbacks.click?.length, '15-second test render must be wired');
 assert.ok(nodes.checkGPU.callbacks.click?.length, 'Hardware compatibility button must be wired');
