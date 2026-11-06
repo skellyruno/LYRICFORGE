@@ -546,6 +546,36 @@ function easing(t){return 1-Math.pow(1-clamp(t,0,1),3);}
 const clipAnimations=['pop','fade','slide','typewriter','zoom','bounce','blur','pulse','none'];
 const clipAnimationName=name=>({pop:'Pop',fade:'Fade',slide:'Slide',typewriter:'Type-on',zoom:'Zoom',bounce:'Bounce',blur:'Blur',pulse:'Pulse',none:'None'})[name]||'Global';
 function selectedClip(){return state.lines[state.selected]||null;}
+function renderWordTiming(){
+ const holder=$('wordTimingRows'),clip=selectedClip();
+ if(!clip||!clip.words?.length){
+  holder.innerHTML='<p class="word-timing-empty">Select a lyric to fine-tune its words.</p>';
+  return;
+ }
+ holder.innerHTML=clip.words.map((w,i)=>'<div class="word-timing-row">'+
+  '<button type="button" data-word-play="'+i+'" title="Listen from this word">▶</button>'+
+  '<span title="'+safe(w.text)+'">'+safe(w.text)+'</span>'+
+  '<label>IN<input data-word-start="'+i+'" type="number" min="0" step="0.01" value="'+prettyTime(w.start)+'" aria-label="'+safe(w.text)+' start" /></label>'+
+  '<label>OUT<input data-word-end="'+i+'" type="number" min="0" step="0.01" value="'+prettyTime(w.end)+'" aria-label="'+safe(w.text)+' end" /></label></div>').join('');
+ holder.querySelectorAll('[data-word-play]').forEach(button=>button.addEventListener('click',()=>{
+  const w=selectedClip()?.words?.[+button.dataset.wordPlay];
+  if(w){seek(w.start);if(!state.playing)play();}
+ }));
+ holder.querySelectorAll('[data-word-start],[data-word-end]').forEach(input=>input.addEventListener('change',()=>{
+  const begin=input.hasAttribute('data-word-start');
+  const index=+(begin?input.dataset.wordStart:input.dataset.wordEnd);
+  const line=selectedClip(),word=line?.words?.[index],value=Number(input.value);
+  if(!word||!Number.isFinite(value)){renderWordTiming();return;}
+  const before=line.words[index-1],after=line.words[index+1];
+  const min=begin?Math.max(line.start,before?.end??line.start):word.start+.03;
+  const max=begin?word.end-.03:Math.min(line.end,after?.start??line.end);
+  if(max<min){toast('Make room between neighboring words first.',true);renderWordTiming();return;}
+  const next=Math.round(clamp(value,min,max)*1000)/1000;
+  const key=begin?'start':'end';
+  if(next!==word[key]){recordEdit('word-timing');word[key]=next;queueSave();requestPreviewNow();}
+  renderWordTiming();
+ }));
+}
 function clipMotionName(clip){return clipAnimations.includes(clip?.animation)?clip.animation:state.settings.animation;}
 function clipMotionMs(clip){return Number.isFinite(Number(clip?.effectMs))?clamp(Number(clip.effectMs),120,650):230;}
 function clipLocation(clip){return {x:Number.isFinite(Number(clip?.x))?clamp(Number(clip.x),8,92):50,
@@ -732,7 +762,7 @@ function selectLine(index,jump=false){
  const previous=state.selected;
  state.selected=clamp(index,0,Math.max(0,state.lines.length-1));
  if(jump&&state.lines[state.selected])seek(state.lines[state.selected].start+.07);
- syncClipInspector();
+ syncClipInspector();renderWordTiming();
  // Selecting a clip must not destroy and rebuild all DOM nodes (especially
  // when beginning a drag). Update the selected classes only.
  if(previous!==state.selected){
@@ -751,11 +781,11 @@ function retimeWords(line,oldStart,oldEnd,sourceWords){
  const span=Math.max(.01,oldEnd-oldStart),newSpan=line.end-line.start;
  line.words=(sourceWords||line.words||[]).map(w=>({text:w.text,start:line.start+(w.start-oldStart)*newSpan/span,end:line.start+(w.end-oldStart)*newSpan/span}));
 }
-function renderLines(){syncClipInspector();const holder=$('lyricsEditor');if(!state.lines.length){holder.innerHTML='<div class="empty-caption"><div class="empty-caption-icon">♫</div><strong>No lyrics yet</strong><span>Upload a song to detect lyrics automatically.</span></div>';return;}
+function renderLines(){syncClipInspector();renderWordTiming();const holder=$('lyricsEditor');if(!state.lines.length){holder.innerHTML='<div class="empty-caption"><div class="empty-caption-icon">♫</div><strong>No lyrics yet</strong><span>Upload a song to detect lyrics automatically.</span></div>';return;}
  holder.innerHTML=state.lines.map((l,i)=>`<div class="lyric-row ${i===state.selected?'selected':''}" data-line="${i}"><div class="lyric-row-top"><span class="lyric-n">LINE ${String(i+1).padStart(2,'0')}</span><div class="lyric-row-actions"><button data-action="jump" data-i="${i}" class="tiny-btn" title="Seek to lyric">▶</button><button data-action="delete" data-i="${i}" class="tiny-btn danger" title="Delete line">×</button></div></div><input class="lyric-input" data-text="${i}" value="${safe(l.text)}" aria-label="Line ${i+1} text"/><div class="timing-row"><label>IN<input type="number" data-start="${i}" step="0.01" min="0" max="${state.duration}" value="${prettyTime(l.start)}" /></label><span class="timing-arrow">→</span><label>OUT<input type="number" data-end="${i}" step="0.01" min="0" max="${state.duration}" value="${prettyTime(l.end)}" /></label></div></div>`).join('');
  holder.querySelectorAll('.lyric-row').forEach(el=>el.addEventListener('click',e=>{if(e.target.closest('input,button'))return;selectLine(+el.dataset.line,true)}));
  holder.querySelectorAll('[data-action]').forEach(b=>b.addEventListener('click',()=>{const i=+b.dataset.i;if(b.dataset.action==='jump'){selectLine(i,true);return;}deleteAt(i);}));
- holder.querySelectorAll('.lyric-input').forEach(el=>el.addEventListener('input',()=>{const i=+el.dataset.text,ln=state.lines[i];if(ln.text===el.value)return;recordEdit('text:'+i);ln.text=el.value;reflowWords(ln);
+ holder.querySelectorAll('.lyric-input').forEach(el=>el.addEventListener('input',()=>{const i=+el.dataset.text,ln=state.lines[i];if(ln.text===el.value)return;recordEdit('text:'+i);ln.text=el.value;reflowWords(ln);renderWordTiming();
  const clip=$('lyricTrack').querySelector('.lyric-clip[data-index="'+i+'"]');
  if(clip){const handle=clip.querySelector('.clip-grab');clip.textContent=trimLine(ln.text);if(handle)clip.prepend(handle);}
  scheduleTimelineRefresh();queueSave();requestPreviewNow();}));
