@@ -1328,10 +1328,10 @@ function wireUI(){
  $('resetClipMotion').addEventListener('click',resetClipMotion);
  $('applyClipMotionAll').addEventListener('click',applyClipMotionAll);
  $('previewClipMotion').addEventListener('click',previewSelectedMotion);
- $('[data-platform]').forEach(b=>b.addEventListener('click',()=>applyPlatformPreset(b.dataset.platform)));
+ $$('[data-platform]').forEach(b=>b.addEventListener('click',()=>applyPlatformPreset(b.dataset.platform)));
   bindPreviewPositionDragging();
   $('lyricTrack').addEventListener('contextmenu',showClipMenu);
-  $('[data-clip-menu]').forEach(b=>b.addEventListener('click',()=>runClipMenuAction(b.dataset.clipMenu)));
+  $$('[data-clip-menu]').forEach(b=>b.addEventListener('click',()=>runClipMenuAction(b.dataset.clipMenu)));
   document.addEventListener('click',hideClipMenu);
  $('shortcutsBtn').addEventListener('click',()=>showShortcuts(true));
  $('closeShortcuts').addEventListener('click',()=>showShortcuts(false));
