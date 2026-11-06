@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - feature/skellymotion-0-9-six-upgrades
     paths:
       - 'desktop_launcher.py'
       - 'server.py'
