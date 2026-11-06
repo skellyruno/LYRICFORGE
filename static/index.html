@@ -41,6 +41,10 @@
           <div class="panel-content" id="lyricsEditor">
             <div class="empty-caption"><div class="empty-caption-icon">♫</div><strong>No lyrics yet</strong><span>Upload a song to detect lyrics automatically.</span></div>
           </div>
+          <section class="word-timing-editor" aria-label="Individual word timing">
+            <div class="word-timing-header"><strong>WORD TIMING</strong><small>Adjust precise IN / OUT times · click ▶ to listen</small></div>
+            <div id="wordTimingRows" class="word-timing-list" aria-live="polite"></div>
+          </section>
           <div class="panel-footer">
             <div class="clip-actions">
               <button type="button" id="splitLineBtn" title="Split selected lyric at playhead (S)">✂ Split</button>
@@ -60,6 +64,8 @@
               <button type="button" data-preset="minimal"><b>◻ Minimal</b><small>Clean type</small></button>
               <button type="button" data-preset="dream"><b>◌ Dream</b><small>Soft motion</small></button>
               <button type="button" data-preset="bold"><b>✦ Bold</b><small>Big energy</small></button>
+              <button type="button" data-preset="cinema"><b>◈ Cinema</b><small>Golden hour</small></button>
+              <button type="button" data-preset="ice"><b>❄ Ice</b><small>Blue pulse</small></button>
             </div>
             <div class="preset-tools">
               <button id="saveLookBtn" type="button" class="compact-action" title="Save current text and motion style in this browser">☆ Save my look</button>
@@ -87,7 +93,7 @@
                 <option value="pop">Pop in</option><option value="fade">Fade</option>
                 <option value="slide">Slide up</option><option value="zoom">Zoom in</option>
                 <option value="bounce">Bounce</option><option value="blur">Blur reveal</option>
-                <option value="typewriter">Type-on</option><option value="none">No animation</option>
+                <option value="typewriter">Type-on</option><option value="pulse">Word pulse</option><option value="none">No animation</option>
               </select>
               <div class="control-group"><div class="flex-label"><label for="clipEffectMs">Entrance duration</label><span id="clipEffectMsVal">230 ms</span></div>
                 <input type="range" id="clipEffectMs" min="120" max="650" step="10" value="230" disabled /></div>
@@ -114,6 +120,7 @@
               <button data-animation="zoom"><span>⊕</span><div><b>Zoom in</b><small>Cinematic focus</small></div><span class="checkmark">✓</span></button>
               <button data-animation="bounce"><span>↟</span><div><b>Bounce</b><small>Overshoot & settle</small></div><span class="checkmark">✓</span></button>
               <button data-animation="blur"><span>◉</span><div><b>Blur reveal</b><small>Dreamy focus-in</small></div><span class="checkmark">✓</span></button>
+              <button data-animation="pulse"><span>♫</span><div><b>Word pulse</b><small>Hit every synced word</small></div><span class="checkmark">✓</span></button>
               <button data-animation="none"><span>―</span><div><b>None</b><small>Stay clean & static</small></div><span class="checkmark">✓</span></button>
             </div>
             <div class="info-note">Global motion applies to every lyric unless that clip has its own override. Type-on works best in Full line mode.</div>
@@ -131,6 +138,8 @@
               <button data-background="crimson" class="bg-tile crimson"><span>Crimson</span></button>
               <button data-background="ocean" class="bg-tile ocean"><span>Blue hour</span></button>
               <button data-background="noir" class="bg-tile noir"><span>Monochrome</span></button>
+              <button data-background="sunset" class="bg-tile sunset"><span>Sunset</span></button>
+              <button data-background="arctic" class="bg-tile arctic"><span>Arctic</span></button>
             </div>
             <label class="control-head after-gap">YOUR OWN BACKGROUND</label>
             <button type="button" id="backgroundUploadTrigger" class="upload-background"><span>↥</span><b>Upload image or video</b><small>JPG, PNG, WebP, MP4, MOV, WebM</small></button>
@@ -145,6 +154,12 @@
           <div class="panel-content form-fields">
             <label class="control-head">VIDEO FORMAT</label>
             <div class="aspect-pills" id="aspectOptions"><button data-aspect="portrait" class="selected">▯ <span>9:16</span></button><button data-aspect="square">□ <span>1:1</span></button><button data-aspect="landscape">▭ <span>16:9</span></button></div>
+            <label class="control-head after-gap">QUICK EXPORT TEMPLATES</label>
+            <div class="platform-presets" aria-label="Video platform presets">
+              <button type="button" data-platform="shorts">Shorts / Reels</button>
+              <button type="button" data-platform="youtube">YouTube</button>
+              <button type="button" data-platform="square">Square post</button>
+            </div>
             <div class="control-group after-gap"><label for="resolution">Export quality</label><select id="resolution"><option value="540p">540p · Quick proof</option><option value="720p">720p · HD</option><option value="1080p">1080p · Full HD</option></select></div>
             <div class="control-group"><label for="renderSpeed">Rendering speed</label>
               <select id="renderSpeed"><option value="fast">Fast · Quick encoding</option>
