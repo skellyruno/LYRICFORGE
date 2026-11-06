@@ -214,6 +214,22 @@ function jumpClip(direction){
  state.selected=(state.selected+direction+state.lines.length)%state.lines.length;
  selectLine(state.selected,true);
 }
+function hideClipMenu(){$('clipContextMenu').classList.add('hidden');}
+function showClipMenu(e){
+ const clip=e.target.closest?.('.lyric-clip');if(!clip)return;
+ e.preventDefault();selectLine(Number(clip.dataset.index),false);
+ const menu=$('clipContextMenu');
+ menu.classList.remove('hidden');
+ menu.style.left=Math.max(8,Math.min(e.clientX,(window.innerWidth||1200)-190))+'px';
+ menu.style.top=Math.max(8,Math.min(e.clientY,(window.innerHeight||900)-170))+'px';
+}
+function runClipMenuAction(action){
+ hideClipMenu();
+ if(action==='split')splitSelected();
+ else if(action==='duplicate')duplicateSelected();
+ else if(action==='delete')deleteAt(state.selected);
+ else if(action==='motion')panel('animation');
+}
 function fitTimeline(){state.zoom=1;$('zoomDisplay').textContent='100%';$('timelineScroll').scrollLeft=0;renderTimeline();}
 function exportSrt(){
  if(!state.lines.length)return;
@@ -1314,6 +1330,9 @@ function wireUI(){
  $('previewClipMotion').addEventListener('click',previewSelectedMotion);
  $('[data-platform]').forEach(b=>b.addEventListener('click',()=>applyPlatformPreset(b.dataset.platform)));
   bindPreviewPositionDragging();
+  $('lyricTrack').addEventListener('contextmenu',showClipMenu);
+  $('[data-clip-menu]').forEach(b=>b.addEventListener('click',()=>runClipMenuAction(b.dataset.clipMenu)));
+  document.addEventListener('click',hideClipMenu);
  $('shortcutsBtn').addEventListener('click',()=>showShortcuts(true));
  $('closeShortcuts').addEventListener('click',()=>showShortcuts(false));
  $('shortcutsOverlay').addEventListener('click',e=>{if(e.target===$('shortcutsOverlay'))showShortcuts(false)});
@@ -1391,6 +1410,7 @@ function wireUI(){
  audio.addEventListener('ended',()=>{state.playing=false;});audio.addEventListener('pause',()=>{if(!audio.ended)state.playing=false;});audio.addEventListener('play',()=>{state.playing=true;});
  document.addEventListener('keydown',e=>{
   const ctrl=e.ctrlKey||e.metaKey;
+   if(e.key==='Escape')hideClipMenu();
   const typing=!!e.target.closest('input,textarea,select,[contenteditable="true"]');
   if(e.key==='Escape'&&!$('shortcutsOverlay').classList.contains('hidden')){e.preventDefault();showShortcuts(false);return;}
   if(ctrl&&e.code==='KeyS'){e.preventDefault();save();return;}
