@@ -120,7 +120,7 @@ jobs:
             --collect-all ctranslate2 `
             --collect-all tokenizers `
             --collect-all av `
-            --collect-all onnxruntime `
+            --exclude-module onnxruntime `
             desktop_launcher.py
       - name: Measure bundle size and identify large dependencies
         shell: pwsh
@@ -167,6 +167,23 @@ jobs:
             throw "SkellyMotion.exe smoke test exited with code $code"
           }
           Write-Host 'SkellyMotion portable GUI self-test completed successfully.'
+      - name: Verify bundled Whisper inference engine loads without VAD runtime
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $exe = (Resolve-Path 'dist/SkellyMotion/SkellyMotion.exe').Path
+          $folder = Split-Path $exe
+          # Whisper uses word timestamps with vad_filter=False in the app;
+          # onnxruntime's 40+ MB Silero VAD backend is not executed.
+          # Import the real transcriber and CPU inference extension in the
+          # frozen EXE to catch missing CTranslate2 / tokenizer dependencies.
+          $process = Start-Process -FilePath $exe -ArgumentList '--ai-self-test' -WorkingDirectory $folder -Wait -PassThru
+          if ($process.ExitCode -ne 0) {
+            $log = Join-Path $env:LOCALAPPDATA 'LyricForge/logs/desktop.log'
+            if (Test-Path $log) { Get-Content -Path $log -Tail 65 }
+            throw "Frozen Whisper/CTranslate2 import test failed: $($process.ExitCode)"
+          }
+          Write-Host 'Bundled Whisper and CTranslate2 import self-test passed'
       - name: Verify packaged native Python.NET runtime and ship targeted repair
         shell: pwsh
         run: |
