@@ -10,6 +10,7 @@ let lastFrame=performance.now(), lastPreviewPaint=0, pollTimer=null, backgroundV
 let resizeTimer=null;
 let saveSerial=Promise.resolve(), recoverySerial=Promise.resolve(), editRevision=0;
 let transitionBusy=false,downloadBusy=false;
+let timelineTravelWidth=0;
 let previewQuality='auto';
 try {
  const stored=localStorage.getItem('skellymotion-preview-quality-v1');
@@ -699,8 +700,13 @@ function drawFrame(now){
  if(state.demo&&state.playing){state.time+=elapsed;if(state.time>state.duration){state.time=0;state.playing=false;}}
  if(state.id&&state.playing&&isFinite(audio.currentTime))state.time=audio.currentTime;
  const w=canvas.width,h=canvas.height;ctx.clearRect(0,0,w,h);drawBackground(w,h,state.time);showText(state.time);drawPositionGuide();
- $('currentTime').textContent=shortTime(state.time);$('playButton').textContent=state.playing?'Ⅱ':'▶';
- const duration=state.duration||1;const timelineWidth=Math.max(0,$('timelineInner').clientWidth-110);$('playhead').style.left=`${110+timelineWidth*clamp(state.time/duration,0,1)}px`;
+ const currentLabel=shortTime(state.time),playLabel=state.playing?'Ⅱ':'▶';
+ if($('currentTime').textContent!==currentLabel)$('currentTime').textContent=currentLabel;
+ if($('playButton').textContent!==playLabel)$('playButton').textContent=playLabel;
+ const duration=state.duration||1;
+ // Transform does not trigger timeline re-layout at every playback frame.
+ $('playhead').style.transform='translate3d('+
+   (timelineTravelWidth*clamp(state.time/duration,0,1)).toFixed(2)+'px,0,0)';
  if(state.backgroundIsVideo&&state.playing&&bgVid.paused)bgVid.play().catch(()=>{});
  if(state.backgroundIsVideo&&!state.playing&&!bgVid.paused)bgVid.pause();
 }
@@ -767,6 +773,7 @@ function flushTimelineRefresh(){
 function renderTimeline(){if(timelineRefreshTimer!==null){clearTimeout(timelineRefreshTimer);timelineRefreshTimer=null;}invalidatePlaybackIndex();const d=state.duration||1;const clips=$('lyricTrack');clips.innerHTML=state.lines.map((l,i)=>`<div class="lyric-clip ${i===state.selected?'selected':''}" data-index="${i}" style="left:${clamp(100*l.start/d,0,100)}%;width:${clamp(100*(l.end-l.start)/d,.3,100)}%;"><span class="clip-grab"></span>${safe(trimLine(l.text))}</div>`).join('');
  renderEffects();
  $('clipCount').textContent=`${state.lines.length} clips`;$('timelineInner').style.width=`${Math.max(100,state.zoom*100)}%`;
+ timelineTravelWidth=Math.max(0,$('timelineInner').clientWidth-110);
  const ruler=$('ruler');ruler.innerHTML='';const interval=d<45?5:d<150?15:d<360?30:60;for(let s=0;s<d;s+=interval){const tick=document.createElement('span');tick.className='tick';tick.style.left=`${s/d*100}%`;tick.textContent=shortTime(s);ruler.appendChild(tick);}
  drawWaveform();
  clips.querySelectorAll('.lyric-clip').forEach(el=>el.addEventListener('pointerdown',e=>{if(e.button!==0)return;e.preventDefault();const i=+el.dataset.index;const line=state.lines[i];state.selected=i;const trackRect=clips.getBoundingClientRect(),startX=e.clientX;const originalStart=line.start,originalEnd=line.end,originalWords=line.words.map(w=>({...w}));const resize=e.target.classList.contains('clip-grab');let moved=false;selectLine(i,false);const move=evt=>{
@@ -1297,7 +1304,7 @@ function wireUI(){
  $('previewFull').addEventListener('click',()=>{const stage=$('stage');if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});else stage.requestFullscreen?.().catch(()=>{});});
  window.addEventListener('resize',()=>{
    clearTimeout(resizeTimer);
-   resizeTimer=setTimeout(()=>{resizePreview();drawWaveform();},100);
+   resizeTimer=setTimeout(()=>{resizePreview();drawWaveform();timelineTravelWidth=Math.max(0,$('timelineInner').clientWidth-110);requestPreviewNow();},100);
  });
  const hero=$('heroUpload');hero.addEventListener('dragover',e=>{e.preventDefault();hero.classList.add('drag-over');});hero.addEventListener('dragleave',()=>hero.classList.remove('drag-over'));hero.addEventListener('drop',e=>{e.preventDefault();hero.classList.remove('drag-over');if(e.dataTransfer.files.length)startUpload(e.dataTransfer.files[0]);});
  audio.addEventListener('ended',()=>{state.playing=false;});audio.addEventListener('pause',()=>{if(!audio.ended)state.playing=false;});audio.addEventListener('play',()=>{state.playing=true;});
