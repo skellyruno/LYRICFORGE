@@ -720,9 +720,9 @@ function selectLine(index,jump=false){
  // Selecting a clip must not destroy and rebuild all DOM nodes (especially
  // when beginning a drag). Update the selected classes only.
  if(previous!==state.selected){
-  $('.lyric-row').forEach(el=>el.classList.toggle('selected',Number(el.dataset.line)===state.selected));
-  $('.lyric-clip').forEach(el=>el.classList.toggle('selected',Number(el.dataset.index)===state.selected));
-  $('[data-fx-index]').forEach(el=>el.classList.toggle('selected',Number(el.dataset.fxIndex)===state.selected));
+  $$('.lyric-row').forEach(el=>el.classList.toggle('selected',Number(el.dataset.line)===state.selected));
+  $$('.lyric-clip').forEach(el=>el.classList.toggle('selected',Number(el.dataset.index)===state.selected));
+  $$('[data-fx-index]').forEach(el=>el.classList.toggle('selected',Number(el.dataset.fxIndex)===state.selected));
  }
  requestPreviewNow();
 }
