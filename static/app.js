@@ -497,17 +497,36 @@ function measureLyricLayout(words,nominal,maxWidth,font){
  if(lyricLayoutCache.size>160)lyricLayoutCache.delete(lyricLayoutCache.keys().next().value);
  return item;
 }
+let playbackIndex=null,playbackIndexDirty=true;
+function invalidatePlaybackIndex(){playbackIndexDirty=true;}
 function activeLyric(t){
- // One linear pass avoids allocating and sorting the entire lyric list every frame.
- let current=null;
- for(const line of state.lines){
-  if(line.end-line.start<.10||t<line.start||t>=line.end)continue;
-  if(!current||line.start>current.start)current=line;
+ // Timings can overlap; the last-started active lyric takes priority. Keep
+ // a sorted index and binary-search timestamps instead of scanning all clips
+ // twice every preview frame.
+ if(playbackIndexDirty||!playbackIndex){
+  playbackIndex=state.lines.map((line,order)=>({line,order}))
+   .sort((a,b)=>a.line.start-b.line.start||b.order-a.order);
+  playbackIndexDirty=false;
  }
- if(!current)return null;
+ const items=playbackIndex;
+ let lo=0,hi=items.length;
+ while(lo<hi){
+  const mid=(lo+hi)>>1;
+  if(items[mid].line.start<=t)lo=mid+1;else hi=mid;
+ }
+ let found=-1;
+ for(let i=lo-1;i>=0;i--){
+  const line=items[i].line;
+  if(line.end-line.start>=.10&&line.end>t){found=i;break;}
+ }
+ if(found<0)return null;
+ const current=items[found].line;
  let end=current.end;
- for(const line of state.lines){
-  if(line.start>current.start&&line.start<end)end=line.start;
+ for(let i=found+1;i<items.length;i++){
+  const next=items[i].line;
+  if(next.start<=current.start)continue;
+  if(next.start<end)end=next.start;
+  break;
  }
  return end-current.start>=.10?{...current,end}:null;
 }
@@ -757,6 +776,7 @@ function renderTimeline(){if(timelineRefreshTimer!==null){clearTimeout(timelineR
  if(resize){line.start=clamp(snapTime(originalStart+diff),0,line.end-.1)}
  else{const len=originalEnd-originalStart;line.start=clamp(snapTime(originalStart+diff),0,Math.max(0,d-len));line.end=line.start+len;}
  retimeWords(line,originalStart,originalEnd,originalWords);
+ invalidatePlaybackIndex();
  // Update just the dragged clip; rebuilding hundreds of clips each pointer
  // event causes the editor to stutter and invalidates drag targets.
  const live=clips.querySelector('.lyric-clip[data-index="'+i+'"]');
@@ -788,6 +808,7 @@ function notifyNativeSession(){
  }catch{}
 }
 function queueSave(){
+ invalidatePlaybackIndex();
  if(!state.id)return;
  state.dirty=true;editRevision++;
  $('projectStatus').textContent='Unsaved · crash recovery on';
