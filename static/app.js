@@ -687,7 +687,20 @@ function drawFrame(now){
 }
 function seek(seconds){state.time=clamp(seconds,0,state.duration);if(state.id&&audio.readyState)audio.currentTime=state.time;if(state.backgroundIsVideo&&Number.isFinite(bgVid.duration)&&bgVid.duration>0)bgVid.currentTime=state.time%bgVid.duration;requestPreviewNow();}
 function play(){if(!state.duration){toast('Upload a song to preview lyrics.');return;}state.playing=!state.playing;requestPreviewNow();if(state.id){if(state.playing)audio.play().catch(e=>{state.playing=false;toast(e.message,true);});else audio.pause();}}
-function selectLine(index,jump=false){state.selected=clamp(index,0,Math.max(0,state.lines.length-1));if(jump&&state.lines[state.selected])seek(state.lines[state.selected].start+.07);syncClipInspector();renderLines();renderTimeline();}
+function selectLine(index,jump=false){
+ const previous=state.selected;
+ state.selected=clamp(index,0,Math.max(0,state.lines.length-1));
+ if(jump&&state.lines[state.selected])seek(state.lines[state.selected].start+.07);
+ syncClipInspector();
+ // Selecting a clip must not destroy and rebuild all DOM nodes (especially
+ // when beginning a drag). Update the selected classes only.
+ if(previous!==state.selected){
+  $('.lyric-row').forEach(el=>el.classList.toggle('selected',Number(el.dataset.line)===state.selected));
+  $('.lyric-clip').forEach(el=>el.classList.toggle('selected',Number(el.dataset.index)===state.selected));
+  $('[data-fx-index]').forEach(el=>el.classList.toggle('selected',Number(el.dataset.fxIndex)===state.selected));
+ }
+ requestPreviewNow();
+}
 function reflowWords(line){
  const parts=line.text.trim().split(/\s+/).filter(Boolean);
  if(line.words&&line.words.length===parts.length){line.words=line.words.map((w,i)=>({...w,text:parts[i]}));return;}
@@ -701,7 +714,10 @@ function renderLines(){syncClipInspector();const holder=$('lyricsEditor');if(!st
  holder.innerHTML=state.lines.map((l,i)=>`<div class="lyric-row ${i===state.selected?'selected':''}" data-line="${i}"><div class="lyric-row-top"><span class="lyric-n">LINE ${String(i+1).padStart(2,'0')}</span><div class="lyric-row-actions"><button data-action="jump" data-i="${i}" class="tiny-btn" title="Seek to lyric">▶</button><button data-action="delete" data-i="${i}" class="tiny-btn danger" title="Delete line">×</button></div></div><input class="lyric-input" data-text="${i}" value="${safe(l.text)}" aria-label="Line ${i+1} text"/><div class="timing-row"><label>IN<input type="number" data-start="${i}" step="0.01" min="0" max="${state.duration}" value="${prettyTime(l.start)}" /></label><span class="timing-arrow">→</span><label>OUT<input type="number" data-end="${i}" step="0.01" min="0" max="${state.duration}" value="${prettyTime(l.end)}" /></label></div></div>`).join('');
  holder.querySelectorAll('.lyric-row').forEach(el=>el.addEventListener('click',e=>{if(e.target.closest('input,button'))return;selectLine(+el.dataset.line,true)}));
  holder.querySelectorAll('[data-action]').forEach(b=>b.addEventListener('click',()=>{const i=+b.dataset.i;if(b.dataset.action==='jump'){selectLine(i,true);return;}deleteAt(i);}));
- holder.querySelectorAll('.lyric-input').forEach(el=>el.addEventListener('input',()=>{const i=+el.dataset.text,ln=state.lines[i];if(ln.text===el.value)return;recordEdit('text:'+i);ln.text=el.value;reflowWords(ln);renderTimeline();queueSave();}));
+ holder.querySelectorAll('.lyric-input').forEach(el=>el.addEventListener('input',()=>{const i=+el.dataset.text,ln=state.lines[i];if(ln.text===el.value)return;recordEdit('text:'+i);ln.text=el.value;reflowWords(ln);
+ const clip=$('lyricTrack').querySelector('.lyric-clip[data-index="'+i+'"]');
+ if(clip){const handle=clip.querySelector('.clip-grab');clip.textContent=trimLine(ln.text);if(handle)clip.prepend(handle);}
+ scheduleTimelineRefresh();queueSave();requestPreviewNow();}));
  holder.querySelectorAll('input[data-start],input[data-end]').forEach(el=>el.addEventListener('change',()=>{const i=+(el.dataset.start??el.dataset.end),ln=state.lines[i];const start=el.hasAttribute('data-start');const oldStart=ln.start,oldEnd=ln.end;const val=Number(el.value);if(!Number.isFinite(val))return;recordEdit('timing:'+i);if(start)ln.start=clamp(val,0,Math.max(0,ln.end-.06));else ln.end=clamp(val,ln.start+.06,state.duration);retimeWords(ln,oldStart,oldEnd);renderLines();renderTimeline();queueSave();}));
 }
 function renderEffects(){
@@ -721,7 +737,15 @@ function renderEffects(){
    selectLine(Number(button.dataset.fxIndex),true);panel('animation');
  }));
 }
-function renderTimeline(){const d=state.duration||1;const clips=$('lyricTrack');clips.innerHTML=state.lines.map((l,i)=>`<div class="lyric-clip ${i===state.selected?'selected':''}" data-index="${i}" style="left:${clamp(100*l.start/d,0,100)}%;width:${clamp(100*(l.end-l.start)/d,.3,100)}%;"><span class="clip-grab"></span>${safe(trimLine(l.text))}</div>`).join('');
+let timelineRefreshTimer=null;
+function scheduleTimelineRefresh(){
+ if(timelineRefreshTimer!==null)clearTimeout(timelineRefreshTimer);
+ timelineRefreshTimer=setTimeout(()=>{timelineRefreshTimer=null;renderTimeline();},130);
+}
+function flushTimelineRefresh(){
+ if(timelineRefreshTimer!==null){clearTimeout(timelineRefreshTimer);timelineRefreshTimer=null;renderTimeline();}
+}
+function renderTimeline(){if(timelineRefreshTimer!==null){clearTimeout(timelineRefreshTimer);timelineRefreshTimer=null;}invalidatePlaybackIndex();const d=state.duration||1;const clips=$('lyricTrack');clips.innerHTML=state.lines.map((l,i)=>`<div class="lyric-clip ${i===state.selected?'selected':''}" data-index="${i}" style="left:${clamp(100*l.start/d,0,100)}%;width:${clamp(100*(l.end-l.start)/d,.3,100)}%;"><span class="clip-grab"></span>${safe(trimLine(l.text))}</div>`).join('');
  renderEffects();
  $('clipCount').textContent=`${state.lines.length} clips`;$('timelineInner').style.width=`${Math.max(100,state.zoom*100)}%`;
  const ruler=$('ruler');ruler.innerHTML='';const interval=d<45?5:d<150?15:d<360?30:60;for(let s=0;s<d;s+=interval){const tick=document.createElement('span');tick.className='tick';tick.style.left=`${s/d*100}%`;tick.textContent=shortTime(s);ruler.appendChild(tick);}
