@@ -432,3 +432,94 @@ html.desktop-mode .perf-metrics{gap:6px}
  #checkUpdateBtn,#exitBtn{padding:6px 8px;font-size:10px}
  .decision-card{padding:16px}
 }
+
+
+/* SkellyMotion 1.0 — calmer studio hierarchy, compact controls, lighter preview */
+:root{
+ --accent:#a0f58c;
+ --line:#283a30;
+ --panel:#111814;
+}
+button,select,input{touch-action:manipulation}
+.app button{transition:background-color .13s ease,border-color .13s ease,color .13s ease}
+.app button:active:not(:disabled){transform:translateY(1px)}
+.main-layout{isolation:isolate}
+.rail{width:76px;gap:5px;padding:11px 9px}
+.rail-item{
+ min-height:55px;height:57px;border-radius:8px;
+ color:#a4b5a7;letter-spacing:.15px
+}
+.rail-item.active{
+ background:#203526;border-color:#4a7953;
+ color:#beffae;box-shadow:inset 2px 0 0 #a0f58c
+}
+.rail-ico{font-size:20px}
+.topbar{height:65px;padding-inline:20px;gap:12px}
+.brand{width:245px}
+.brand-pill{opacity:.8}
+.top-middle{flex:1;min-width:0}
+.project-status{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ghost-btn,.primary-btn{min-height:34px;height:34px;padding:0 11px}
+.settings-panel{background:#111714}
+.section-top{padding:19px 18px 15px}
+.section-top h2{font-size:22px;letter-spacing:-.7px;margin:7px 0 5px}
+.section-top p{color:#93a99b;line-height:1.5}
+.panel-content{overscroll-behavior:contain}
+.panel-content.form-fields{padding:16px 17px}
+.control-group{margin-bottom:17px}
+.control-group label,.color-row label{margin-bottom:7px}
+.control-group select{height:39px;border-color:#384b3e}
+.control-group select:focus,.lyric-input:focus{
+ border-color:#8de27b;outline:1px solid #8de27b;outline-offset:0
+}
+.wide-ghost{min-height:37px;padding:9px 10px}
+.panel-footer{padding:11px 14px 13px}
+.lyric-row{
+ border-radius:8px;border-color:#304535;padding:9px 10px;
+ background:#17201a;transition:background-color .12s ease,border-color .12s ease
+}
+.lyric-row:hover{border-color:#426549}
+.lyric-row.selected{border-color:#94e184;background:#1f3324}
+.lyric-row:focus-within{border-color:#8ada7b}
+.lyric-input{background:#0e1712}
+.lyric-clip{border-radius:5px;border-color:#70b76a;background:#24422d}
+.lyric-clip.selected{border-color:#b5ff9d;background:#3a6043}
+.playhead{will-change:transform;contain:paint}
+.stage{box-shadow:0 9px 32px #0007,0 0 0 1px #3c5440;contain:paint}
+.workspace-bar{height:44px;padding-inline:18px}
+.workspace-heading{letter-spacing:1px}
+.workspace-heading #canvasFormat{color:#a9c8ae}
+.play-right .quality-tag{font-size:10px;color:#b8efab}
+.preview-quality-control{
+ padding:12px 12px 9px;background:#18241b;
+ border:1px solid #385541;border-radius:9px
+}
+.preview-quality-control label{color:#c4ebbf}
+.preview-quality-control .motion-hint{
+ margin:8px 0 0;color:#9bb4a0;line-height:1.55
+}
+.perf-metrics>div{padding:10px;background:#16251a}
+.perf-metrics strong{font-size:15px}
+.library-item{gap:8px}
+.library-details{min-width:0;overflow:hidden}
+.library-details strong{display:block;overflow:hidden;text-overflow:ellipsis}
+.decision-card{box-shadow:0 13px 40px #0008}
+@media(max-width:1060px){
+ .topbar{padding-inline:12px;gap:8px}
+ .brand{width:210px}
+ .brand-pill{display:none}
+ .top-actions{gap:5px}
+ .ghost-btn,.primary-btn{padding-inline:9px}
+}
+html.desktop-mode .topbar{height:64px;min-height:64px;padding-inline:18px}
+html.desktop-mode .brand{width:238px}
+html.desktop-mode .rail{width:75px}
+html.desktop-mode .rail-item{height:57px}
+html.desktop-mode .section-top{padding:17px 18px 13px}
+html.desktop-mode .section-top h2{font-size:21px}
+html.desktop-mode .panel-content.form-fields{padding:14px 16px}
+html.desktop-mode .control-group{margin-bottom:15px}
+@media(prefers-reduced-motion:reduce){
+ .app button,.lyric-row{transition:none}
+ .app button:active:not(:disabled){transform:none}
+}
