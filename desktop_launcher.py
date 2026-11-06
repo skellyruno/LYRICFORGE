@@ -91,6 +91,24 @@ def self_test() -> int:
     return 0
 
 
+def ai_self_test() -> int:
+    """Validate the bundled offline Whisper inference engine without a model download.
+
+    SkellyMotion passes vad_filter=False and does not require the optional
+    Silero/ONNX runtime. Keep the real inference library and word-timestamp
+    implementation present in the portable distribution.
+    """
+    from faster_whisper import WhisperModel
+    from faster_whisper.vad import VadOptions
+    from ctranslate2 import get_supported_compute_types
+    import av
+    assert callable(WhisperModel) and VadOptions is not None
+    assert get_supported_compute_types("cpu")
+    assert av.__version__
+    print("SkellyMotion bundled Whisper/CTranslate2/PyAV import passed", flush=True)
+    return 0
+
+
 def bundled_python_runtime() -> Path:
     """The CLR bridge assembly that pythonnet loads."""
     return runtime_dir() / "pythonnet" / "runtime" / "Python.Runtime.dll"
@@ -525,6 +543,12 @@ def main() -> int:
         return 0
     if "--self-test" in sys.argv:
         return self_test()
+    if "--ai-self-test" in sys.argv:
+        try:
+            return ai_self_test()
+        except Exception as exc:
+            print("Bundled AI engine self-test failed: " + repr(exc), file=sys.stderr)
+            return 6
     if "--native-self-test" in sys.argv:
         try:
             return native_runtime_self_test()
