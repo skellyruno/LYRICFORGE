@@ -237,4 +237,23 @@ assert.equal(nodes.exportFpsLabel.textContent,'24 FPS','FPS label should react t
 nodes.encoder.value='cpu';
 nodes.encoder.callbacks.input[0]({target:nodes.encoder});
 
+assert.ok(nodes.wordTimingRows.innerHTML.includes('word-timing-row'),
+ 'Demo clips should expose individual word timing controls');
+assert.ok(nodes.lyricTrack.callbacks.contextmenu?.length,
+ 'Right-click clip editing must be connected');
+assert.ok(nodes.clipContextMenu.id==='clipContextMenu',
+ 'Context menu must be mounted in the editor');
+assert.equal(groups['[data-platform]']?.length,3,
+ 'All three social export presets must exist');
+const shorts=groups['[data-platform]'].find(x=>x.dataset.platform==='shorts');
+shorts.click();
+assert.equal(debug.state.settings.aspect,'portrait');
+assert.equal(debug.state.settings.resolution,'1080p');
+const pulsePreset=groups['[data-preset]'].find(x=>x.dataset.preset==='ice');
+pulsePreset.click();
+assert.equal(debug.state.settings.animation,'pulse');
+assert.equal(debug.state.settings.background,'arctic');
+assert.ok(groups['[data-animation]'].some(x=>x.dataset.animation==='pulse'));
+assert.ok(groups['[data-background]'].some(x=>x.dataset.background==='sunset'));
+
 console.log('SkellyMotion editor smoke tests passed: load, edit, undo, redo, split, delete, snap, styles, layout tools, SRT.');
