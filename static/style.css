@@ -548,3 +548,11 @@ html.desktop-mode .control-group{margin-bottom:15px}
  .word-timing-row{grid-template-columns:23px minmax(36px,1fr) 62px 62px;gap:3px}
  .word-timing-editor{padding-inline:8px}
 }
+
+.clip-context-menu{position:fixed;z-index:110;min-width:175px;display:flex;flex-direction:column;
+ padding:5px;gap:3px;background:#152219;border:1px solid #46684d;border-radius:10px;
+ box-shadow:0 18px 45px #000a}
+.clip-context-menu button{width:100%;padding:9px 11px;text-align:left;font-size:11px;
+ color:#e9ffe7;background:transparent;border:0;border-radius:6px}
+.clip-context-menu button:hover,.clip-context-menu button:focus-visible{background:#29472d;color:#d5ffbc}
+.clip-context-menu button[data-clip-menu=delete]{color:#ffb9b9}
