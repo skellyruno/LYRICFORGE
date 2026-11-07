@@ -12,6 +12,10 @@ import threading
 import time
 from multiprocessing import freeze_support
 
+from desktop_watchdog import ConsecutiveFailureDetector, windows_ui_responding
+
+WINDOW_TITLE = "SkellyMotion | Lyric video studio"
+
 
 def runtime_dir() -> Path:
     return Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
@@ -423,6 +427,9 @@ def run_desktop(home: Path, safe_mode: bool = False,
     log_stage("API accepting connections")
 
     smoke_loaded = threading.Event()
+    shown_event = threading.Event()
+    monitor_stop = threading.Event()
+    monitor_worker = None
     watchdog = None
     if smoke_test:
         # The packaged GUI must open, render and exit cleanly in CI.
@@ -437,7 +444,7 @@ def run_desktop(home: Path, safe_mode: bool = False,
 
     try:
         picker = DesktopFilePicker()
-        window = webview.create_window("SkellyMotion | Lyric video studio",
+        window = webview.create_window(WINDOW_TITLE,
                               "http://127.0.0.1:" + str(port) + "/?desktop=1",
                               # 25% smaller default window; user can resize/maximize freely.
                               width=960, height=623, min_size=(800, 520),
@@ -458,34 +465,117 @@ def run_desktop(home: Path, safe_mode: bool = False,
                 threading.Thread(target=request_decision, daemon=True).start()
                 return False
             window.events.closing += on_closing
-            window.events.shown += lambda: log_stage("native window shown")
+            def on_shown():
+                log_stage("native window shown")
+                shown_event.set()
+            window.events.shown += on_shown
             def on_loaded():
                 log_stage("editor document loaded")
                 if smoke_test and not smoke_loaded.is_set():
                     smoke_loaded.set()
                     def check_window_and_close():
-                        # A real Windows UI thread that stops processing OS
-                        # messages is marked Not Responding by IsHungAppWindow.
-                        import ctypes
-                        if os.name == "nt":
-                            hwnd = ctypes.windll.user32.FindWindowW(
-                                None, "SkellyMotion | Lyric video studio")
-                            if hwnd and ctypes.windll.user32.IsHungAppWindow(hwnd):
-                                print("[window-smoke] WinForms window is NOT RESPONDING",
+                        # The old test sampled IsHungAppWindow only once, after
+                        # four seconds. That missed freezes appearing later.
+                        for attempt in range(6):
+                            if windows_ui_responding(WINDOW_TITLE, 1300) is not True:
+                                print("[window-smoke] UI message pump not responding "
+                                      f"(probe {attempt + 1}/6)",
                                       file=sys.stderr, flush=True)
                                 os._exit(5)
-                        log_stage("editor window remained responsive during smoke test")
+                            time.sleep(1.3)
+                        # Exercise the renderer and Python.NET JavaScript bridge,
+                        # not merely its ability to display a stale welcome page.
+                        result: dict = {}
+                        def check_dom():
+                            try:
+                                result["ready"] = window.evaluate_js(
+                                    "Boolean(document.getElementById('heroUpload') "
+                                    "&& document.getElementById('previewCanvas') "
+                                    "&& document.getElementById('timelineInner'))")
+                            except Exception as exc:
+                                result["error"] = repr(exc)
+                        check = threading.Thread(target=check_dom, daemon=True)
+                        check.start()
+                        check.join(timeout=6)
+                        if check.is_alive() or result.get("ready") is not True:
+                            print("[window-smoke] JavaScript renderer did not reply: "
+                                  + str(result), file=sys.stderr, flush=True)
+                            os._exit(6)
+                        log_stage("UI message pump and WebView2 JavaScript replied "
+                                  "through repeated smoke probes")
                         window.destroy()
-                    timer = threading.Timer(4, check_window_and_close)
+                    timer = threading.Timer(2, check_window_and_close)
                     timer.daemon = True
                     timer.start()
             window.events.loaded += on_loaded
         except (AttributeError, TypeError) as exc:
             log_stage("window event hooks unavailable: " + str(exc))
+        def monitor_startup_window():
+            # This is an independent Windows worker, never a WebView2/WinForms
+            # callback. GUI liveness needs to be measured on the user's PC.
+            if not shown_event.wait(35):
+                if not monitor_stop.is_set():
+                    log_stage("native window did not emit shown event")
+                return
+            detector = ConsecutiveFailureDetector(threshold=3)
+            deadline = time.monotonic() + 100
+            while time.monotonic() < deadline:
+                if monitor_stop.wait(3):
+                    return
+                response = windows_ui_responding(WINDOW_TITLE, timeout_ms=1200)
+                if not detector.observe(response):
+                    continue
+                log_stage("HANG DETECTED: 3 native UI message probes timed out")
+                if picker.active_project or picker._selected_audio is not None:
+                    # Do not kill an editing session or discard work.
+                    log_stage("Active project/import: manual recovery required")
+                    return
+                target_mode = "--browser-mode" if safe_mode else "--safe-mode"
+                description = ("Browser Mode" if safe_mode else "Safe Mode")
+                try:
+                    import ctypes
+                    answer = ctypes.windll.user32.MessageBoxW(
+                        None,
+                        "SkellyMotion's Windows window has stopped responding. "
+                        "The local editor may still be available.\\n\\n"
+                        "Restart in " + description + "?\\n\\n"
+                        "Your saved songs, projects and AI model will be kept. "
+                        "Choose No to keep the current window and inspect "
+                        "the desktop.log diagnostics.",
+                        "SkellyMotion - Window not responding",
+                        0x04 | 0x30 | 0x40000,  # Yes/No, warning, topmost
+                    )
+                    if answer != 6:
+                        log_stage("user declined automatic fallback")
+                        return
+                    if getattr(sys, "frozen", False):
+                        cmd = [sys.executable, target_mode]
+                    else:
+                        cmd = [sys.executable, str(Path(__file__).resolve()), target_mode]
+                    subprocess.Popen(
+                        cmd, cwd=str(Path(sys.executable).parent),
+                        **({"creationflags": subprocess.CREATE_NO_WINDOW}
+                           if os.name == "nt" else {}),
+                    )
+                    log_stage("launching " + description + " after startup hang")
+                    # The WinForms UI thread is stuck and cannot exit normally.
+                    # This is only reached after the user agrees AND when no
+                    # project is active; otherwise preserve the running process.
+                    os._exit(9)
+                except Exception as exc:
+                    log_stage("could not launch fallback: " + repr(exc))
+                return
+
+        if os.name == "nt" and not smoke_test:
+            monitor_worker = threading.Thread(
+                target=monitor_startup_window,
+                name="SkellyMotionUIHangMonitor", daemon=True)
+            monitor_worker.start()
         log_stage("native window created; initializing WebView2")
         webview.start(gui="edgechromium", debug=False, private_mode=False,
                       storage_path=str(profile))
     finally:
+        monitor_stop.set()
         if watchdog is not None:
             watchdog.cancel()
         log_stage("native window closed or initialization ended")
