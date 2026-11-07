@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - fix/windows-startup-hang-recovery
     paths:
       - 'desktop_launcher.py'
       - 'server.py'
