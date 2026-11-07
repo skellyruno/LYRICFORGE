@@ -537,8 +537,8 @@ def run_desktop(home: Path, safe_mode: bool = False,
                     answer = ctypes.windll.user32.MessageBoxW(
                         None,
                         "SkellyMotion's Windows window has stopped responding. "
-                        "The local editor may still be available.\\n\\n"
-                        "Restart in " + description + "?\\n\\n"
+                        "The local editor may still be available.\n\n"
+                        "Restart in " + description + "?\n\n"
                         "Your saved songs, projects and AI model will be kept. "
                         "Choose No to keep the current window and inspect "
                         "the desktop.log diagnostics.",
