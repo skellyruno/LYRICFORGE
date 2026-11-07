@@ -15,6 +15,18 @@ This update preserves the existing Whisper model, project manifests, WebView2 de
 
 **Scope note:** The update adds manual word-level correction, not a licensed vocal-only acoustic aligner. Preview and subtitle-export pulses should be checked against real vocal material before publishing. No new claims are made about CPU reduction or an additional portable bundle-size reduction without Windows measurements.
 
+## Windows startup freeze recovery
+
+Some Windows machines can display the welcome screen but then show **(Not Responding)** before a song is imported. This is a native WinForms/WebView2 message-pump stall, not evidence that transcription or export is running.
+
+- The native app now performs **bounded, repeated UI-thread responsiveness probes** during initial startup, not just a one-time check after the page loads. If it detects three consecutive failures **and there is no active project**, it offers to restart in Safe Mode, or Browser Mode when already in Safe Mode. It does not force-restart an active editing session.
+- **Safe Mode:** `SkellyMotion-SafeMode.cmd` next to the EXE starts an isolated WebView2 profile with graphics acceleration disabled for the embedded UI.
+- **Browser Mode:** `SkellyMotion-BrowserMode.cmd` bypasses native WebView2 hosting while keeping the editor, source songs and AI model stored locally. Close the browser tab and acknowledge its exit dialog when finished.
+- Diagnostics: `%LOCALAPPDATA%\\LyricForge\\logs\\desktop.log`. Look for `[startup] HANG DETECTED`, `native window shown` and `editor document loaded`. Share that log with the developer if both modes freeze. It may contain local paths; review before sharing.
+- CI's Windows window smoke test now performs repeated native-message probes **and** checks that the embedded JavaScript renderer responds. CI passing does not guarantee the same WebView2 runtime, GPU driver or security configuration on every user's PC.
+
+No Windows security protection is disabled, no user WebView2 cache is deleted, and saved work is not migrated.
+
 Two distributions are included in this repository:
 
 | | Online studio | Windows portable app |
