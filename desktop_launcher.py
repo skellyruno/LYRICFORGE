@@ -438,7 +438,10 @@ def run_desktop(home: Path, safe_mode: bool = False,
             print("[window-smoke] TIMEOUT: editor window did not close",
                   file=sys.stderr, flush=True)
             os._exit(4)
-        watchdog = threading.Timer(35, expired)
+        # A cold WebView2 startup can spend 20-30s loading on CI before the
+        # extended 10s liveness probes even begin. Bound the whole test,
+        # but do not mistake slow initialization for a dead UI.
+        watchdog = threading.Timer(95, expired)
         watchdog.daemon = True
         watchdog.start()
 
