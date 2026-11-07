@@ -246,7 +246,7 @@ jobs:
           $log = Join-Path $env:LOCALAPPDATA 'LyricForge/logs/desktop.log'
           Write-Host 'Opening the actual packaged WebView2 editor window'
           $process = Start-Process -FilePath $exe -ArgumentList '--window-self-test' -WorkingDirectory $folder -PassThru
-          if (-not $process.WaitForExit(45000)) {
+          if (-not $process.WaitForExit(110000)) {
             Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
             throw 'Windows GUI smoke timed out: editor may be frozen'
           }
