@@ -271,7 +271,7 @@ jobs:
         with:
           name: SkellyMotion-Windows-x64
           path: dist/SkellyMotion/
-          retention-days: 14
+          retention-days: 1
           if-no-files-found: error
       - name: Publish GitHub Release on version tags
         if: startsWith(github.ref, 'refs/tags/v')
