@@ -9,12 +9,41 @@ from __future__ import annotations
 import functools
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import shutil
 import subprocess
 import time
 from typing import Any
+
+def waveform_envelope(pcm, points: int) -> list[float]:
+    """Bounded, finite display envelope for decoded mono PCM (not audio output).
+
+    Every source sample contributes to one bin. Ignore malformed NaN/Inf and
+    near-zero denormals so the editor never receives invalid JSON. This runs
+    only in the background waveform worker, not in a realtime audio callback.
+    """
+    points = int(points)
+    if not 1 <= points <= 8192:
+        raise ValueError("waveform point count must be between 1 and 8192")
+    count = len(pcm)
+    if count == 0:
+        return [0.0] * points
+    peaks = []
+    for i in range(points):
+        start, end = (i * count) // points, ((i + 1) * count) // points
+        amplitude = 0.0
+        for j in range(start, end):
+            sample = float(pcm[j])
+            if not math.isfinite(sample) or abs(sample) < 1e-30:
+                continue
+            amplitude = max(amplitude, abs(sample))
+        peaks.append(amplitude)
+    reference = max(1e-5, sorted(peaks)[round((len(peaks) - 1) * .98)])
+    return [round(min(1.0, (peak / reference) ** .65), 3)
+            for peak in peaks]
+
 
 PROFILES = ("eco", "balanced", "turbo")
 ENCODERS = ("h264_nvenc", "h264_qsv", "h264_amf")
