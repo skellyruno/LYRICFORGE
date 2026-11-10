@@ -21,7 +21,10 @@ This repo has **two independent delivery paths**:
 
    Sign in using Git Credential Manager if prompted. Do not paste a token into chat or commit it.
 
-3. Visit `https://github.com/skellyruno/LYRICFORGE/actions`. **Test app** runs on pushes. To create a Windows download, select **Build SkellyMotion Windows app → Run workflow** on `main`. GitHub may ask you to enable Actions. After success, download `SkellyMotion-Windows-x64` under **Artifacts** (artifacts expire after 14 days). Extract **once** to find `SkellyMotion.exe` and `_internal` side by side.
+3. Visit `https://github.com/skellyruno/LYRICFORGE/actions`. **Test app** and Windows compilation/GUI verification run on pushes without uploading transient artifacts. To request a downloadable Windows ZIP, select **Build SkellyMotion Windows app → Run workflow** on `main`. GitHub may ask you to enable Actions. After success, download `SkellyMotion-Windows-x64` under **Artifacts** (manual artifacts currently expire after 1 day; download them promptly). Extract **once** to find `SkellyMotion.exe` and `_internal` side by side.
+
+
+   **Artifact storage:** GitHub Actions may temporarily refuse uploads after its artifact storage quota is reached, even if the Windows build itself passed. Automatic builds no longer upload large Windows artifacts. If a manual run reports a storage quota failure, clear unneeded old artifacts in the repository's Actions UI or allow GitHub's usage recalculation before retrying.
 
 4. For a permanent public download, double-click `RELEASE-WINDOWS.bat`, enter a new tag such as `v1.0.0`, and follow the prompts. Or create and push a version tag manually (PowerShell):
 

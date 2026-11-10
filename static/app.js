@@ -609,9 +609,9 @@ function renderWordTiming(){
  }));
 }
 function clipMotionName(clip){return clipAnimations.includes(clip?.animation)?clip.animation:state.settings.animation;}
-function clipMotionMs(clip){return Number.isFinite(Number(clip?.effectMs))?clamp(Number(clip.effectMs),120,650):230;}
-function clipLocation(clip){return {x:Number.isFinite(Number(clip?.x))?clamp(Number(clip.x),8,92):50,
- y:Number.isFinite(Number(clip?.y))?clamp(Number(clip.y),8,92):state.settings.position};}
+function clipMotionMs(clip){return clip?.effectMs!=null&&Number.isFinite(Number(clip.effectMs))?clamp(Number(clip.effectMs),120,650):230;}
+function clipLocation(clip){return {x:clip?.x!=null&&Number.isFinite(Number(clip.x))?clamp(Number(clip.x),8,92):50,
+ y:clip?.y!=null&&Number.isFinite(Number(clip.y))?clamp(Number(clip.y),8,92):state.settings.position};}
 function syncClipInspector(){
  const clip=selectedClip(),has=!!clip;
  const ids=['clipAnimation','clipEffectMs','clipPosX','clipPosY',
@@ -708,6 +708,7 @@ function drawPositionGuide(){
  ctx.fillRect(px-4,py-4,8,8);ctx.restore();
 }
 
+function activeWordAtTime(words,t){return (words||[]).find(x=>x.start<=t&&x.end>t)||null;}
 function showText(t){const w=canvas.width,h=canvas.height,s=state.settings,ln=activeLyric(t);if(!ln)return;
  const anim=clipMotionName(ln),duration=clipMotionMs(ln)/1000,pos=clipLocation(ln);
  let text=s.upper?ln.text.toUpperCase():ln.text;const progress=clamp((t-ln.start)/Math.max(.03,ln.end-ln.start),0,1);
@@ -726,7 +727,7 @@ function showText(t){const w=canvas.width,h=canvas.height,s=state.settings,ln=ac
   alpha=Math.min(1,entry*6,outro*6);
  }
  let words=(ln.words||[]).length?ln.words.map(x=>({...x,text:s.upper?x.text.toUpperCase():x.text})):text.split(/\s+/).map(x=>({text:x,start:ln.start,end:ln.end}));
- if(s.mode==='word') {let active=words.find(x=>x.start<=t&&x.end>t)||words.find(x=>x.start<=t)||words[0];if(!active)return;text=active.text;words=[active];}
+ if(s.mode==='word') {const active=activeWordAtTime(words,t);if(!active)return;text=active.text;words=[active];}
  if(anim==='typewriter'&&s.mode==='line')text=text.split(/\s+/).slice(0,Math.max(1,Math.ceil(progress*text.split(/\s+/).length))).join(' ');
  const nominal=Math.round(s.fontSize*w/720),margin=w*.09;
  ctx.save();

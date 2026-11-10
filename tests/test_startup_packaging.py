@@ -13,10 +13,12 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_actions_artifact_contains_program_not_zip_inside_zip():
     workflow = (ROOT / ".github/workflows/windows-release.yml").read_text(encoding="utf-8")
-    artifact = workflow.split("- uses: actions/upload-artifact@v4", 1)[1].split(
+    assert "- uses: actions/upload-artifact@v" in workflow
+    artifact = workflow.split("- uses: actions/upload-artifact@v", 1)[1].split(
         "- name: Publish GitHub Release", 1)[0]
     assert "name: SkellyMotion-Windows-x64" in artifact
     assert "path: dist/SkellyMotion/" in artifact
+    assert "if: github.event_name == 'workflow_dispatch'" in artifact
     assert "path: dist/SkellyMotion-Windows-x64.zip" not in artifact
     # Public release assets still need their own distributable ZIP.
     assert "- name: Package GitHub Release ZIP" in workflow

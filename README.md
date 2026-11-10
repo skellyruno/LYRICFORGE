@@ -2,6 +2,12 @@
 
 **Upload a song → AI transcript → review & confirm lyrics → adjust timing → style, animate and change backgrounds → export a synced MP4.**
 
+## SkellyMotion — native startup and waveform hardening
+
+Windows build logs previously showed pywebview recursively walking the public `DesktopFilePicker.window.native` object until Python's recursion limit was reached. The WinForms window is now stored privately as `_window`; all intended JavaScript bridge methods, Save As, and close actions remain available. The Windows smoke test rejects any recurrence of that exception.
+
+Editor preview now uses the correct global/default lyric placement and 230 ms animation duration. Word-only captions disappear in intentional gaps instead of flashing earlier words. The waveform display rejects NaN/Inf/denormal samples, processes every decoded sample including song tails, and atomically refreshes invalid/contended caches. A real WAV-to-AAC MP4 test verifies finite audio, duration and RMS preservation; it does not modify the source audio or master it.
+
 ## SkellyMotion 0.9 — precision editor and reliability update
 
 This update preserves the existing Whisper model, project manifests, WebView2 desktop launcher, saved-project workflows and H.264 export pipeline.
@@ -68,7 +74,7 @@ This iteration reduces idle rendering work, simplifies the editor hierarchy, and
 | First optimization (no FFprobe binary) | 157.66 MB | 373.62 MiB |
 | **Current optimization** | **141.17 MB** | **330.81 MiB** |
 
-Current GitHub Windows run: [Build SkellyMotion Windows app](https://github.com/skellyruno/LYRICFORGE/actions/runs/42291711664). All CI steps passed, including frozen Whisper/CTranslate2/PyAV imports, native Python.NET assemblies, a real WebView2 window, and a subtitle MP4.
+For the latest verified builds, see [Build SkellyMotion Windows app](https://github.com/skellyruno/LYRICFORGE/actions/workflows/windows-release.yml). The Windows workflow validates bundled Whisper/CTranslate2/PyAV imports, native Python.NET assemblies, a real WebView2 window, and subtitle MP4 export.
 
 **What was removed:** ONNX Runtime's ~42 MB Silero VAD backend. SkellyMotion currently transcribes with vad_filter=False, so that optional engine is unused. If future features enable ONNX speech activity detection, its dependencies must be bundled again. The downloaded Whisper transcription model remains separate in the existing user model cache.
 
@@ -83,7 +89,7 @@ Current GitHub Windows run: [Build SkellyMotion Windows app](https://github.com/
 
 The tests verify preview pixel dimensions and selection/timing edits. The Windows GUI smoke test checks whether the packaged editor opens and stays responsive. These results do not establish a measured CPU percentage reduction on every computer; compare playback and export locally for your hardware.
 
-**Installation:** Download the SkellyMotion-Windows-x64 artifact from the successful run above, extract it once, keep the EXE and _internal folder together. Previous projects and model cache remain under %LOCALAPPDATA%\LyricForge.
+**Installation:** From GitHub Actions, manually run **Build SkellyMotion Windows app** on `main` to request a Windows ZIP. Download the `SkellyMotion-Windows-x64` artifact from that manual run, extract once, and keep the EXE and `_internal` folder together. Projects and model cache remain under `%LOCALAPPDATA%\LyricForge`.
 
 ## Smaller Windows portable package (November 2026)
 
@@ -114,7 +120,7 @@ The startup path also skips idle canvas compositing behind the welcome overlay, 
 
 **Suggested order:** Try normal mode; if the window becomes gray or unresponsive, use Safe Mode. If Safe Mode also freezes, use Browser Mode to edit immediately and send `desktop.log` for deeper debugging. These are recovery options; exact WebView2 hangs vary with the Windows installation, driver, and runtime version. We have not established that every affected computer will respond to Safe Mode.
 
-For a new build, open GitHub Actions → **Build SkellyMotion Windows app** and download the latest `SkellyMotion-Windows-x64` artifact. Extract it once; keep the EXE, `_internal`, and both recovery scripts together.
+For a new ZIP, open GitHub Actions → **Build SkellyMotion Windows app** → **Run workflow** on `main`, then download `SkellyMotion-Windows-x64` from that manual run. Automatic pushes compile and test but do not upload an artifact, preventing the old repeated-build storage quota failures. If GitHub still reports a full artifact storage quota, wait for its quota recalculation or remove unused historical artifacts in GitHub.
 
 ## Windows runtime fix — blocked Python.NET or WebView2 DLLs
 

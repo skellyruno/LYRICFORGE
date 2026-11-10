@@ -23,8 +23,8 @@ jobs:
   windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.11'
           cache: pip
@@ -253,6 +253,10 @@ jobs:
           Write-Host "Window GUI self-test exit code: $($process.ExitCode)"
           if (Test-Path $log) {
             Get-Content -Path $log -Tail 35
+            $startupLog = Get-Content -Path $log -Raw
+            if ($startupLog -match 'Error while processing window\.native|maximum recursion depth exceeded') {
+              throw 'Native pywebview JavaScript bridge recursively walked a WinForms object'
+            }
           }
           if ($process.ExitCode -ne 0) {
             throw "Packaged WebView2 window failed to load or became unresponsive. Exit code $($process.ExitCode)"
@@ -267,7 +271,11 @@ jobs:
           Compress-Archive -Path dist/SkellyMotion -DestinationPath dist/SkellyMotion-Windows-x64.zip -Force
       # Artifacts are ZIP archives automatically. Upload the folder itself,
       # not the release ZIP, so downloads need ONE extraction instead of two.
-      - uses: actions/upload-artifact@v4
+      # Avoid consuming private-repo artifact quota on every automatic build.
+      # Tagged versions publish their ZIP through GitHub Releases instead.
+      # A manual workflow_dispatch explicitly requests a one-day artifact.
+      - uses: actions/upload-artifact@v6
+        if: github.event_name == 'workflow_dispatch'
         with:
           name: SkellyMotion-Windows-x64
           path: dist/SkellyMotion/

@@ -135,7 +135,8 @@ def test_native_mp4_saves_outside_app_without_webview_download(tmp_path, monkeyp
         return [str(destination)]
 
     picker = desktop_launcher.DesktopFilePicker()
-    picker.window = SimpleNamespace(create_file_dialog=pick)
+    picker._window = SimpleNamespace(create_file_dialog=pick)
+    assert not hasattr(picker, 'window')  # Native window must not leak through JS bridge
     result = picker.save_video(project.name)
     assert result["status"] == "saved"
     assert destination.read_bytes() == output.read_bytes()
