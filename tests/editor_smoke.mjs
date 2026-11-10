@@ -10,7 +10,7 @@ import vm from 'node:vm';
 const html = fs.readFileSync('static/index.html', 'utf8');
 const script = fs.readFileSync('static/app.js', 'utf8');
 const instrumentedScript = script.replace('function easing(t){',
-  'window.__studioDebug = { state, activeLyric, invalidatePlaybackIndex, previewDimensions };\nfunction easing(t){');
+  'window.__studioDebug = { state, activeLyric, invalidatePlaybackIndex, previewDimensions, clipLocation, clipMotionMs, activeWordAtTime };\nfunction easing(t){');
 const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map(m => m[1]);
 assert.equal(new Set(ids).size, ids.length, 'HTML contains duplicate IDs');
 
@@ -207,6 +207,21 @@ assert.ok(nodes.previewResolutionLabel.textContent.includes('Preview '),
 
 const debug=win.__studioDebug;
 assert.ok(debug,'Playback optimization test hooks available in smoke test');
+assert.equal(debug.clipLocation({}).x,50,
+ 'Default lyric horizontal position must remain centered, not 8%');
+assert.equal(debug.clipLocation({}).y,debug.state.settings.position,
+ 'Default lyric vertical position must inherit global setting');
+assert.equal(debug.clipMotionMs({}),230,
+ 'Unspecified clip motion must agree with default ASS export duration');
+assert.equal(debug.clipLocation({x:72,y:34}).x,72);
+assert.equal(debug.clipLocation({x:72,y:34}).y,34);
+assert.equal(debug.clipMotionMs({effectMs:250}),250);
+const spacedWords=[{text:'first',start:1,end:1.4},
+                   {text:'second',start:2,end:2.6}];
+assert.equal(debug.activeWordAtTime(spacedWords,1.2)?.text,'first');
+assert.equal(debug.activeWordAtTime(spacedWords,1.75),null,
+ 'Word-only preview must not flash a stale word in a vocal pause');
+assert.equal(debug.activeWordAtTime(spacedWords,2.25)?.text,'second');
 debug.state.lines=[
  {id:'intro',text:'Start',start:0,end:3},
  {id:'middle',text:'Middle',start:4,end:6},
