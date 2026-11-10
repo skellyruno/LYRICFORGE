@@ -283,7 +283,11 @@ class DesktopFilePicker:
     """Native dialogs for the desktop only. The web site never receives file paths."""
 
     def __init__(self):
-        self.window = None
+        # pywebview enumerates public js_api attributes recursively. A public
+        # 'window' exposed the entire WinForms/WebView2 object graph (including
+        # AccessibilityObject.Bounds.Empty...), causing massive recursion and
+        # startup stalls. Keep native objects private to Python.
+        self._window = None
         self.active_project = False
         self.allow_close = False
         self._saving_video = threading.Lock()
@@ -295,8 +299,8 @@ class DesktopFilePicker:
 
     def approve_close(self):
         self.allow_close = True
-        if self.window is not None:
-            self.window.destroy()
+        if self._window is not None:
+            self._window.destroy()
         return True
 
     def save_video(self, project_id, preview=False):
@@ -321,7 +325,7 @@ class DesktopFilePicker:
                         ("-preview" if preview else "") + ".mp4")
             dialog = getattr(getattr(webview, "FileDialog", None), "SAVE",
                              getattr(webview, "SAVE_DIALOG", 20))
-            picked = self.window.create_file_dialog(
+            picked = self._window.create_file_dialog(
                 dialog_type=dialog, save_filename=filename,
                 file_types=("MP4 video (*.mp4)",))
             if not picked:
@@ -345,12 +349,12 @@ class DesktopFilePicker:
 
     def _open_file(self, formats):
         import webview
-        if self.window is None:
+        if self._window is None:
             raise RuntimeError("The SkellyMotion desktop window is not ready")
         # pywebview v5/v6 use FileDialog.OPEN; support older OPEN_DIALOG too.
         dialog = getattr(getattr(webview, "FileDialog", None), "OPEN",
                          getattr(webview, "OPEN_DIALOG", 10))
-        picked = self.window.create_file_dialog(
+        picked = self._window.create_file_dialog(
             dialog_type=dialog, allow_multiple=False, file_types=(formats,))
         return Path(picked[0]) if picked else None
 
@@ -453,7 +457,7 @@ def run_desktop(home: Path, safe_mode: bool = False,
                               width=960, height=623, min_size=(800, 520),
                               resizable=True, background_color="#090c0c",
                               js_api=picker)
-        picker.window = window
+        picker._window = window
         try:
             def on_closing():
                 # Never block the native UI thread waiting for JavaScript.
