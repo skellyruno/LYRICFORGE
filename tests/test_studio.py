@@ -59,8 +59,14 @@ def test_roundtrip_audio_background_render(tmp_path, monkeypatch):
         if p['status']=='review': break
         time.sleep(.05)
     assert p['status']=='review'
+    # Old versions could cache invalid NaN floats from malformed audio.
+    # A valid request must recover from that cache without sending NaN JSON.
+    (tmp_path / pid / 'waveform.json').write_text(
+        '{"peaks":[NaN]}', encoding='utf-8')
     wave = client.get(f'/api/projects/{pid}/waveform')
     assert wave.status_code == 200, wave.text
+    assert all(math.isfinite(v) and 0 <= v <= 1
+               for v in wave.json()['peaks'])
     assert len(wave.json()['peaks']) >= 150
     assert max(wave.json()['peaks']) > .1
     response=client.post(f'/api/projects/{pid}/confirm', json={'lyrics':'Hello\nbeautiful world'})
