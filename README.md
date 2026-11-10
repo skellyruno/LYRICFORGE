@@ -1,12 +1,12 @@
+# SkellyMotion — AI lyric video studio
+
+**Upload a song → AI transcript → review & confirm lyrics → adjust timing → style, animate and change backgrounds → export a synced MP4.**
+
 ## SkellyMotion — native startup and waveform hardening
 
 Windows build logs previously showed pywebview recursively walking the public `DesktopFilePicker.window.native` object until Python's recursion limit was reached. The WinForms window is now stored privately as `_window`; all intended JavaScript bridge methods, Save As, and close actions remain available. The Windows smoke test rejects any recurrence of that exception.
 
 Editor preview now uses the correct global/default lyric placement and 230 ms animation duration. Word-only captions disappear in intentional gaps instead of flashing earlier words. The waveform display rejects NaN/Inf/denormal samples, processes every decoded sample including song tails, and atomically refreshes invalid/contended caches. A real WAV-to-AAC MP4 test verifies finite audio, duration and RMS preservation; it does not modify the source audio or master it.
-
-# SkellyMotion — AI lyric video studio
-
-**Upload a song → AI transcript → review & confirm lyrics → adjust timing → style, animate and change backgrounds → export a synced MP4.**
 
 ## SkellyMotion 0.9 — precision editor and reliability update
 
