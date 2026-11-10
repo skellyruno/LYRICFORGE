@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - fix/skellymotion-native-bridge-performance
     paths:
       - 'desktop_launcher.py'
       - 'server.py'
