@@ -508,8 +508,39 @@ def run_desktop(home: Path, safe_mode: bool = False,
                             print("[window-smoke] JavaScript renderer did not reply: "
                                   + str(result), file=sys.stderr, flush=True)
                             os._exit(6)
-                        log_stage("UI message pump and WebView2 JavaScript replied "
-                                  "through repeated smoke probes")
+                        # Resize the actual WinForms/WebView2 application,
+                        # not mocked elements, to catch compact-layout freezes.
+                        for size in ((800, 520), (960, 623), (1024, 720)):
+                            window.resize(*size)
+                            time.sleep(0.4)
+                            layout: dict = {}
+                            def check_layout():
+                                try:
+                                    layout["ok"] = window.evaluate_js(
+                                        "(function(){"
+                                        "const app=document.querySelector('.app');"
+                                        "const timeline=document.getElementById('timelineScroll');"
+                                        "const welcome=document.getElementById('welcome');"
+                                        "if(!app||!timeline||!welcome)return false;"
+                                        "const b=app.getBoundingClientRect();"
+                                        "return Number.isFinite(b.width)&&Number.isFinite(b.height)"
+                                        "&&b.width>200&&b.height>160"
+                                        "&&timeline.getBoundingClientRect().height>20"
+                                        "&&getComputedStyle(welcome).overflowY!=='hidden';"
+                                        "})()")
+                                except Exception as exc:
+                                    layout["error"] = repr(exc)
+                            probe = threading.Thread(target=check_layout, daemon=True)
+                            probe.start()
+                            probe.join(timeout=6)
+                            if (probe.is_alive() or layout.get("ok") is not True
+                                    or windows_ui_responding(WINDOW_TITLE, 1500) is not True):
+                                print("[window-smoke] UI/layout failed at "
+                                      + str(size) + ": " + str(layout),
+                                      file=sys.stderr, flush=True)
+                                os._exit(7)
+                        log_stage("UI message pump, JavaScript and 3 window sizes "
+                                  "passed repeated smoke probes")
                         window.destroy()
                     timer = threading.Timer(2, check_window_and_close)
                     timer.daemon = True
