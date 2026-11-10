@@ -1,6 +1,8 @@
 from __future__ import annotations
 import io
 import json
+import math
+from array import array
 import subprocess
 import time
 from pathlib import Path
@@ -77,3 +79,26 @@ def test_roundtrip_audio_background_render(tmp_path, monkeypatch):
     video=tmp_path/pid/'lyric_video.mp4'
     assert video.exists() and video.stat().st_size>10000
     assert client.get(f'/api/projects/{pid}/export').status_code==200
+    # The video editor must preserve musical audio rather than processing it
+    # like an effects plugin. Decode the source and exported AAC into actual
+    # mono float PCM and compare signal integrity and total timeline duration.
+    def decoded_pcm(path):
+        proc = subprocess.run(
+            ["ffmpeg", "-hide_banner", "-nostdin", "-v", "error", "-i",
+             str(path), "-vn", "-ac", "1", "-ar", "8000",
+             "-f", "f32le", "pipe:1"],
+            capture_output=True, check=True, timeout=20)
+        values = array("f")
+        values.frombytes(proc.stdout)
+        return values
+
+    original, encoded = decoded_pcm(path), decoded_pcm(video)
+    assert original and encoded
+    assert abs(len(encoded) - len(original)) / 8000 < .12, "Audio duration drift"
+    assert all(math.isfinite(x) for x in encoded), "Invalid sample in MP4 AAC stream"
+    assert max(abs(x) for x in encoded) < .95, "Unexpected clipping in export"
+    def rms(values):
+        return math.sqrt(sum(x*x for x in values) / len(values))
+    loudness_ratio = rms(encoded) / rms(original)
+    assert .8 < loudness_ratio < 1.2, "Unexpected export loudness change"
+
