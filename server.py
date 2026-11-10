@@ -895,9 +895,19 @@ def get_waveform(project_id: str):
         raw.frombytes(proc.stdout[:len(proc.stdout)//4*4])
         samples = min(1200, max(150, round(d["duration"] * 3)))
         result = {"peaks": perf.waveform_envelope(raw, samples)}
-        tmp_cache = cache.with_suffix(".tmp")
-        tmp_cache.write_text(json.dumps(result, allow_nan=False), encoding="utf-8")
-        tmp_cache.replace(cache)
+        # Unique temp file avoids collisions when two waveform requests for
+        # the same song complete at the same time. Replace is atomic.
+        temp_name = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                    mode="w", dir=p, prefix="waveform-", suffix=".tmp",
+                    delete=False, encoding="utf-8") as handle:
+                temp_name = Path(handle.name)
+                json.dump(result, handle, allow_nan=False)
+            temp_name.replace(cache)
+        finally:
+            if temp_name is not None:
+                temp_name.unlink(missing_ok=True)
         return result
     except (RuntimeError, subprocess.TimeoutExpired) as exc:
         raise HTTPException(500, f"Cannot create waveform: {exc}") from exc
