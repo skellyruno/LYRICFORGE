@@ -868,7 +868,18 @@ def get_waveform(project_id: str):
     p = project_dir(project_id)
     cache = p / "waveform.json"
     if cache.exists():
-        return json.loads(cache.read_text(encoding="utf-8"))
+        # Older cached files may contain NaN after decoding malformed float
+        # audio. JSON encoders reject that; regenerate instead of crashing UI.
+        try:
+            stored = json.loads(cache.read_text(encoding="utf-8"))
+            peaks = stored.get("peaks") if isinstance(stored, dict) else None
+            if (isinstance(peaks, list) and 0 < len(peaks) <= 1200
+                    and all(type(value) in (int, float)
+                            and math.isfinite(value) and 0 <= value <= 1
+                            for value in peaks)):
+                return stored
+        except (OSError, ValueError, TypeError):
+            pass
     # Waveform display is nonessential work: limit decode threads to one
     # and deprioritize the worker so it cannot saturate CPU during UI startup.
     cmd = ["ffmpeg", "-hide_banner", "-nostdin", "-v", "error", "-threads", "1",
@@ -883,15 +894,10 @@ def get_waveform(project_id: str):
         raw = array("f")
         raw.frombytes(proc.stdout[:len(proc.stdout)//4*4])
         samples = min(1200, max(150, round(d["duration"] * 3)))
-        stride = max(1, len(raw) // samples)
-        peaks = []
-        for i in range(samples):
-            chunk = raw[i * stride:(i + 1) * stride]
-            peaks.append(max(map(abs, chunk), default=0.0))
-        high = sorted(peaks)[round((len(peaks)-1)*.98)] if peaks else 1.0
-        high = max(.00001, high)
-        result = {"peaks": [round(min(1, (p / high) ** .65), 3) for p in peaks]}
-        cache.write_text(json.dumps(result), encoding="utf-8")
+        result = {"peaks": perf.waveform_envelope(raw, samples)}
+        tmp_cache = cache.with_suffix(".tmp")
+        tmp_cache.write_text(json.dumps(result, allow_nan=False), encoding="utf-8")
+        tmp_cache.replace(cache)
         return result
     except (RuntimeError, subprocess.TimeoutExpired) as exc:
         raise HTTPException(500, f"Cannot create waveform: {exc}") from exc
