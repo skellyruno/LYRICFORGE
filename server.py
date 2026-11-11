@@ -1179,16 +1179,27 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 wtext = word["text"].upper() if s["upper"] else word["text"]
                 output.append(ass_event(word["start"], word["end"], tags, wtext))
         elif mode == "karaoke" and line["words"]:
+            # ASS \k durations are sequential. Silence must be its own
+            # (space-only) syllable: adding it to the next word makes the
+            # exported highlight start early, unlike the canvas preview.
             spans = []
             cursor = start
             for word in line["words"]:
-                gap_cs = max(0, round((word["start"] - cursor) * 100))
-                duration_cs = max(1, round((word["end"] - word["start"]) * 100))
-                spans.append(r"{\k" + str(gap_cs + duration_cs) + "}" +
+                word_start = max(cursor, float(word["start"]))
+                word_end = float(word["end"])
+                if word_end <= word_start + .01:
+                    continue  # An overlapping word cannot go back in ASS time.
+                gap_cs = max(0, round((word_start - cursor) * 100))
+                duration_cs = max(1, round((word_end - word_start) * 100))
+                if gap_cs:
+                    spans.append(r"{\k" + str(gap_cs) + "} ")
+                elif spans:
+                    spans.append(" ")
+                spans.append(r"{\k" + str(duration_cs) + "}" +
                              ass_escape(word["text"].upper() if s["upper"] else word["text"]))
-                cursor = word["end"]
+                cursor = word_end
             output.append(f"Dialogue: 0,{asstime(start)},{asstime(end)},Main,,0,0,0,,"
-                          f"{{{base}\\1c{accent}\\2c{main}{effect}}}" + " ".join(spans) + "\n")
+                          f"{{{base}\\1c{accent}\\2c{main}{effect}}}" + "".join(spans) + "\n")
         elif motion == "typewriter" and mode == "line":
             pieces = tokenize(text)
             if pieces:
