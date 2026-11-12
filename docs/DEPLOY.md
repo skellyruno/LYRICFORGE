@@ -5,37 +5,31 @@ This repo has **two independent delivery paths**:
 - **Private web editor:** Railway Docker service; FFmpeg and local Whisper run on the server; owner-only HTTP Basic login over HTTPS. No public sign-ups or separate user accounts.
 - **Windows portable download:** GitHub Actions builds a Windows `SkellyMotion.exe` folder (including the runtime and bundled FFmpeg). Actions artifacts now contain the program directly for **one extraction**. Tagged releases separately publish a standalone `SkellyMotion-Windows-x64.zip`.
 
-## 1. Create and push the GitHub repository
+## 1. Repository and Windows builds
 
-1. This project already exists in the private repository `skellyruno/LYRICFORGE`. Keep that repository path for existing integrations. For a completely new fork only, create an empty GitHub repository.
-2. Extract this archive. **Easiest on Windows:** double-click `PUBLISH-TO-GITHUB.bat` inside the extracted `LYRICFORGE-GitHub` folder and follow its instructions. It requires [Git for Windows](https://git-scm.com/download/win). Alternatively, open PowerShell in that folder (containing `server.py`) and run:
+SkellyMotion already lives in [skellyruno/LYRICFORGE](https://github.com/skellyruno/LYRICFORGE). **Do not initialize a new repository or force-push over the existing history.** Use the `main` branch for the current tested source.
+
+1. To work on the source locally, install [Git for Windows](https://git-scm.com/download/win), then clone the existing repository:
 
    ```powershell
-   git init
-   git branch -M main
-   git add .
-   git commit -m "Initial SkellyMotion website and Windows build"
-   git remote add origin https://github.com/skellyruno/LYRICFORGE.git
-   git push -u origin main
+   git clone https://github.com/skellyruno/LYRICFORGE.git
+   cd LYRICFORGE
    ```
 
-   Sign in using Git Credential Manager if prompted. Do not paste a token into chat or commit it.
+   For an existing clone, run `git pull --ff-only origin main` when your working tree is clean. To contribute changes, use a separate branch and a pull request so Windows and Python tests run before merging.
 
-3. Visit `https://github.com/skellyruno/LYRICFORGE/actions`. **Test app** and Windows compilation/GUI verification run on pushes without uploading transient artifacts. To request a downloadable Windows ZIP, select **Build SkellyMotion Windows app → Run workflow** on `main`. GitHub may ask you to enable Actions. After success, download `SkellyMotion-Windows-x64` under **Artifacts** (manual artifacts currently expire after 1 day; download them promptly). Extract **once** to find `SkellyMotion.exe` and `_internal` side by side.
+2. For a downloadable Windows build, open [GitHub Actions](https://github.com/skellyruno/LYRICFORGE/actions), select **Build SkellyMotion Windows app**, and choose **Run workflow** on `main`. Automatic pushes still compile and test, but deliberately do not upload large artifacts. After a successful manual run, download `SkellyMotion-Windows-x64` from **Artifacts** (currently retained for one day), then extract it **once** to keep `SkellyMotion.exe` and `_internal` together.
 
+   **Artifact storage:** GitHub can refuse uploads after exceeding its Actions artifact quota even when the build passes. Clear obsolete artifacts through GitHub's Actions UI or wait for usage recalculation; do not remove runtime files from the application to work around quota issues.
 
-   **Artifact storage:** GitHub Actions may temporarily refuse uploads after its artifact storage quota is reached, even if the Windows build itself passed. Automatic builds no longer upload large Windows artifacts. If a manual run reports a storage quota failure, clear unneeded old artifacts in the repository's Actions UI or allow GitHub's usage recalculation before retrying.
-
-4. For a permanent public download, double-click `RELEASE-WINDOWS.bat`, enter a new tag such as `v1.0.0`, and follow the prompts. Or create and push a version tag manually (PowerShell):
+3. For a versioned public release, run `RELEASE-WINDOWS.bat` from a local repository clone and enter a **new** version tag (for example `v1.0.0`). Alternatively, push a version tag:
 
    ```powershell
    git tag v1.0.0
    git push origin v1.0.0
    ```
 
-   After the tagged Windows build passes, download from `https://github.com/skellyruno/LYRICFORGE/releases`. The workflow creates the Release and attaches `SkellyMotion-Windows-x64.zip` automatically. On later updates use a new tag such as `v1.0.1`, not an already-used tag.
-
-   If GitHub Actions cannot create a release, check **Repo Settings > Actions > General > Workflow permissions > Read and write permissions**. Changes to settings are controlled by the repo owner. The workflow itself requests `contents: write`.
+   A passing tagged Windows build publishes `SkellyMotion-Windows-x64.zip` under [GitHub Releases](https://github.com/skellyruno/LYRICFORGE/releases). Use a fresh tag for each release. If release publishing fails, check repository **Settings → Actions → General → Workflow permissions**; the workflow requests `contents: write`.
 
 ## 2. Publish your private online studio (Railway)
 

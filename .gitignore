@@ -20,3 +20,21 @@ build/
 dist/
 *.spec
 vendor/
+
+# Generated local diagnostics, tools and packaging outputs
+*.log
+*.tmp
+*.part
+*.zip
+*.exe
+node_modules/
+.coverage
+coverage/
+htmlcov/
+.ruff_cache/
+.mypy_cache/
+.tox/
+.nox/
+*.egg-info/
+.idea/
+Thumbs.db
