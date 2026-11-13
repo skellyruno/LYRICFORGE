@@ -2,6 +2,33 @@
 
 **Upload a song → AI transcript → review & confirm lyrics → adjust timing → style, animate and change backgrounds → export a synced MP4.**
 
+## Autonomous mode: Autopilot, Shorts and the Clip Studio
+
+Three hands-off workflows built on the existing renderer. Nothing is exported in bulk or posted anywhere until you press a button.
+
+**Autopilot (songs).** In the lyric review dialog or the new **Auto** tab, press *Run autopilot*. SkellyMotion accepts the transcript without review, builds the lyric lines, renders the full video (16:9, 9:16 or square) and renders 0 to 6 vertical Shorts with a 1.5 second hook card. Lyrics accepted this way are flagged, so skim them in the editor afterwards.
+
+**Auto-Shorts (songs).** *Find the best Shorts in this song* scores 15 to 45 second windows cut only on line boundaries: repeated lyrics (likely chorus), loudness, vocal density, and a small penalty near the intro and outro. Each suggestion shows its reasons. Edit the times and hook, tick the ones you want, then render.
+
+**Clip Studio (long videos).** On the welcome screen choose *Clip a long video into Shorts*. The video is transcribed with the same Whisper model, scored on opening-line strength, speaking pace, loudness, scene changes and sentence completeness, and shown as previewable cards with editable hook, title, description and tags. Rendering crops to 9:16 (centered, or *Follow the action*, which glides toward on-screen motion), burns in word-by-word captions and writes `clips.json`. Every output downloads individually or as one ZIP (`bundle.zip`).
+
+**Optional AI ranking.** Set `ANTHROPIC_API_KEY` (and optionally `SKELLYMOTION_LLM_MODEL`) to let Claude rerank the top candidates and write hooks and titles. Only transcript text is sent. It is off by default, and any failure falls back to the built-in scoring.
+
+**Limits you can change:** `SKELLYMOTION_MAX_CLIP_SOURCE_MB` (default 2048) and `SKELLYMOTION_MAX_CLIP_SOURCE_MINUTES` (default 180).
+
+**What it does not do.** Picking is heuristic and will sometimes choose a clip you would not. Word timing on sung vocals is only as good as Whisper's word timestamps, not a vocal-isolating aligner. *Follow the action* tracks motion, not faces. No new heavy dependencies were added, so the portable size is unchanged.
+
+Code: `studio_clips.py` (scoring, reframing, optional LLM call), plus job and HTTP glue in `server.py` and the UI in `static/autoclip.js`.
+
+## Keeping the Windows app light
+
+- **The Whisper model is never bundled.** It downloads on first use into the user's cache. A release-time guard now fails the build if a model file or any file over 150 MB lands in the app folder.
+- **Desktop installs use `requirements-desktop.txt`.** It is `requirements.txt` with plain `uvicorn` instead of `uvicorn[standard]`, so the websocket, file-watcher and uvloop extras are not installed or bundled. The app only serves itself on 127.0.0.1, where uvicorn's built-in HTTP parser is enough. Docker and Linux keep `requirements.txt`.
+- **PyInstaller excludes** cover Tk, IDLE and other unused standard-library pieces, Pillow's optional AVIF/WebP/ICC/Tk modules (only PNG generation is used), and the uvicorn extras above. The release workflow's `--self-test` and `--ai-self-test` run on the frozen exe before anything ships.
+- **Smaller FFmpeg (opt-in experiment).** *Actions > Build minimal FFmpeg (manual experiment)* compiles a static `ffmpeg.exe` with only the encoders, muxers and filters the app uses, runs the full test suite against it, and prints its size next to the current build. It does not change releases until you adopt it.
+
+Expected, not measured yet: the requirements and exclude changes should save a few MB. FFmpeg is the big lever (the current `ffmpeg.exe` is the largest single file), but the real saving is only known after the experiment runs. The release workflow prints a size breakdown on every build, so compare it before and after.
+
 ## SkellyMotion — native startup and waveform hardening
 
 Windows build logs previously showed pywebview recursively walking the public `DesktopFilePicker.window.native` object until Python's recursion limit was reached. The WinForms window is now stored privately as `_window`; all intended JavaScript bridge methods, Save As, and close actions remain available. The Windows smoke test rejects any recurrence of that exception.

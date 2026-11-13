@@ -8,11 +8,13 @@ on:
       - 'desktop_launcher.py'
       - 'server.py'
       - 'studio_performance.py'
+      - 'studio_clips.py'
       - 'static/**'
       - 'Repair-SkellyMotion.cmd'
       - 'SkellyMotion-SafeMode.cmd'
       - 'SkellyMotion-BrowserMode.cmd'
       - 'requirements.txt'
+      - 'requirements-desktop.txt'
       - 'tests/**'
       - '.github/workflows/windows-release.yml'
     tags:
@@ -31,13 +33,16 @@ jobs:
       - name: Install Python packages
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt pyinstaller pytest httpx "pywebview>=5.4,<7" "pythonnet==3.0.5" "clr-loader==0.2.7.post0"
+          python -m pip install -r requirements-desktop.txt pyinstaller pytest httpx "pywebview>=5.4,<7" "pythonnet==3.0.5" "clr-loader==0.2.7.post0"
       - name: Verify editor JavaScript
         shell: pwsh
         run: |
           node --check static/app.js
+          node --check static/autoclip.js
           node tests/editor_smoke.mjs
-          if ($LASTEXITCODE -ne 0) { throw 'Editor JavaScript syntax check failed' }
+          if ($LASTEXITCODE -ne 0) { throw 'Editor JavaScript smoke test failed' }
+          node tests/autoclip_smoke.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Autonomous UI smoke test failed' }
       - name: Download verified FFmpeg with libass
         shell: pwsh
         run: |
@@ -98,7 +103,9 @@ jobs:
           Add-Content -Path $env:GITHUB_PATH -Value (Resolve-Path vendor/ffmpeg).Path
           & (Resolve-Path vendor/ffmpeg/ffmpeg.exe).Path -hide_banner -version | Select-Object -First 1
       - name: Validate editor JavaScript syntax
-        run: node --check static/app.js
+        run: |
+          node --check static/app.js
+          node --check static/autoclip.js
       - name: Test original editor on Windows
         run: python -m pytest tests -q
       - name: Build self-contained Windows folder
@@ -121,6 +128,20 @@ jobs:
             --collect-all tokenizers `
             --collect-all av `
             --exclude-module onnxruntime `
+            --exclude-module tkinter `
+            --exclude-module _tkinter `
+            --exclude-module turtle `
+            --exclude-module idlelib `
+            --exclude-module lib2to3 `
+            --exclude-module pydoc_data `
+            --exclude-module PIL.ImageTk `
+            --exclude-module PIL._imagingtk `
+            --exclude-module PIL._avif `
+            --exclude-module PIL._webp `
+            --exclude-module PIL._imagingcms `
+            --exclude-module watchfiles `
+            --exclude-module websockets `
+            --exclude-module httptools `
             desktop_launcher.py
       - name: Measure bundle size and identify large dependencies
         shell: pwsh
@@ -146,6 +167,22 @@ jobs:
             [PSCustomObject]@{Name=$_.Name; MB=[math]::Round($bytes/1MB,2)}
           } | Sort-Object MB -Descending | Select-Object -First 30 |
             Format-Table -AutoSize | Out-String | Write-Host
+      - name: Guard against bundling AI models or oversized files
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # Whisper models download on first use into the user's cache; they must never be in the app folder.
+          $root = (Resolve-Path 'dist/SkellyMotion').Path
+          $modelNames = @('model.bin', 'pytorch_model.bin', 'model.safetensors')
+          $modelTypes = @('.gguf', '.ggml', '.safetensors')
+          $bad = @(Get-ChildItem -LiteralPath $root -Recurse -File | Where-Object {
+            ($modelNames -contains $_.Name) -or ($modelTypes -contains $_.Extension) -or ($_.Length -gt 150MB)
+          })
+          if ($bad.Count -gt 0) {
+            $bad | ForEach-Object { Write-Host ("  {0,8:N1} MB  {1}" -f ($_.Length / 1MB), $_.FullName.Substring($root.Length + 1)) }
+            throw 'A model or an unexpectedly large file was bundled. Models must download on first use.'
+          }
+          Write-Host 'No bundled models or oversized files.'
       - name: Smoke test packaged Windows GUI program
         shell: pwsh
         run: |
