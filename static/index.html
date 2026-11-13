@@ -6,6 +6,7 @@
   <title>SkellyMotion — Lyric video studio</title>
   <script>if(new URLSearchParams(location.search).get('desktop')==='1')document.documentElement.classList.add('desktop-mode');</script>
   <link rel="stylesheet" href="/static/style.css" />
+  <link rel="stylesheet" href="/static/autoclip.css" />
 </head>
 <body>
   <div id="app" class="app">
@@ -29,6 +30,7 @@
         <button class="rail-item" data-panel="animation"><span class="rail-ico">✧</span><span>Motion</span></button>
         <button class="rail-item" data-panel="background"><span class="rail-ico">▧</span><span>Canvas</span></button>
         <button class="rail-item" data-panel="export"><span class="rail-ico">↗</span><span>Export</span></button>
+        <button class="rail-item" data-panel="auto"><span class="rail-ico">✦</span><span>Auto</span></button>
         <button class="rail-item" data-panel="library"><span class="rail-ico">▦</span><span>Projects</span></button>
         <button class="rail-item" data-panel="performance"><span class="rail-ico">⚡</span><span>Speed</span></button>
         <button class="rail-item" data-panel="storage"><span class="rail-ico">▤</span><span>Storage</span></button>
@@ -183,6 +185,27 @@
             <div class="info-note">Rendering happens on your computer. Your song is not uploaded to a cloud service.</div>
           </div>
         </div>
+        <div class="panel hidden" id="panel-auto">
+          <div class="section-top"><div class="eyebrow">AUTONOMOUS</div><h2>Autopilot.</h2><p>Full video plus Shorts, hands-free.</p></div>
+          <div class="panel-content form-fields">
+            <div class="control-head">AUTOPILOT</div>
+            <div class="control-group"><label for="autoPreset">Caption style</label>
+              <select id="autoPreset"><option value="classic">Classic lines</option><option value="bold">Bold words</option><option value="karaoke">Karaoke highlight</option><option value="project">Keep my current style</option></select></div>
+            <div class="control-group"><label for="autoAspect">Full video shape</label>
+              <select id="autoAspect"><option value="landscape">Landscape 16:9 (YouTube)</option><option value="portrait">Vertical 9:16</option><option value="square">Square 1:1</option></select></div>
+            <div class="control-group"><label for="autoShortCount">Shorts to make</label>
+              <select id="autoShortCount"><option value="0">None</option><option value="1">1</option><option value="2">2</option><option value="3" selected>3</option><option value="4">4</option><option value="6">6</option></select></div>
+            <label class="toggle-line"><span>Hook card on Shorts<small>First line shown at the top for 1.5 s</small></span><input id="autoHooks" type="checkbox" checked /><i class="switch"></i></label>
+            <button id="autoRunBtn" class="primary-btn render-btn" type="button">✦ Run autopilot</button>
+            <div id="autoStatus" class="render-status hidden" role="status" aria-live="polite"></div>
+            <div class="control-head after-gap">SHORTS ONLY</div>
+            <button id="autoFindShorts" class="wide-ghost" type="button">Find the best Shorts in this song</button>
+            <div id="autoShortList" class="auto-cards"></div>
+            <button id="autoRenderShorts" class="wide-ghost hidden" type="button">Render selected Shorts</button>
+            <div id="autoResults" class="auto-results"></div>
+            <div class="info-note">Picks are suggestions scored on repeated lines, loudness and vocal density. Word timing on sung vocals is approximate, so review before posting.</div>
+          </div>
+        </div>
         <div class="panel hidden" id="panel-library">
           <div class="section-top"><div class="eyebrow">06 / YOUR WORK</div><h2>Saved projects.</h2><p>Continue any song without digging through folders.</p></div>
           <div class="panel-content form-fields">
@@ -313,7 +336,7 @@
         </label>
         <small>Vocabulary is a hint—not a guaranteed transcription. It does not change the model.</small>
       </details>
-    </div><div class="welcome-features"><span>✳ AI lyric detection</span><span>✳ Word-level sync</span><span>✳ MP4 export</span></div><div class="welcome-secondary-actions"><button id="resumeLastBtn" class="demo-btn hidden" type="button">↻ Resume last project <span>→</span></button><button id="openProjectsWelcome" class="demo-btn" type="button">▦ Open a saved project <span>→</span></button><button id="demoBtn" class="demo-btn">Or explore the demo editor <span>→</span></button></div></div><div class="welcome-decor">SM / CREATIVE TOOLS — 001</div></div>
+    </div><div class="welcome-features"><span>✳ AI lyric detection</span><span>✳ Word-level sync</span><span>✳ MP4 export</span></div><div class="welcome-secondary-actions"><button id="resumeLastBtn" class="demo-btn hidden" type="button">↻ Resume last project <span>→</span></button><button id="openProjectsWelcome" class="demo-btn" type="button">▦ Open a saved project <span>→</span></button><button id="openClipStudio" class="demo-btn" type="button">✂ Clip a long video into Shorts <span>→</span></button><button id="demoBtn" class="demo-btn">Or explore the demo editor <span>→</span></button></div></div><div class="welcome-decor">SM / CREATIVE TOOLS — 001</div></div>
 
     <div id="reviewOverlay" class="modal-overlay hidden"><div class="review-modal"><div class="modal-top"><span class="eyebrow">STEP 01 OF 02</span><button id="closeReview" title="Close" class="modal-close">×</button></div><div class="modal-visual"><span class="modal-icon">♪</span><span class="step-chain"><b>UPLOAD</b><i></i><b>REVIEW</b><i></i><span>CREATE</span></span></div><h2 id="reviewTitle">Review your lyrics.</h2><p id="reviewDescription">We picked up the lyrics in your song. Fix anything we missed before we sync them to the timeline.</p><div id="transcribeProgress" class="transcribe-progress hidden" aria-live="polite"><div class="loading-orbit"></div><strong>Preparing your song…</strong><span>Using your existing Whisper AI model.</span><div class="transcribe-meter" id="transcribeMeterTrack" role="progressbar" aria-label="Audio analyzed" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="transcribeMeter"></div></div><small class="transcribe-note">Progress measures analyzed audio, not time remaining.</small></div><textarea id="lyricsText" spellcheck="false" placeholder="Your lyrics will appear here. You can also type or paste lyrics manually."></textarea><div id="reviewWarning" class="review-warning hidden"></div>
           <div id="uncertainReview" class="uncertain-review hidden">
@@ -324,7 +347,7 @@
             <div id="refineSuggestions" class="refine-suggestions hidden"></div>
             <button id="applyRefineBtn" class="hidden" type="button">Apply reviewed suggestions to draft</button>
             <small>Suggestions are never applied automatically. Listen and correct the lyrics before confirming.</small>
-          </div><div class="modal-footer"><span><b>PRO TIP</b> · Put each lyric line on a new line to control how it appears on screen.</span><button id="confirmLyrics" class="primary-btn">Confirm & sync lyrics <span>→</span></button></div></div></div>
+          </div><div class="modal-footer"><span><b>PRO TIP</b> · Put each lyric line on a new line to control how it appears on screen.</span><button id="autopilotFromReview" class="ghost-btn" type="button" title="Skip the review and build everything automatically">✦ Autopilot</button><button id="confirmLyrics" class="primary-btn">Confirm & sync lyrics <span>→</span></button></div></div></div>
 
     <div id="shortcutsOverlay" class="shortcuts-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="shortcutsTitle">
       <div class="shortcuts-card">
@@ -361,6 +384,40 @@
         </div>
       </div>
     </div>
+  <div id="clipStudio" class="clip-studio hidden" role="dialog" aria-modal="true" aria-labelledby="clipStudioTitle">
+    <header class="clip-studio-bar">
+      <div><span class="eyebrow">CLIP STUDIO</span><h2 id="clipStudioTitle">Long video to Shorts</h2></div>
+      <button id="clipStudioClose" class="ghost-btn" type="button">Close</button>
+    </header>
+    <div class="clip-studio-body">
+      <section id="clipUploadStep" class="clip-step">
+        <button id="clipPick" type="button" class="hero-upload"><span class="upload-glyph">↥</span><span><b>Choose a video to clip</b><small id="clipLimitNote">MP4, MOV, MKV, WebM</small></span><span class="upload-arrow">↗</span></button>
+        <input id="clipFile" type="file" accept="video/*,.mp4,.mov,.mkv,.webm,.m4v" hidden />
+        <div class="clip-options">
+          <label>Spoken language<select id="clipLanguage"><option value="auto">Auto-detect</option><option value="en">English</option><option value="es">Spanish</option><option value="fr">French</option><option value="pt">Portuguese</option><option value="de">German</option><option value="it">Italian</option><option value="ja">Japanese</option><option value="ko">Korean</option></select></label>
+          <label>Recognition<select id="clipRecognition"><option value="fast">Fast</option><option value="balanced" selected>Balanced</option><option value="accurate">Accurate (slower)</option></select></label>
+          <label class="clip-check"><input id="clipUseAi" type="checkbox" disabled /> Rank picks with Claude <small id="clipAiNote">Needs ANTHROPIC_API_KEY on this computer. Sends transcript text only.</small></label>
+        </div>
+        <p class="clip-fine">Clips are chosen from the transcript, loudness and scene changes. You approve every clip before anything is exported.</p>
+      </section>
+      <section id="clipProgressStep" class="clip-step hidden"><div class="loading-orbit"></div><strong id="clipProgressTitle">Working…</strong><div class="transcribe-meter"><div id="clipMeter"></div></div><small id="clipProgressNote"></small></section>
+      <section id="clipReadyStep" class="clip-step hidden">
+        <div class="clip-toolbar">
+          <label>Crop<select id="clipReframe"><option value="center">Center crop</option><option value="follow">Follow the action</option></select></label>
+          <label>Clips<select id="clipSuggestCount"><option>4</option><option selected>8</option><option>12</option></select></label>
+          <label>Min s<input id="clipMin" type="number" min="10" max="90" value="20" /></label>
+          <label>Max s<input id="clipMax" type="number" min="15" max="120" value="60" /></label>
+          <button id="clipRegen" class="ghost-btn" type="button">↻ Find clips again</button>
+          <span class="clip-spacer"></span>
+          <button id="clipRender" class="primary-btn" type="button">Render selected (0)</button>
+        </div>
+        <div id="clipStatus" class="render-status hidden" role="status" aria-live="polite"></div>
+        <div id="clipCards" class="clip-grid"></div>
+        <div id="clipResults" class="auto-results"></div>
+      </section>
+    </div>
+  </div>
   <script src="/static/app.js"></script>
+  <script src="/static/autoclip.js"></script>
 </body>
 </html>

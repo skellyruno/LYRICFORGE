@@ -323,7 +323,7 @@ async function loadLibrary(){
   const cards=(list)=>list.map(item=>{
    const date=Number.isFinite(item.updated_at)?new Date(item.updated_at*1000).toLocaleDateString():'';
    const status=item.save_state==='draft'?'Unsaved draft':
-    item.status==='editor'?'Ready':item.status==='review'?'Review lyrics':
+    item.kind==='clip_source'?'Video clips':item.status==='editor'?'Ready':item.status==='review'?'Review lyrics':
     item.status==='transcribing'?'Finding lyrics':'Saved';
    return '<div class="library-item"><input class="library-check" type="checkbox" '+
      'aria-label="Select '+safe(item.title)+'" data-select-project="'+safe(item.id)+'" '+
@@ -379,6 +379,7 @@ async function openSavedProject(id){
  if(id===state.id){panel('lyrics');return;}
  try{
   const project=await api('/api/projects/'+id);
+  if(project.kind==='clip_source'&&window.SkellyClips){window.SkellyClips.open(id);return;}
   if(!await mayLeaveProject())return;
   let recovered=null;
   if(project.has_recovery){
@@ -1477,6 +1478,11 @@ wireUI();syncSettingUI();syncClipInspector();resizePreview();renderTimeline();up
 schedulePreviewFrame();
 let lastSession=null;
 try{lastSession=localStorage.getItem('lyricforge-last')}catch{}
+// Small, read-mostly surface used by static/autoclip.js (Autopilot, Shorts, Clip Studio).
+window.SkellyBridge={
+ state:()=>state,toast,api,panel,audio:()=>audio,
+ async reloadProject(id){const project=await api('/api/projects/'+id);loadProjectData(project);$('reviewOverlay').classList.add('hidden');$('welcome').classList.add('hidden');renderTitle();renderLines();renderTimeline();loadWaveform();}
+};
 $('resumeLastBtn').classList.toggle('hidden',!lastSession);
 // Windows startup should display a responsive editor immediately. Restoring a
 // large song can decode audio, generate waveforms and populate many lyric clips.

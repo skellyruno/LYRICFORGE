@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 COPY requirements.txt ./
 RUN pip install -r requirements.txt
-COPY server.py ./
+COPY server.py studio_performance.py studio_clips.py ./
 COPY static/ ./static/
 RUN useradd --uid 10001 --create-home appuser && mkdir -p /data /app && chown -R appuser:appuser /app
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh

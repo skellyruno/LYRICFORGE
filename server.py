@@ -28,6 +28,7 @@ from fastapi.responses import FileResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 import studio_performance as perf
+import studio_clips as clips
 
 ROOT = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
 DATA = Path(os.environ.get("LYRICFORGE_DATA", ROOT / "workspace")).resolve()
@@ -179,14 +180,15 @@ def video_stream_width(path: Path) -> int:
     raise ValueError("Background file has no readable video/image stream")
 
 
-async def save_upload(file: UploadFile, dest: Path) -> None:
+async def save_upload(file: UploadFile, dest: Path, limit: int | None = None) -> None:
     size = 0
+    cap = limit or MAX_UPLOAD
     with dest.open("wb") as out:
         while chunk := await file.read(1024 * 1024):
             size += len(chunk)
-            if size > MAX_UPLOAD:
+            if size > cap:
                 dest.unlink(missing_ok=True)
-                raise HTTPException(413, "File exceeds 250 MB limit")
+                raise HTTPException(413, f"File exceeds {cap // (1024 * 1024)} MB limit")
             out.write(chunk)
     if not size:
         dest.unlink(missing_ok=True)
@@ -626,6 +628,7 @@ def list_saved_projects():
                 "lines": len(data.get("lines") or []),
                 "save_state": "draft" if data.get("save_state") == "draft" else "saved",
                 "has_recovery": recovery.is_file(),
+                "kind": "clip_source" if data.get("kind") == "clip_source" else "song",
             }
             (drafts if item["save_state"] == "draft" else recent).append(item)
         except (OSError, ValueError, TypeError, AttributeError):
@@ -1277,6 +1280,12 @@ def render_with_progress(args: list[str], folder: Path, job_id: str, duration: f
                         jobs[job_id].update(stage="encoding", progress=percent,
                                             encode_fps=round(frames / elapsed, 1),
                                             speed_ratio=round(progress_seconds / elapsed, 2))
+                        # Autonomous jobs run several renders; mirror each child's
+                        # progress into its parent's overall progress bar.
+                        weight = jobs[job_id].get("weight")
+                        parent = jobs.get(jobs[job_id].get("parent") or "")
+                        if parent is not None and isinstance(weight, list) and len(weight) == 2:
+                            parent["progress"] = int(weight[0] + weight[1] * percent / 100)
             elif row:
                 error_tail.append(row)
                 if len(error_tail) > 25:
@@ -1564,6 +1573,656 @@ def download_export(project_id: str):
     if not f.exists():
         raise HTTPException(404, "No exported video")
     return FileResponse(f, media_type="video/mp4", filename="SkellyMotion-video.mp4")
+
+
+
+# ---------------------------------------------------------------------------
+# Autonomous mode: auto-Shorts from a song, autopilot, and the long-video
+# auto-clipper. The scoring/reframing logic lives in studio_clips.py; this
+# section is the job, file and HTTP glue around the existing render pipeline.
+# ---------------------------------------------------------------------------
+VIDEO_EXT = {".mp4", ".mov", ".mkv", ".webm", ".m4v"}
+AUTOPILOT_PRESETS = {
+    "classic": {"mode": "line", "animation": "fade"},
+    "bold": {"mode": "word", "animation": "pop", "upper": True, "fontSize": 84},
+    "karaoke": {"mode": "karaoke", "animation": "none"},
+    "project": {},  # keep whatever style the project already has
+}
+
+
+def env_number(name: str, default: float) -> float:
+    try:
+        value = float(os.environ.get(name, default))
+        return value if math.isfinite(value) and value > 0 else default
+    except (TypeError, ValueError):
+        return default
+
+
+def max_clip_source_bytes() -> int:
+    return int(env_number("SKELLYMOTION_MAX_CLIP_SOURCE_MB", 2048) * 1024 * 1024)
+
+
+def max_clip_source_seconds() -> float:
+    return env_number("SKELLYMOTION_MAX_CLIP_SOURCE_MINUTES", 180) * 60
+
+
+def short_settings(base: dict) -> dict:
+    """Vertical 9:16 caption style for Shorts and clips (word-by-word pop)."""
+    merged = {**(base if isinstance(base, dict) else {}), "aspect": "portrait", "mode": "word",
+              "animation": "pop", "fontSize": 84, "position": 62, "upper": True}
+    return sanitize_settings(merged)
+
+
+def output_size(settings: dict) -> tuple[int, int]:
+    w, h = SIZES[settings["aspect"]]
+    if settings["resolution"] == "1080p":
+        return round(w * 1.5), round(h * 1.5)
+    if settings["resolution"] == "540p":
+        return round(w * .75), round(h * .75)
+    return w, h
+
+
+def new_child_job(parent_id: str, project_id: str, settings: dict, base: int, span: int) -> str:
+    child = uuid.uuid4().hex
+    with job_lock:
+        jobs[child] = {"id": child, "project_id": project_id, "preview": False, "status": "rendering",
+                       "stage": "preparing", "progress": 0, "created": time.time(),
+                       "encoder_used": None, "performance_mode": settings["performanceMode"],
+                       "parent": parent_id, "weight": [base, span]}
+    return child
+
+
+def finish_child(child: str) -> None:
+    with job_lock:
+        job = jobs.get(child, {})
+        if job.get("status") == "error":
+            raise RuntimeError(job.get("error") or "A render failed")
+        job.update(status="done", progress=100)
+
+
+def encode_with_fallback(job_id: str, settings: dict, length: float, folder: Path,
+                         build_args, temporary: Path) -> None:
+    """Pick an encoder like render_project does, retrying on CPU if hardware fails."""
+    preference = settings.get("encoder", "auto")
+    available = perf.available_gpu_encoders() if preference != "cpu" else ()
+    encoder = perf.choose_encoder(preference, available)
+    with job_lock:
+        jobs[job_id].update(stage="encoding", encoder_used=encoder, gpu_available=list(available))
+    try:
+        try:
+            render_with_progress(build_args(encoder, temporary), folder, job_id, length)
+        except Exception:
+            if encoder == "libx264":
+                raise
+            temporary.unlink(missing_ok=True)
+            with job_lock:
+                jobs[job_id].update(stage="cpu_fallback", progress=0, encoder_used="libx264",
+                                    hardware_fallback=True)
+            render_with_progress(build_args("libx264", temporary), folder, job_id, length)
+        if not temporary.is_file() or temporary.stat().st_size < 1024:
+            raise RuntimeError("Encoder completed without a usable video")
+    except Exception:
+        temporary.unlink(missing_ok=True)
+        raise
+
+
+def resolve_background(project_id: str, data: dict, settings: dict) -> tuple[Path, bool, Path | None]:
+    """(background file, is a video, user background or None) for Shorts."""
+    p = project_dir(project_id)
+    user_bg = None
+    if settings["background"] == "custom" and data.get("background_file"):
+        candidate = p / data["background_file"]
+        if candidate.is_file():
+            user_bg = candidate
+    if user_bg is not None:
+        return user_bg, user_bg.suffix.lower() in {".mp4", ".mov", ".webm"}, user_bg
+    bg_file, palette_file = p / "generated_bg.png", p / "generated_bg.palette"
+    style = settings["background"] if settings["background"] in PRESETS else "midnight"
+    if not bg_file.is_file() or not palette_file.is_file() or palette_file.read_text() != style:
+        create_gradient(style, bg_file)
+        palette_file.write_text(style)
+    return bg_file, False, None
+
+
+def cached_output(folder: Path, slot: str, fingerprint: str, output: Path) -> bool:
+    cached = perf.read_cache(folder / "render_cache.json")
+    return cached.get(slot) == fingerprint and output.is_file() and output.stat().st_size > 1024
+
+
+def remember_output(folder: Path, slot: str, fingerprint: str) -> None:
+    cache_path = folder / "render_cache.json"
+    cached = perf.read_cache(cache_path)
+    cached[slot] = fingerprint
+    try:
+        perf.store_cache(cache_path, cached)
+    except OSError:
+        pass
+
+
+def render_short(project_id: str, job_id: str, n: int, segment: dict, settings: dict,
+                 lines: list[dict]) -> Path:
+    """Render one vertical Short of a song: same captions, trimmed audio, hook card."""
+    p = project_dir(project_id)
+    data = read_project(project_id)
+    duration = float(data["duration"])
+    start = clamp(segment.get("start"), 0, duration, 0)
+    end = clamp(segment.get("end"), 0, duration, duration)
+    length = end - start
+    if not 3 <= length <= 90:
+        raise ValueError("A Short must be between 3 and 90 seconds long")
+    hook = re.sub(r"\s+", " ", str(segment.get("hook") or ""))[:80]
+    w, h = output_size(settings)
+    shifted = clips.shift_lines(lines, start, end)
+    if not shifted:
+        raise RuntimeError("No lyrics fall inside this Short")
+    audio = p / data["audio_file"]
+    bg_file, use_bg_video, user_bg = resolve_background(project_id, data, settings)
+    output = p / f"short_{n}.mp4"
+    fingerprint = perf.render_fingerprint(
+        shifted + [{"hook": hook, "start": start, "end": end}], settings, audio, user_bg, False)
+    if cached_output(p, f"short_{n}", fingerprint, output):
+        with job_lock:
+            jobs[job_id].update(stage="cached", cached=True)
+        return output
+    ass_file = p / f"short_{n}.ass"
+    create_ass(shifted, settings, w, h, ass_file)
+    clips.add_hook_to_ass(ass_file, hook, w, h, 1.5, settings["font"])
+    filters = (f"[0:v]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},setsar=1,"
+               f"format=yuv420p,eq=brightness={-settings['dim'] * .45:.3f},ass={ass_file.name}[v]")
+    background_input = (["-stream_loop", "-1", "-i", str(bg_file)] if use_bg_video
+                        else ["-loop", "1", "-framerate", str(settings["fps"]), "-i", str(bg_file)])
+    profile = perf.profile_config(settings["performanceMode"])
+
+    def build(codec: str, target: Path) -> list[str]:
+        return ["ffmpeg", "-hide_banner", "-loglevel", "error", "-nostats", "-nostdin",
+                "-stats_period", "0.5", "-progress", "pipe:1",
+                "-filter_complex_threads", str(profile["threads"]), "-y", *background_input,
+                "-ss", f"{start:.3f}", "-t", f"{length:.3f}", "-i", str(audio),
+                "-filter_complex", filters, "-map", "[v]", "-map", "1:a:0",
+                "-t", f"{length:.3f}", "-r", str(settings["fps"]),
+                *perf.encode_args(codec, settings["renderSpeed"], w, h, profile["threads"]),
+                "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(target)]
+
+    temporary = p / f"render-{job_id}.mp4"
+    encode_with_fallback(job_id, settings, length, p, build, temporary)
+    temporary.replace(output)
+    remember_output(p, f"short_{n}", fingerprint)
+    return output
+
+
+def song_lines_for(data: dict) -> list[dict]:
+    """Saved lyric lines, or lines built straight from the transcript (no review)."""
+    lines = data.get("lines") or []
+    if lines:
+        return lines
+    words = data.get("original_words") or []
+    return build_lines(words) if words else []
+
+
+def short_manifest_entry(data: dict, n: int, segment: dict, text: str) -> dict:
+    meta = clips.heuristic_metadata(text, segment.get("hook") or data.get("title") or "")
+    title = f"{data.get('title', 'Song')} | {meta['title']}"[:100]
+    tags = list(dict.fromkeys(meta["tags"] + ["shorts", "lyrics", "lyricvideo"]))
+    return {"n": n, "file": f"short_{n}.mp4", "start": round(float(segment["start"]), 2),
+            "end": round(float(segment["end"]), 2), "hook": segment.get("hook", ""),
+            "title": title, "description": f"{meta['description']}\n\n#shorts #lyrics",
+            "tags": tags, "score": segment.get("score"), "reasons": segment.get("reasons", [])}
+
+
+def render_shorts_batch(project_id: str, job_id: str, segments: list[dict], settings: dict,
+                        lines: list[dict], base: int = 0, span: int = 100) -> list[dict]:
+    data = read_project(project_id)
+    p = project_dir(project_id)
+    manifest = []
+    for old in p.glob("short_*.mp4"):
+        match = re.fullmatch(r"short_(\d+)\.mp4", old.name)
+        if match and int(match.group(1)) > len(segments):
+            old.unlink(missing_ok=True)
+    for index, segment in enumerate(segments, start=1):
+        with job_lock:
+            jobs[job_id].update(stage=f"short_{index}_of_{len(segments)}")
+        child = new_child_job(job_id, project_id, settings,
+                              base + span * (index - 1) // len(segments), span // len(segments))
+        render_short(project_id, child, index, segment, settings, lines)
+        finish_child(child)
+        text = " ".join(ln["text"] for ln in clips.shift_lines(lines, segment["start"], segment["end"]))
+        manifest.append(short_manifest_entry(data, index, segment, text))
+    (p / "shorts.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
+    return manifest
+
+
+class AutopilotRequest(BaseModel):
+    preset: str = "classic"
+    shorts: int = Field(default=3, ge=0, le=6)
+    aspect: str = "landscape"
+    hooks: bool = True
+    lines: list[dict] | None = None  # the editor's current lines, when it has any
+
+
+class ShortSuggestRequest(BaseModel):
+    lines: list[dict] | None = None
+    count: int = Field(default=3, ge=1, le=8)
+
+
+class ShortsRenderRequest(BaseModel):
+    segments: list[dict]
+    settings: dict = Field(default_factory=dict)
+    lines: list[dict] | None = None
+
+
+def reject_if_busy(project_id: str) -> None:
+    if any(item.get("project_id") == project_id and item.get("status") == "rendering"
+           for item in jobs.values()):
+        raise HTTPException(409, "This project already has a job running")
+
+
+def register_job(project_id: str, kind: str, settings: dict) -> str:
+    with job_lock:
+        reject_if_busy(project_id)
+        job_id = uuid.uuid4().hex
+        jobs[job_id] = {"id": job_id, "project_id": project_id, "kind": kind, "preview": False,
+                        "status": "rendering", "stage": "preparing", "progress": 0,
+                        "created": time.time(), "encoder_used": None,
+                        "performance_mode": settings["performanceMode"]}
+    return job_id
+
+
+def fail_job(job_id: str, exc: Exception, started: float) -> None:
+    with job_lock:
+        jobs[job_id].update(status="error", stage="error", error=str(exc)[:1800],
+                            elapsed_seconds=round(time.monotonic() - started, 2))
+
+
+def song_envelope(project_id: str) -> list[float]:
+    p = project_dir(project_id)
+    data = read_project(project_id)
+    try:
+        return clips.audio_envelope(p / data["audio_file"], 600)
+    except Exception:
+        return []  # Loudness is only one signal; picking still works without it.
+
+
+@app.post("/api/projects/{project_id}/shorts/suggestions")
+def suggest_shorts(project_id: str, body: ShortSuggestRequest):
+    data = read_project(project_id)
+    if data.get("kind") == "clip_source":
+        raise HTTPException(400, "Use the clip suggestions for video projects")
+    lines = validate_lines(body.lines, data["duration"]) if body.lines else song_lines_for(data)
+    if not lines:
+        raise HTTPException(400, "No lyrics yet. Finish transcription first.")
+    picks = clips.pick_short_segments(lines, song_envelope(project_id), float(data["duration"]), body.count)
+    return {"suggestions": sorted(picks, key=lambda s: -s["score"])}
+
+
+@app.post("/api/projects/{project_id}/shorts/render")
+def render_shorts(project_id: str, body: ShortsRenderRequest):
+    data = read_project(project_id)
+    if data.get("kind") == "clip_source":
+        raise HTTPException(400, "Use the clip renderer for video projects")
+    if not 1 <= len(body.segments) <= 8:
+        raise HTTPException(400, "Choose between 1 and 8 Shorts")
+    lines = validate_lines(body.lines, data["duration"]) if body.lines else song_lines_for(data)
+    if not lines:
+        raise HTTPException(400, "No lyrics to render")
+    settings = short_settings({**(data.get("settings") or {}), **(body.settings or {})})
+    segments = []
+    for row in body.segments:
+        if not isinstance(row, dict):
+            continue
+        start = clamp(row.get("start"), 0, data["duration"], 0)
+        end = clamp(row.get("end"), 0, data["duration"], data["duration"])
+        if 3 <= end - start <= 90:
+            segments.append({"start": start, "end": end, "hook": str(row.get("hook") or "")[:80],
+                             "score": row.get("score"), "reasons": row.get("reasons") or []})
+    if not segments:
+        raise HTTPException(400, "Each Short must be between 3 and 90 seconds")
+    job_id = register_job(project_id, "shorts", settings)
+
+    def work():
+        started = time.monotonic()
+        try:
+            manifest = render_shorts_batch(project_id, job_id, segments, settings, lines)
+            with job_lock:
+                jobs[job_id].update(status="done", stage="complete", progress=100,
+                                    elapsed_seconds=round(time.monotonic() - started, 2),
+                                    outputs={"shorts": [{**m, "url": f"/api/projects/{project_id}/shorts/{m['n']}"}
+                                                        for m in manifest]})
+        except Exception as exc:
+            fail_job(job_id, exc, started)
+
+    executor.submit(work)
+    return {"job_id": job_id}
+
+
+@app.post("/api/projects/{project_id}/autopilot")
+def start_autopilot(project_id: str, body: AutopilotRequest):
+    data = read_project(project_id)
+    if data.get("kind") == "clip_source":
+        raise HTTPException(400, "Autopilot is for songs. Video projects use the clipper.")
+    if data.get("status") == "transcribing":
+        raise HTTPException(409, "Transcription is still running. Try again when it finishes.")
+    if not data.get("lines") and not data.get("original_words"):
+        raise HTTPException(400, "No lyrics were detected. Add lyrics in the editor first.")
+    preset = body.preset if body.preset in AUTOPILOT_PRESETS else "classic"
+    aspect = body.aspect if body.aspect in SIZES else "landscape"
+    style = {**(data.get("settings") or {}), **AUTOPILOT_PRESETS[preset], "aspect": aspect}
+    settings = sanitize_settings(style)
+    supplied = validate_lines(body.lines, data["duration"]) if body.lines else None
+    job_id = register_job(project_id, "autopilot", settings)
+    executor.submit(run_autopilot, project_id, job_id, settings, body.shorts, body.hooks, supplied)
+    return {"job_id": job_id}
+
+
+def run_autopilot(project_id: str, job_id: str, settings: dict, short_count: int, hooks: bool,
+                  supplied_lines: list[dict] | None = None) -> None:
+    started = time.monotonic()
+    try:
+        p = project_dir(project_id)
+        with job_lock:
+            jobs[job_id].update(stage="autopilot_prepare", progress=2)
+        data = read_project(project_id)
+        auto_confirmed = not supplied_lines and not data.get("lines")
+        lines = supplied_lines or validate_lines(song_lines_for(data), data["duration"])
+        fresh = read_project(project_id)
+        fresh["lines"] = lines
+        fresh["status"] = "editor"
+        fresh["save_state"] = "saved"  # deliberate action with deliverables: never auto-discard
+        if auto_confirmed:
+            fresh["auto_confirmed"] = True
+        if not fresh.get("settings"):
+            fresh["settings"] = settings
+        save_project(p, fresh)
+
+        with job_lock:
+            jobs[job_id].update(stage="autopilot_full_render")
+        child = new_child_job(job_id, project_id, settings, 5, 50 if short_count else 90)
+        render_project(project_id, child, settings, lines)
+        finish_child(child)
+        outputs: dict[str, Any] = {"full": f"/api/projects/{project_id}/export",
+                                   "auto_confirmed": auto_confirmed,
+                                   "uncertain_words": len(fresh.get("review_uncertain") or [])}
+
+        if short_count:
+            with job_lock:
+                jobs[job_id].update(stage="autopilot_shorts", progress=56)
+            picks = clips.pick_short_segments(lines, song_envelope(project_id),
+                                              float(data["duration"]), short_count)
+            if not hooks:
+                for pick in picks:
+                    pick["hook"] = ""
+            vertical = short_settings(settings)
+            manifest = render_shorts_batch(project_id, job_id, picks, vertical, lines, 56, 42)
+            outputs["shorts"] = [{**m, "url": f"/api/projects/{project_id}/shorts/{m['n']}"} for m in manifest]
+        with job_lock:
+            jobs[job_id].update(status="done", stage="complete", progress=100, outputs=outputs,
+                                elapsed_seconds=round(time.monotonic() - started, 2))
+    except Exception as exc:
+        fail_job(job_id, exc, started)
+
+
+def safe_media_response(project_id: str, filename: str, download: str):
+    f = project_dir(project_id) / filename
+    if not f.is_file():
+        raise HTTPException(404, "That file has not been rendered yet")
+    return FileResponse(f, media_type="video/mp4", filename=download)
+
+
+@app.get("/api/projects/{project_id}/shorts/{n}")
+def download_short(project_id: str, n: int):
+    if not 1 <= n <= 8:
+        raise HTTPException(404, "Unknown Short")
+    return safe_media_response(project_id, f"short_{n}.mp4", f"SkellyMotion-short-{n}.mp4")
+
+
+@app.get("/api/projects/{project_id}/source")
+def get_clip_source_video(project_id: str):
+    data = read_project(project_id)
+    if data.get("kind") != "clip_source":
+        raise HTTPException(404, "This project has no source video")
+    source = project_dir(project_id) / data["source_file"]
+    if not source.is_file():
+        raise HTTPException(404, "Source video is missing")
+    return FileResponse(source)
+
+
+@app.get("/api/projects/{project_id}/clips/{n}")
+def download_clip(project_id: str, n: int):
+    if not 1 <= n <= 12:
+        raise HTTPException(404, "Unknown clip")
+    return safe_media_response(project_id, f"clip_{n}.mp4", f"SkellyMotion-clip-{n}.mp4")
+
+
+@app.get("/api/projects/{project_id}/bundle.zip")
+def download_bundle(project_id: str):
+    """Everything rendered so far for this project, with titles/descriptions/tags."""
+    import zipfile
+    p = project_dir(project_id)
+    names = [n for n in ["lyric_video.mp4", "shorts.json", "clips.json"] if (p / n).is_file()]
+    names += sorted(f.name for f in p.glob("short_*.mp4") if re.fullmatch(r"short_\d+\.mp4", f.name))
+    names += sorted(f.name for f in p.glob("clip_*.mp4") if re.fullmatch(r"clip_\d+\.mp4", f.name))
+    if not names:
+        raise HTTPException(404, "Nothing has been rendered yet")
+    target = p / "bundle.zip"
+    with zipfile.ZipFile(target, "w", zipfile.ZIP_STORED) as archive:
+        for name in names:
+            archive.write(p / name, name)
+    return FileResponse(target, media_type="application/zip", filename="SkellyMotion-bundle.zip")
+
+
+# ---- Long video -> clips -----------------------------------------------------
+@app.post("/api/clip-sources")
+async def create_clip_source(file: UploadFile = File(...), recognition: str = Form("balanced"),
+                             language: str = Form("auto"), vocabulary: str = Form(""),
+                             performance_mode: str = Form("balanced"), use_ai: bool = Form(False)):
+    ext = Path(file.filename or "").suffix.lower()
+    if ext not in VIDEO_EXT:
+        raise HTTPException(400, "Upload an MP4, MOV, MKV, M4V or WebM video")
+    project_id = uuid.uuid4().hex
+    p = DATA / project_id
+    p.mkdir(parents=True)
+    name = "source" + ext
+    try:
+        await save_upload(file, p / name, max_clip_source_bytes())
+        duration = media_duration(p / name)
+        if not 3 < duration <= max_clip_source_seconds():
+            raise HTTPException(400, "Video length must be between 3 seconds and "
+                                     f"{round(max_clip_source_seconds() / 60)} minutes")
+        data = {"id": project_id, "kind": "clip_source", "title": Path(file.filename or "My video").stem[:100],
+                "audio_file": name, "source_file": name, "duration": duration, "status": "transcribing",
+                "draft_lyrics": "", "original_words": [], "lines": [], "settings": {}, "language": None,
+                "transcription_stage": "queued", "transcription_progress": 0, "save_state": "saved",
+                "use_ai": bool(use_ai),
+                **recognition_options(recognition, language, vocabulary, performance_mode)}
+        save_project(p, data)
+        ai_executor.submit(analyze_clip_source, project_id)
+        return {"id": project_id, "duration": duration, "status": "transcribing", "kind": "clip_source"}
+    except Exception:
+        shutil.rmtree(p, ignore_errors=True)
+        raise
+
+
+def clip_suggestions_for(data: dict, project_id: str, count: int, use_ai: bool,
+                         min_len: float = clips.CLIP_MIN, max_len: float = clips.CLIP_MAX) -> list[dict]:
+    pool = clips.suggest_clips(data.get("original_words") or [], data.get("clip_envelope") or [],
+                               float(data["duration"]), data.get("scene_times") or [],
+                               count=15 if use_ai else count, min_len=min_len, max_len=max_len)
+    key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if use_ai and key and pool:
+        model = os.environ.get("SKELLYMOTION_LLM_MODEL", "claude-haiku-5-5")
+        pool = clips.apply_llm_rerank(pool, clips.llm_rerank(pool, key, model))
+    return sorted(pool, key=lambda c: -c["score"])[:count]
+
+
+def analyze_clip_source(project_id: str) -> None:
+    """Transcribe, probe loudness and scene changes, then suggest clips."""
+    p = DATA / project_id
+    try:
+        transcribe_project(project_id)
+        data = json.loads((p / "project.json").read_text(encoding="utf-8"))
+        if data.get("transcription_stage") != "complete" or not data.get("original_words"):
+            data["status"] = "failed"
+            data["clip_error"] = data.get("transcription_error") or "No speech was detected in this video."
+            save_project(p, data)
+            return
+        data["status"] = "analyzing"
+        data["transcription_stage"] = "analyzing"
+        save_project(p, data)
+        source = p / data["source_file"]
+        try:
+            data["clip_envelope"] = clips.audio_envelope(source, 600, timeout=1800)
+        except Exception:
+            data["clip_envelope"] = []
+        data["scene_times"] = [round(t, 2) for t in clips.scene_changes(source)][:5000]
+        data["clip_suggestions"] = clip_suggestions_for(data, project_id, 8, bool(data.get("use_ai")))
+        data["status"] = "ready"
+        data["transcription_stage"] = "complete"
+        save_project(p, data)
+    except Exception as exc:
+        try:
+            data = json.loads((p / "project.json").read_text(encoding="utf-8"))
+            data.update(status="failed", clip_error=str(exc)[:600])
+            save_project(p, data)
+        except (OSError, ValueError):
+            pass
+
+
+class ClipSuggestRequest(BaseModel):
+    count: int = Field(default=8, ge=1, le=12)
+    min_seconds: float = Field(default=clips.CLIP_MIN, ge=10, le=90)
+    max_seconds: float = Field(default=clips.CLIP_MAX, ge=15, le=120)
+    use_ai: bool = False
+
+
+class ClipsRenderRequest(BaseModel):
+    clips: list[dict]
+    settings: dict = Field(default_factory=dict)
+    reframe: str = "center"
+
+
+@app.post("/api/projects/{project_id}/clips/suggestions")
+def regenerate_clip_suggestions(project_id: str, body: ClipSuggestRequest):
+    data = read_project(project_id)
+    if data.get("kind") != "clip_source" or data.get("status") != "ready":
+        raise HTTPException(409, "This video is not ready for clip suggestions")
+    if body.max_seconds < body.min_seconds + 5:
+        raise HTTPException(400, "Maximum length must be at least 5 seconds above the minimum")
+    suggestions = clip_suggestions_for(data, project_id, body.count, body.use_ai,
+                                       body.min_seconds, body.max_seconds)
+    fresh = read_project(project_id)
+    fresh["clip_suggestions"] = suggestions
+    save_project(project_dir(project_id), fresh)
+    return {"suggestions": suggestions}
+
+
+@app.post("/api/projects/{project_id}/clips/render")
+def render_clips(project_id: str, body: ClipsRenderRequest):
+    data = read_project(project_id)
+    if data.get("kind") != "clip_source" or data.get("status") != "ready":
+        raise HTTPException(409, "This video is not ready to clip")
+    if not 1 <= len(body.clips) <= 12:
+        raise HTTPException(400, "Choose between 1 and 12 clips")
+    picked = []
+    for row in body.clips:
+        if not isinstance(row, dict):
+            continue
+        start = clamp(row.get("start"), 0, data["duration"], 0)
+        end = clamp(row.get("end"), 0, data["duration"], data["duration"])
+        if 3 <= end - start <= 120:
+            picked.append({"start": start, "end": end,
+                           "hook": str(row.get("hook") or "")[:80],
+                           "title": str(row.get("title") or row.get("hook") or "Clip")[:100],
+                           "description": str(row.get("description") or "")[:500],
+                           "tags": [str(t)[:30] for t in (row.get("tags") or [])[:12]],
+                           "score": row.get("score"), "reasons": row.get("reasons") or []})
+    if not picked:
+        raise HTTPException(400, "Each clip must be between 3 and 120 seconds")
+    settings = short_settings({**(data.get("settings") or {}), **(body.settings or {})})
+    reframe = body.reframe if body.reframe in {"center", "follow"} else "center"
+    job_id = register_job(project_id, "clips", settings)
+    executor.submit(run_clips, project_id, job_id, picked, settings, reframe)
+    return {"job_id": job_id}
+
+
+def render_one_clip(project_id: str, job_id: str, n: int, item: dict, settings: dict,
+                    reframe: str, source_size: tuple[int, int]) -> None:
+    p = project_dir(project_id)
+    data = read_project(project_id)
+    source = p / data["source_file"]
+    start, end = item["start"], item["end"]
+    length = end - start
+    w, h = output_size(settings)
+    src_w, src_h = source_size
+    crop_w, crop_h = clips.crop_geometry(src_w, src_h)
+    output = p / f"clip_{n}.mp4"
+    fingerprint = perf.render_fingerprint(
+        [{"clip": item["hook"], "start": start, "end": end, "reframe": reframe,
+          "words": clips.clip_words(data.get("original_words") or [], start, end)}],
+        settings, source, None, False)
+    if cached_output(p, f"clip_{n}", fingerprint, output):
+        with job_lock:
+            jobs[job_id].update(stage="cached", cached=True)
+        return
+    if reframe == "follow":
+        centers = clips.smooth_centers(clips.activity_centers(source, start, length))
+        x_expr = clips.crop_x_expression([clips.crop_x(c, src_w, crop_w) for c in centers])
+    else:
+        x_expr = str(clips.crop_x(.5, src_w, crop_w))
+    caption_lines = clips.lines_from_words(clips.clip_words(data.get("original_words") or [], start, end))
+    ass_file = p / f"clip_{n}.ass"
+    create_ass(caption_lines, settings, w, h, ass_file)
+    clips.add_hook_to_ass(ass_file, item["hook"], w, h, 1.5, settings["font"])
+    profile = perf.profile_config(settings["performanceMode"])
+
+    def build(codec: str, target: Path) -> list[str]:
+        return clips.build_clip_args(
+            source, start, length, crop_w, crop_h, x_expr, w, h, ass_file.name, settings["fps"],
+            perf.encode_args(codec, settings["renderSpeed"], w, h, profile["threads"]), target)
+
+    temporary = p / f"render-{job_id}.mp4"
+    encode_with_fallback(job_id, settings, length, p, build, temporary)
+    temporary.replace(output)
+    remember_output(p, f"clip_{n}", fingerprint)
+
+
+def run_clips(project_id: str, job_id: str, items: list[dict], settings: dict, reframe: str) -> None:
+    started = time.monotonic()
+    try:
+        p = project_dir(project_id)
+        for old in p.glob("clip_*.mp4"):
+            match = re.fullmatch(r"clip_(\d+)\.mp4", old.name)
+            if match and int(match.group(1)) > len(items):
+                old.unlink(missing_ok=True)
+        with job_lock:
+            jobs[job_id].update(stage="analyzing_video", progress=1)
+        source_size = clips.video_size(p / read_project(project_id)["source_file"])
+        manifest = []
+        for index, item in enumerate(items, start=1):
+            with job_lock:
+                jobs[job_id].update(stage=f"clip_{index}_of_{len(items)}")
+            child = new_child_job(job_id, project_id, settings,
+                                  2 + 96 * (index - 1) // len(items), 96 // len(items))
+            render_one_clip(project_id, child, index, item, settings, reframe, source_size)
+            finish_child(child)
+            manifest.append({"n": index, "file": f"clip_{index}.mp4", "start": round(item["start"], 2),
+                             "end": round(item["end"], 2), "hook": item["hook"], "title": item["title"],
+                             "description": item["description"], "tags": item["tags"],
+                             "score": item["score"], "reasons": item["reasons"],
+                             "url": f"/api/projects/{project_id}/clips/{index}"})
+        (p / "clips.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
+        with job_lock:
+            jobs[job_id].update(status="done", stage="complete", progress=100,
+                                elapsed_seconds=round(time.monotonic() - started, 2),
+                                outputs={"clips": manifest})
+    except Exception as exc:
+        fail_job(job_id, exc, started)
+
+
+@app.get("/api/clips/capabilities")
+def clip_capabilities():
+    return {"ai_rerank": bool(os.environ.get("ANTHROPIC_API_KEY")),
+            "max_source_mb": max_clip_source_bytes() // (1024 * 1024),
+            "max_source_minutes": round(max_clip_source_seconds() / 60),
+            "presets": [k for k in AUTOPILOT_PRESETS]}
 
 
 app.mount("/static", StaticFiles(directory=STATIC), name="static")

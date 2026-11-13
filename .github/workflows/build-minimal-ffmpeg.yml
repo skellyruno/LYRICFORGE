@@ -1,0 +1,126 @@
+name: Build minimal FFmpeg (manual experiment)
+
+# Run by hand from the Actions tab. It does NOT touch the release pipeline.
+# It builds a static ffmpeg.exe containing only what SkellyMotion uses, proves it by
+# running the full test suite against it, and prints the size next to the current build.
+# Adopt it only if the size win is worth it: see "Adopting" at the bottom of this file.
+on:
+  workflow_dispatch:
+    inputs:
+      ffmpeg_ref:
+        description: 'FFmpeg git tag to build (use the same major version as the release workflow)'
+        default: 'n9.0.2'
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            git make diffutils
+            mingw-w64-x86_64-toolchain mingw-w64-x86_64-pkgconf mingw-w64-x86_64-nasm
+            mingw-w64-x86_64-x264 mingw-w64-x86_64-libass mingw-w64-x86_64-zlib mingw-w64-x86_64-libiconv
+            mingw-w64-x86_64-nv-codec-headers mingw-w64-x86_64-amf-headers mingw-w64-x86_64-libvpl
+
+      - name: Build FFmpeg with only the features SkellyMotion uses
+        shell: msys2 {0}
+        run: |
+          set -euo pipefail
+          git clone --depth 1 --branch "${{ inputs.ffmpeg_ref }}" https://git.ffmpeg.org/ffmpeg.git ffmpeg-src
+          cd ffmpeg-src
+          # Everything below comes from grepping the app's real FFmpeg commands:
+          #   video  : libx264 plus the h264_nvenc / h264_qsv / h264_amf hardware encoders, mp4 output
+          #   audio  : aac, plus pcm_s16le (Whisper regions) and pcm_f32le (waveform)
+          #   other  : rawvideo (motion tracking), null muxer (scene detection), lavfi color source
+          #   filters: scale crop setsar format eq ass fps select showinfo (+ the plumbing FFmpeg inserts itself)
+          #   sine, overlay, concat are enabled only so the test suite can generate its synthetic media (a few KB)
+          # All decoders, demuxers, parsers and bitstream filters stay, so any video a user uploads still plays.
+          ./configure \
+            --arch=x86_64 --target-os=mingw32 --pkg-config-flags=--static \
+            --extra-ldflags=-static --extra-cflags=-static \
+            --enable-gpl --disable-debug --disable-doc --disable-ffplay --disable-ffprobe \
+            --disable-autodetect --disable-network \
+            --enable-zlib --enable-iconv --enable-libx264 --enable-libass \
+            --enable-ffnvcodec --enable-nvenc --enable-amf --enable-libvpl --enable-d3d11va --enable-dxva2 \
+            --disable-encoders \
+            --enable-encoder=libx264,aac,pcm_s16le,pcm_f32le,rawvideo,h264_nvenc,h264_qsv,h264_amf \
+            --disable-muxers --enable-muxer=mp4,mov,wav,f32le,rawvideo,null \
+            --disable-filters \
+            --enable-filter=scale,crop,setsar,format,eq,ass,fps,select,showinfo,color,null,anull,aformat,aresample,buffer,buffersink,abuffer,abuffersink \
+            --enable-filter=sine,overlay,concat \
+            --disable-protocols --enable-protocol=file,pipe \
+            --disable-indevs --disable-outdevs --enable-indev=lavfi
+          make -j"$(nproc)"
+          mkdir -p ../vendor/ffmpeg-min
+          cp ffmpeg.exe ../vendor/ffmpeg-min/ffmpeg.exe
+          ./ffmpeg.exe -hide_banner -buildconf > ../vendor/ffmpeg-min/buildconf.txt
+          strip ../vendor/ffmpeg-min/ffmpeg.exe
+
+      - name: Check it is fully static and has everything the app needs
+        shell: msys2 {0}
+        run: |
+          set -euo pipefail
+          exe=vendor/ffmpeg-min/ffmpeg.exe
+          # Any DLL from /mingw64 means it is not self-contained.
+          if ldd "$exe" | grep -i "/mingw64/"; then echo "ffmpeg.exe depends on MSYS2 DLLs"; exit 1; fi
+          "$exe" -hide_banner -encoders | grep -E "libx264|aac|h264_nvenc|h264_qsv|h264_amf|pcm_f32le|rawvideo"
+          "$exe" -hide_banner -filters  | grep -E " ass | scale | crop | eq | select | showinfo "
+          mkdir smoke && cd smoke
+          printf '[Script Info]\nScriptType: v4.00+\nPlayResX: 320\nPlayResY: 180\n\n[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment\nStyle: Default,Arial,34,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,1,0,5,10,10,10,1\n\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\nDialogue: 0,0:00:00.00,0:00:00.40,Default,,0,0,0,,SKELLYMOTION TEST\n' > smoke.ass
+          "../$exe" -hide_banner -loglevel error -y -f lavfi -i "color=c=black:s=320x180:r=25:d=0.5" -vf "ass=smoke.ass" -frames:v 3 -c:v libx264 -pix_fmt yuv420p -c:a aac smoke.mp4
+          test "$(stat -c %s smoke.mp4)" -gt 500
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Run the FULL test suite against the minimal FFmpeg
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $dir = (Resolve-Path 'vendor/ffmpeg-min').Path
+          $env:PATH = "$dir;$env:PATH"
+          $resolved = (Get-Command ffmpeg).Source
+          if ($resolved -ne (Join-Path $dir 'ffmpeg.exe')) { throw "Tests would use $resolved instead of the minimal build" }
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-desktop.txt pytest httpx "pywebview>=5.4,<7" "pythonnet==3.0.5" "clr-loader==0.2.7.post0"
+          python -m pytest tests -q
+
+      - name: Compare size with the current build
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $url = 'https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-9.0.2-essentials_build.zip'
+          $sha = '60f467265b1e312373dbcd92200c2618a74850f98d3d078e94296bb3fa2047ba'
+          $zip = Join-Path $env:RUNNER_TEMP 'essentials.zip'
+          Invoke-WebRequest -Uri $url -OutFile $zip -MaximumRedirection 5
+          if ((Get-FileHash $zip -Algorithm SHA256).Hash -ne $sha) { throw 'essentials hash mismatch' }
+          Expand-Archive -Path $zip -DestinationPath (Join-Path $env:RUNNER_TEMP 'ess') -Force
+          $current = Get-ChildItem (Join-Path $env:RUNNER_TEMP 'ess') -Recurse -Filter ffmpeg.exe | Select-Object -First 1
+          $minimal = Get-Item 'vendor/ffmpeg-min/ffmpeg.exe'
+          $summary = "ffmpeg.exe size: current (Gyan essentials) {0:N1} MB, minimal {1:N1} MB, saved {2:N1} MB" -f ($current.Length/1MB), ($minimal.Length/1MB), (($current.Length-$minimal.Length)/1MB)
+          Write-Host $summary
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value $summary
+          (Get-FileHash $minimal.FullName -Algorithm SHA256).Hash | Out-File 'vendor/ffmpeg-min/ffmpeg.exe.sha256' -Encoding ascii
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-minimal-win64
+          path: vendor/ffmpeg-min/
+          retention-days: 30
+
+# Adopting: download the artifact, host ffmpeg.exe somewhere you control (for example a GitHub release asset),
+# then in windows-release.yml replace the "Download verified FFmpeg" step's $url and $expectedSha256 with that file
+# (it is a bare ffmpeg.exe, not a zip). The step's existing libass + x264 smoke test keeps guarding it.
+# The build is GPL (libx264), the same licence situation as the Gyan build you ship today.

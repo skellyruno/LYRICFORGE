@@ -1,0 +1,12 @@
+# Runtime packages for the packaged Windows app (and for building it).
+# Same as requirements.txt except plain `uvicorn` instead of `uvicorn[standard]`:
+# the desktop app only talks to itself on 127.0.0.1, so uvicorn's built-in h11
+# HTTP parser is enough and the websocket / file-watcher / uvloop extras
+# (websockets, httptools, watchfiles, ...) are never needed. Keep requirements.txt
+# for Docker and Linux servers, where uvloop/httptools help.
+fastapi>=0.115,<1
+uvicorn>=0.30,<1
+python-multipart>=0.0.12
+faster-whisper>=1.1,<2
+Pillow>=10,<13
+psutil>=5.9,<8

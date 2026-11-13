@@ -1,0 +1,41 @@
+/* Autonomous tools: Auto panel, song Shorts cards, Clip Studio. Uses the editor's theme variables. */
+.auto-cards{display:flex;flex-direction:column;gap:10px;margin:12px 0}
+.auto-card,.clip-card{background:#191f1c;border:1px solid #303c32;border-radius:9px;padding:11px;display:flex;flex-direction:column;gap:8px}
+.auto-card-top{display:flex;align-items:center;gap:9px;font-size:12px;cursor:pointer}
+.auto-card-top input{accent-color:var(--accent)}
+.auto-score{margin-left:auto;font:700 10px 'Space Grotesk',Arial,sans-serif;color:var(--accent);background:#1b2b1c;border-radius:5px;padding:3px 7px}
+.auto-reasons{color:#8a9d8d;font-size:10px;line-height:1.5}
+.auto-times{display:flex;align-items:center;gap:7px;color:#819784;font-size:10px}
+.auto-times input{width:74px;padding:5px;background:#121713;color:#d4ecda;border:1px solid #344639;border-radius:4px;font:11px 'Space Grotesk',Arial,sans-serif}
+.auto-card>input[type=text],.clip-field input,.clip-field textarea{width:100%;background:#111815;border:1px solid #38483b;color:#fff;border-radius:6px;padding:8px 9px;font-size:12px}
+.clip-field{display:flex;flex-direction:column;gap:5px;font-size:10px;color:#819784;font-weight:700}
+.clip-field textarea{resize:vertical}
+.auto-results{display:flex;flex-direction:column;gap:12px;margin-top:14px}
+.auto-result{background:#171d18;border:1px solid #313c34;border-radius:9px;padding:11px;display:flex;flex-direction:column;gap:8px}
+.auto-result strong{font-size:11px;color:#d6e1d7}
+.auto-result video{width:100%;max-height:300px;background:#000;border-radius:6px}
+.auto-meta{display:flex;flex-direction:column;gap:3px}.auto-meta b{font-size:12px}.auto-meta small{color:#8a9d8d;font-size:10px;line-height:1.5;word-break:break-word}
+.auto-actions{display:flex;flex-wrap:wrap;gap:6px}.auto-actions a.tiny-btn{text-decoration:none}
+
+.clip-studio{position:fixed;inset:0;z-index:40;background:radial-gradient(ellipse at 70% 10%,#1d2c1f,#0c110e 60%);display:flex;flex-direction:column}
+.clip-studio-bar{display:flex;align-items:center;justify-content:space-between;padding:20px 28px;border-bottom:1px solid var(--line)}
+.clip-studio-bar h2{margin:8px 0 0;font:700 24px 'Space Grotesk',Arial,sans-serif;letter-spacing:-1px}
+.clip-studio-body{flex:1;overflow-y:auto;padding:26px 28px 60px;scrollbar-width:thin;scrollbar-color:#3f5040 transparent}
+.clip-step{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+#clipUploadStep{max-width:560px;padding-top:6vh}
+#clipProgressStep{max-width:420px;align-items:center;text-align:center;padding-top:14vh}
+#clipProgressStep small{color:#829586;font-size:11px}
+#clipProgressStep .transcribe-meter{width:100%}
+#clipMeter{height:100%;width:4%;background:var(--accent);transition:width .6s}
+.clip-options{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.clip-options label,.clip-toolbar label{display:flex;flex-direction:column;gap:6px;font-size:11px;font-weight:700;color:#cdd9ce}
+.clip-options select,.clip-toolbar select,.clip-toolbar input{background:#1a2020;color:#eaf1e9;border:1px solid #303b34;border-radius:7px;height:38px;padding:0 10px;font-size:12px}
+.clip-toolbar input{width:72px}
+.clip-check{grid-column:1/-1;flex-direction:row!important;align-items:flex-start;gap:9px!important;flex-wrap:wrap}
+.clip-check input{accent-color:var(--accent);margin-top:3px}.clip-check small{flex-basis:100%;margin-left:26px;color:#7f8d80;font-weight:400}
+.clip-fine{font-size:11px;color:#7f9183;line-height:1.6;margin:0}
+.clip-toolbar{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px}.clip-spacer{flex:1}
+.clip-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.clip-card video{width:100%;aspect-ratio:16/9;background:#000;border-radius:6px}
+.clip-studio .render-status{margin:0}
+@media(max-width:760px){.clip-options{grid-template-columns:1fr}.clip-studio-bar,.clip-studio-body{padding-left:14px;padding-right:14px}}
