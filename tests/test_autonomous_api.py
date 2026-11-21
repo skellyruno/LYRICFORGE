@@ -48,3 +48,88 @@ def test_new_routes_sit_behind_owner_auth(tmp_path, monkeypatch):
     token = base64.b64encode(b"demo:a-long-test-password").decode()
     ok = c.get("/api/clips/capabilities", headers={"Authorization": "Basic " + token})
     assert ok.status_code == 200
+
+
+def png_bytes(color=(10, 200, 90, 255), size=(300, 120)):
+    from PIL import Image
+    buffer = io.BytesIO()
+    Image.new("RGBA", size, color).save(buffer, "PNG")
+    return buffer.getvalue()
+
+
+def test_brand_kit_over_http_including_logo_upload(tmp_path, monkeypatch):
+    c = client(tmp_path, monkeypatch)
+    assert c.get("/api/brand").json()["brand"]["has_logo"] is False
+    saved = c.put("/api/brand", json={"brand": {"name": "Skelly", "accent": "#112233", "font": "Bad,Font"}}).json()["brand"]
+    assert saved["name"] == "Skelly" and saved["accent"] == "#112233" and saved["font"] == "Arial"
+    assert c.get("/api/brand/logo").status_code == 404
+    ok = c.post("/api/brand/logo", files={"file": ("logo.png", io.BytesIO(png_bytes()), "image/png")})
+    assert ok.status_code == 200 and ok.json()["brand"]["has_logo"] is True
+    assert c.get("/api/brand/logo").headers["content-type"] == "image/png"
+    assert c.post("/api/brand/logo", files={"file": ("x.txt", io.BytesIO(b"hi"), "text/plain")}).status_code == 400
+    assert c.post("/api/brand/logo", files={"file": ("fake.png", io.BytesIO(b"not a png"), "image/png")}).status_code == 400
+    assert c.get("/api/brand").json()["brand"]["has_logo"] is True  # a rejected upload leaves the good logo alone
+    assert c.delete("/api/brand/logo").json()["brand"]["has_logo"] is False
+    assert not [p for p in (tmp_path / "_brand").iterdir() if p.suffix == ".tmp"]
+
+
+def test_generated_file_route_only_serves_known_names(tmp_path, monkeypatch):
+    c = client(tmp_path, monkeypatch)
+    pid = "d" * 32
+    (tmp_path / pid).mkdir()
+    (tmp_path / pid / "project.json").write_text("{}", encoding="utf-8")
+    (tmp_path / pid / "captions.srt").write_text("1\n", encoding="utf-8")
+    assert c.get(f"/api/projects/{pid}/files/captions.srt").status_code == 200
+    for name in ("project.json", "source.mp4", "captions.EN.srt", "..%2Fproject.json"):
+        assert c.get(f"/api/projects/{pid}/files/{name}").status_code == 404
+    assert c.get(f"/api/projects/{'e' * 32}/files/captions.srt").status_code == 404
+
+
+def test_autoedit_translate_and_watch_guard_rails(tmp_path, monkeypatch):
+    c = client(tmp_path, monkeypatch)
+    pid = "f" * 32
+    (tmp_path / pid).mkdir()
+    (tmp_path / pid / "project.json").write_text('{"id": "%s", "kind": "song", "status": "editor", "duration": 30}' % pid,
+                                                 encoding="utf-8")
+    assert c.post(f"/api/projects/{pid}/autoedit", json={}).status_code == 409  # songs are not video sources
+    assert c.post(f"/api/projects/{pid}/translate", json={"languages": ["es"]}).status_code == 409
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    assert c.post(f"/api/projects/{pid}/clips/variants", json={"text": "hello"}).status_code == 409
+    monkeypatch.delenv("SKELLYMOTION_WATCH", raising=False)
+    assert c.post("/api/watch/start", json={"folder": str(tmp_path), "out": str(tmp_path / "o")}).status_code == 403
+    assert c.post("/api/watch/stop", json={}).status_code == 403
+    assert c.get("/api/watch/status").json()["enabled"] is False
+    assert c.post(f"/api/projects/{pid}/autoedit", json={"min_gap": 99}).status_code == 422  # out-of-range option
+
+
+def test_new_routes_sit_behind_owner_auth_too(tmp_path, monkeypatch):
+    c = client(tmp_path, monkeypatch)
+    monkeypatch.setenv("LYRICFORGE_REQUIRE_AUTH", "1")
+    monkeypatch.setenv("LYRICFORGE_AUTH_USER", "demo")
+    monkeypatch.setenv("LYRICFORGE_AUTH_PASSWORD", "a-long-test-password")
+    for method, path in (("get", "/api/brand"), ("put", "/api/brand"), ("get", "/api/watch/status"),
+                         ("get", "/api/brand/logo"), ("post", "/api/watch/start")):
+        assert getattr(c, method)(path).status_code == 401, path
+
+
+def test_brand_asset_routes_validate_kind_type_and_content(tmp_path, monkeypatch):
+    c = client(tmp_path, monkeypatch)
+    assert c.post("/api/brand/asset/virus", files={"file": ("a.mp3", io.BytesIO(b"x"), "audio/mpeg")}).status_code == 404
+    assert c.delete("/api/brand/asset/virus").status_code == 404
+    assert c.post("/api/brand/asset/music", files={"file": ("a.txt", io.BytesIO(b"x"), "text/plain")}).status_code == 400
+    bad = c.post("/api/brand/asset/intro", files={"file": ("a.mp4", io.BytesIO(b"not a video"), "video/mp4")})
+    assert bad.status_code == 400 and "no video" in bad.json()["detail"]
+    assert c.get("/api/brand").json()["brand"]["has_intro"] is False
+    assert not [p for p in (tmp_path / "_brand").iterdir() if p.name.startswith("upload-")]  # temp files cleaned up
+    assert c.delete("/api/brand/asset/music").json()["brand"]["has_music"] is False
+
+
+def test_autoedit_options_validate_and_new_flags_are_accepted(tmp_path, monkeypatch):
+    c = client(tmp_path, monkeypatch)
+    pid = "a" * 32
+    (tmp_path / pid).mkdir()
+    (tmp_path / pid / "project.json").write_text('{"id": "%s", "kind": "song", "status": "editor", "duration": 9}' % pid,
+                                                 encoding="utf-8")
+    body = {"sfx": False, "callouts": False, "chapter_titles": False, "music": False, "intro_outro": False, "intro_card": True}
+    assert c.post(f"/api/projects/{pid}/autoedit", json=body).status_code == 409  # valid options, wrong project kind
+    assert c.post(f"/api/projects/{pid}/autoedit", json={"sfx": "maybe"}).status_code == 422

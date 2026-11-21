@@ -28,6 +28,8 @@ def test_frontend_selectors_and_file_picker_wiring():
     assert 'id="backgroundFile" type="file"' in html
     assert "desktop-mode" in html
     assert "transform:scale(.65)" in css
+    assert 'id="topExport" class="primary-btn" title="Export video" aria-label="Export video"' in html
+    assert "#topExport{width:38px;min-width:38px;padding:0;font-size:0}" in css
 
 
 def test_desktop_import_keeps_original_source_and_creates_project(tmp_path, monkeypatch):

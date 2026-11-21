@@ -96,3 +96,10 @@ Do not expose port 8000 directly without TLS; the owner credentials use HTTP Bas
 - **Website asks for a password:** Intended. Use your Railway `LYRICFORGE_AUTH_USER` and `LYRICFORGE_AUTH_PASSWORD` values. A wrong or missing password is denied.
 - **Cloud transcription slow:** A CPU server can take longer than your PC. Set `WHISPER_MODEL=base` for a smaller model, or use more CPU/RAM.
 - **Browser says disconnected:** Look at the Railway deployment logs. Restarting the backend loses in-progress job status; saved project files remain on the volume.
+
+## Autonomous mode (Clip Studio) on a hosted deployment
+
+- The Docker image copies every server-side studio module (`studio_performance.py`, `studio_clips.py`, `studio_edit.py`, `studio_audio.py`, `studio_broll.py`, `studio_focus.py`, `studio_post.py`, `studio_viz.py` and `studio_proof.py`) next to `server.py`. Keep this list in sync with the imports at the top of `server.py`; missing one prevents the hosted service from starting.
+- Long videos need disk space under `LYRICFORGE_DATA` (source plus rendered clips). Lower `SKELLYMOTION_MAX_CLIP_SOURCE_MB` if the volume is small.
+- To enable AI ranking, add `ANTHROPIC_API_KEY` as a service variable. Never commit it.
+- Transcription and rendering share the same worker limits as songs, so a long video will occupy the transcriber until it finishes.
