@@ -29,6 +29,13 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 import studio_performance as perf
 import studio_clips as clips
+import studio_audio as sa
+import studio_broll as broll_lib
+import studio_focus as focus
+import studio_post as posts_lib
+import studio_viz as viz_lib
+import studio_proof as proof
+import studio_edit as edit
 
 ROOT = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
 DATA = Path(os.environ.get("LYRICFORGE_DATA", ROOT / "workspace")).resolve()
@@ -415,6 +422,7 @@ def transcribe_project(project_id: str) -> None:
             beam_size=beam, best_of=1, temperature=0,
             language=language if language in RECOGNITION_LANGUAGES and language != "auto" else None,
             hotwords=vocabulary or None,
+            **({"initial_prompt": sa.FILLER_PROMPT} if d.get("keep_fillers") else {}),
             vad_filter=False, condition_on_previous_text=False)
         words = []
         duration = max(0.1, float(d.get("duration", 1)))
@@ -617,6 +625,8 @@ def list_saved_projects():
             continue
         try:
             data = json.loads(manifest.read_text(encoding="utf-8"))
+            if data.get("kind") in ("ab", "viz"):
+                continue  # one-off demo videos live in storage but not in the song library
             recovery = folder / "recovery.json"
             item = {
                 "id": folder.name,
@@ -1985,6 +1995,13 @@ def get_clip_source_video(project_id: str):
     return FileResponse(source)
 
 
+@app.get("/api/projects/{project_id}/clips/{n}/{lang}")
+def download_translated_clip(project_id: str, n: int, lang: str):
+    if not 1 <= n <= 12 or lang not in edit.LANGUAGES:
+        raise HTTPException(404, "Unknown clip")
+    return safe_media_response(project_id, f"clip_{n}.{lang}.mp4", f"SkellyMotion-clip-{n}-{lang}.mp4")
+
+
 @app.get("/api/projects/{project_id}/clips/{n}")
 def download_clip(project_id: str, n: int):
     if not 1 <= n <= 12:
@@ -1997,9 +2014,11 @@ def download_bundle(project_id: str):
     """Everything rendered so far for this project, with titles/descriptions/tags."""
     import zipfile
     p = project_dir(project_id)
-    names = [n for n in ["lyric_video.mp4", "shorts.json", "clips.json"] if (p / n).is_file()]
+    names = [n for n in ["lyric_video.mp4", "autoedit.mp4", "thumbnail.jpg", "youtube.txt", "shorts.json", "clips.json"]
+             if (p / n).is_file()]
+    names += sorted(f.name for f in p.glob("captions*.*") if FILE_NAME.fullmatch(f.name))
     names += sorted(f.name for f in p.glob("short_*.mp4") if re.fullmatch(r"short_\d+\.mp4", f.name))
-    names += sorted(f.name for f in p.glob("clip_*.mp4") if re.fullmatch(r"clip_\d+\.mp4", f.name))
+    names += sorted(f.name for f in p.glob("clip_*.mp4") if re.fullmatch(r"clip_\d+(\.[a-z]{2})?\.mp4", f.name))
     if not names:
         raise HTTPException(404, "Nothing has been rendered yet")
     target = p / "bundle.zip"
@@ -2013,7 +2032,8 @@ def download_bundle(project_id: str):
 @app.post("/api/clip-sources")
 async def create_clip_source(file: UploadFile = File(...), recognition: str = Form("balanced"),
                              language: str = Form("auto"), vocabulary: str = Form(""),
-                             performance_mode: str = Form("balanced"), use_ai: bool = Form(False)):
+                             performance_mode: str = Form("balanced"), use_ai: bool = Form(False),
+                             keep_fillers: bool = Form(True)):
     ext = Path(file.filename or "").suffix.lower()
     if ext not in VIDEO_EXT:
         raise HTTPException(400, "Upload an MP4, MOV, MKV, M4V or WebM video")
@@ -2031,7 +2051,7 @@ async def create_clip_source(file: UploadFile = File(...), recognition: str = Fo
                 "audio_file": name, "source_file": name, "duration": duration, "status": "transcribing",
                 "draft_lyrics": "", "original_words": [], "lines": [], "settings": {}, "language": None,
                 "transcription_stage": "queued", "transcription_progress": 0, "save_state": "saved",
-                "use_ai": bool(use_ai),
+                "use_ai": bool(use_ai), "keep_fillers": bool(keep_fillers),
                 **recognition_options(recognition, language, vocabulary, performance_mode)}
         save_project(p, data)
         ai_executor.submit(analyze_clip_source, project_id)
@@ -2097,6 +2117,8 @@ class ClipsRenderRequest(BaseModel):
     clips: list[dict]
     settings: dict = Field(default_factory=dict)
     reframe: str = "center"
+    polish: dict = Field(default_factory=dict)  # loudness, watermark, trim_silence, min_gap, voice_cleanup
+    languages: list[str] = Field(default_factory=list)  # burn translated captions into extra copies (needs an API key)
 
 
 @app.post("/api/projects/{project_id}/clips/suggestions")
@@ -2138,27 +2160,148 @@ def render_clips(project_id: str, body: ClipsRenderRequest):
         raise HTTPException(400, "Each clip must be between 3 and 120 seconds")
     settings = short_settings({**(data.get("settings") or {}), **(body.settings or {})})
     reframe = body.reframe if body.reframe in {"center", "follow"} else "center"
+    polish = {"loudness": bool(body.polish.get("loudness")), "watermark": bool(body.polish.get("watermark")),
+              "trim_silence": bool(body.polish.get("trim_silence")),
+              "min_gap": clamp(body.polish.get("min_gap"), .4, 3, .8),
+              "voice_cleanup": body.polish.get("voice_cleanup") if body.polish.get("voice_cleanup") in sa.CLEANUP_LEVELS else "off"}
+    languages = [x for x in dict.fromkeys(body.languages) if x in edit.LANGUAGES][:3]
+    if languages and not llm_key_and_model()[0]:
+        raise HTTPException(409, "Translated clips need ANTHROPIC_API_KEY set on this computer")
     job_id = register_job(project_id, "clips", settings)
-    executor.submit(run_clips, project_id, job_id, picked, settings, reframe)
+    executor.submit(run_clips, project_id, job_id, picked, settings, reframe, polish, languages)
     return {"job_id": job_id}
 
 
+def brand_dir() -> Path:
+    folder = DATA / "_brand"  # not a 32-hex id, so project listing and cleanup never touch it
+    folder.mkdir(parents=True, exist_ok=True)
+    return folder
+
+
+def brand_logo_path() -> Path | None:
+    logo = brand_dir() / "logo.png"
+    return logo if logo.is_file() else None
+
+
+ASSET_EXTENSIONS = {"music": {".mp3", ".wav", ".m4a", ".aac", ".ogg", ".flac"}, "intro": VIDEO_EXT, "outro": VIDEO_EXT}
+ASSET_LIMITS = {"music": 40 * 1024 * 1024, "intro": 200 * 1024 * 1024, "outro": 200 * 1024 * 1024}
+
+
+def brand_asset(kind: str) -> Path | None:
+    if kind not in ASSET_EXTENSIONS:
+        return None
+    return next(iter(sorted(brand_dir().glob(f"{kind}.*"))), None)
+
+
+def store_brand_asset(kind: str, src: Path) -> None:
+    """Validate and keep your background music or intro/outro clip. Raises ValueError with a readable reason."""
+    if kind not in ASSET_EXTENSIONS:
+        raise ValueError("Unknown brand asset")
+    ext = src.suffix.lower()
+    allowed = ASSET_EXTENSIONS[kind]
+    known_media_ext = any(ext in extensions for extensions in ASSET_EXTENSIONS.values())
+    # Reject arbitrary files before probing, but inspect known media from the
+    # other asset category so users get the useful media-type error (e.g. an
+    # audio-only WAV selected as an intro should say it has no video).
+    if ext not in allowed and not known_media_ext:
+        raise ValueError("Unsupported file type: " + ", ".join(sorted(allowed)))
+    info = clips.probe_media(src)
+    if kind == "music" and not info["has_audio"]:
+        raise ValueError("That file has no audio")
+    if kind != "music":
+        if not info["has_video"] or not info["width"]:
+            raise ValueError("That file has no video")
+        if ext not in allowed:
+            raise ValueError("Unsupported file type: " + ", ".join(sorted(allowed)))
+        if info["duration"] > 20.5:
+            raise ValueError("Intro and outro clips can be at most 20 seconds")
+    elif ext not in allowed:
+        raise ValueError("Unsupported file type: " + ", ".join(sorted(allowed)))
+    for old in brand_dir().glob(f"{kind}.*"):
+        old.unlink(missing_ok=True)
+    shutil.copy2(src, brand_dir() / f"{kind}{ext}")
+
+
+def load_brand() -> dict:
+    try:
+        raw = json.loads((brand_dir() / "brand.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        raw = {}
+    raw["has_logo"] = brand_logo_path() is not None
+    for kind in ASSET_EXTENSIONS:
+        raw[f"has_{'music' if kind == 'music' else kind}"] = brand_asset(kind) is not None
+    return edit.sanitize_brand(raw)
+
+
+def save_brand_json(brand: dict) -> None:
+    (brand_dir() / "brand.json").write_text(json.dumps(brand, indent=2), encoding="utf-8")
+
+
+def brand_signature(brand: dict, logo: Path | None) -> dict:
+    return {"brand": brand, "logo": [logo.stat().st_size, logo.stat().st_mtime_ns] if logo else None}
+
+
+def encode_graph(job_id: str, settings: dict, folder: Path, build, temporary: Path) -> float:
+    """Run a filter-graph render (graph kept in a file: long expressions exceed Windows' command-line limit).
+
+    `build(codec, target, script_name)` returns (ffmpeg args, graph text, output seconds).
+    """
+    graph_file = folder / f"graph-{job_id[:12]}.txt"
+    state: dict[str, Any] = {}
+
+    def args_for(codec: str, target: Path) -> list[str]:
+        args, graph, seconds = build(codec, target, graph_file.name)
+        state.update(graph=graph, seconds=seconds)
+        return args
+
+    args_for("libx264", temporary)  # learn the output length and graph before encoding starts
+    graph_file.write_text(state["graph"], encoding="utf-8")
+    try:
+        encode_with_fallback(job_id, settings, state["seconds"], folder, args_for, temporary)
+    finally:
+        graph_file.unlink(missing_ok=True)
+    return state["seconds"]
+
+
+def clip_caption_plan(data: dict, item: dict, polish: dict | None) -> tuple[list[dict], list | None, float]:
+    """(caption words on the clip's own timeline, silence-trim segments or None, clip length)."""
+    polish = polish or {}
+    start, end = item["start"], item["end"]
+    length = end - start
+    words = clips.clip_words(data.get("original_words") or [], start, end)
+    segments = None
+    if polish.get("trim_silence"):
+        segments = edit.plan_keep_segments(words, length, clamp(polish.get("min_gap"), .4, 3, .8))
+        if edit.is_noop_cut(segments, length):
+            segments = None
+    return (edit.remap_words(words, segments) if segments else words), segments, length
+
+
 def render_one_clip(project_id: str, job_id: str, n: int, item: dict, settings: dict,
-                    reframe: str, source_size: tuple[int, int]) -> None:
+                    reframe: str, media: dict, polish: dict | None = None, variant: dict | None = None) -> None:
+    """Render one vertical clip. With `variant` ({"lang", "cues", "hook"}) the captions and hook card are the
+    translated ones and the file is clip_<n>.<lang>.mp4."""
+    polish = polish or {}
     p = project_dir(project_id)
     data = read_project(project_id)
     source = p / data["source_file"]
     start, end = item["start"], item["end"]
-    length = end - start
     w, h = output_size(settings)
-    src_w, src_h = source_size
+    src_w, src_h = media["width"], media["height"]
     crop_w, crop_h = clips.crop_geometry(src_w, src_h)
-    output = p / f"clip_{n}.mp4"
+    tag = f".{variant['lang']}" if variant else ""
+    slot = f"clip_{n}_{variant['lang']}" if variant else f"clip_{n}"
+    output = p / f"clip_{n}{tag}.mp4"
+    caption_words, segments, length = clip_caption_plan(data, item, polish)
+    hook = variant["hook"] if variant else item["hook"]
+    brand = load_brand()
+    logo = brand_logo_path() if polish.get("watermark") and brand["watermark"]["enabled"] else None
     fingerprint = perf.render_fingerprint(
-        [{"clip": item["hook"], "start": start, "end": end, "reframe": reframe,
-          "words": clips.clip_words(data.get("original_words") or [], start, end)}],
-        settings, source, None, False)
-    if cached_output(p, f"clip_{n}", fingerprint, output):
+        [{"clip": hook, "start": start, "end": end, "reframe": reframe, "words": caption_words,
+          "lang": variant["lang"] if variant else None, "cues": variant["cues"] if variant else None,
+          "polish": {k: polish.get(k) for k in ("loudness", "watermark", "trim_silence", "min_gap")},
+          "brand": brand_signature(brand, logo) if logo else None}], settings, source, None, False)
+    if cached_output(p, slot, fingerprint, output):
         with job_lock:
             jobs[job_id].update(stage="cached", cached=True)
         return
@@ -2167,54 +2310,1191 @@ def render_one_clip(project_id: str, job_id: str, n: int, item: dict, settings: 
         x_expr = clips.crop_x_expression([clips.crop_x(c, src_w, crop_w) for c in centers])
     else:
         x_expr = str(clips.crop_x(.5, src_w, crop_w))
-    caption_lines = clips.lines_from_words(clips.clip_words(data.get("original_words") or [], start, end))
-    ass_file = p / f"clip_{n}.ass"
-    create_ass(caption_lines, settings, w, h, ass_file)
-    clips.add_hook_to_ass(ass_file, item["hook"], w, h, 1.5, settings["font"])
+    ass_file = p / f"{slot}.ass"
+    if variant:  # translated captions are whole lines (there are no word timings for them)
+        line_style = sanitize_settings({**settings, "mode": "line", "animation": "fade", "fontSize": 46, "position": 68})
+        create_ass(edit.cue_lines(variant["cues"]), line_style, w, h, ass_file)
+    else:
+        create_ass(clips.lines_from_words(caption_words), settings, w, h, ass_file)
+    clips.add_hook_to_ass(ass_file, hook, w, h, 1.5, settings["font"])
     profile = perf.profile_config(settings["performanceMode"])
+    fps = settings["fps"]
 
-    def build(codec: str, target: Path) -> list[str]:
-        return clips.build_clip_args(
-            source, start, length, crop_w, crop_h, x_expr, w, h, ass_file.name, settings["fps"],
-            perf.encode_args(codec, settings["renderSpeed"], w, h, profile["threads"]), target)
+    def build(codec: str, target: Path, script: str):
+        return edit.build_render(
+            source, w, h, fps, target, perf.encode_args(codec, settings["renderSpeed"], w, h, profile["threads"]),
+            duration=length, start=start, length=length, crop=(crop_w, crop_h, x_expr), segments=segments,
+            ass_name=ass_file.name, logo=logo, brand=brand, watermark=logo is not None,
+            loudness=-14.0 if polish.get("loudness") else None, has_audio=media["has_audio"], script_name=script,
+            voice_filters=sa.voice_cleanup_filters(polish.get("voice_cleanup", "off")))
 
     temporary = p / f"render-{job_id}.mp4"
-    encode_with_fallback(job_id, settings, length, p, build, temporary)
+    encode_graph(job_id, settings, p, build, temporary)
     temporary.replace(output)
-    remember_output(p, f"clip_{n}", fingerprint)
+    remember_output(p, slot, fingerprint)
 
 
-def run_clips(project_id: str, job_id: str, items: list[dict], settings: dict, reframe: str) -> None:
+def translated_variant(data: dict, item: dict, polish: dict | None, lang: str, key: str, model: str) -> dict:
+    """Translate one clip's captions and hook (raises RuntimeError if the model cannot do it faithfully)."""
+    caption_words, _, _ = clip_caption_plan(data, item, polish)
+    cues = edit.cues_from_words(caption_words, max_chars=34)[:60]
+    if not cues:
+        raise RuntimeError("This clip has no speech to translate")
+    translated = edit.translate_cues(cues, lang, key, model)
+    hook = item.get("hook", "")
+    if hook.strip():
+        hook = edit.translate_cues([{"start": 0, "end": 1, "text": hook}], lang, key, model)[0]["text"][:80]
+    return {"lang": lang, "cues": translated, "hook": hook}
+
+
+def render_clips_batch(project_id: str, job_id: str, items: list[dict], settings: dict, reframe: str,
+                       polish: dict | None = None, base: int = 2, span: int = 96,
+                       languages: list[str] | None = None) -> list[dict]:
+    p = project_dir(project_id)
+    for old in p.glob("clip_*.mp4"):
+        if re.fullmatch(r"clip_(\d+)(\.[a-z]{2})?\.mp4", old.name) and int(re.match(r"clip_(\d+)", old.name).group(1)) > len(items):
+            old.unlink(missing_ok=True)
+    languages = [x for x in dict.fromkeys(languages or []) if x in edit.LANGUAGES][:3]
+    key, model = llm_key_and_model()
+    with job_lock:
+        jobs[job_id].update(stage="analyzing_video")
+    media = clips.probe_media(p / read_project(project_id)["source_file"])
+    if not media["width"]:
+        raise RuntimeError("Cannot read this video")
+    manifest = []
+    units = len(items) * (1 + len(languages))
+    done = 0
+    for index, item_in in enumerate(items, start=1):
+        item = {**item_in}
+        with job_lock:
+            jobs[job_id].update(stage=f"clip_{index}_of_{len(items)}")
+        child = new_child_job(job_id, project_id, settings, base + span * done // units, max(1, span // units))
+        render_one_clip(project_id, child, index, item, settings, reframe, media, polish)
+        finish_child(child)
+        done += 1
+        entry = {"n": index, "file": f"clip_{index}.mp4", "start": round(item["start"], 2), "end": round(item["end"], 2),
+                 "hook": item["hook"], "title": item["title"], "description": item["description"], "tags": item["tags"],
+                 "score": item["score"], "reasons": item["reasons"], "url": f"/api/projects/{project_id}/clips/{index}",
+                 "translations": [], "translation_errors": []}
+        for lang in languages:
+            with job_lock:
+                jobs[job_id].update(stage=f"clip_{index}_of_{len(items)}_{edit.LANGUAGES[lang]}")
+            try:
+                variant = translated_variant(read_project(project_id), item, polish, lang, key, model)
+                child = new_child_job(job_id, project_id, settings, base + span * done // units, max(1, span // units))
+                render_one_clip(project_id, child, index, item, settings, reframe, media, polish, variant)
+                finish_child(child)
+                entry["translations"].append({"lang": lang, "language": edit.LANGUAGES[lang],
+                                              "file": f"clip_{index}.{lang}.mp4",
+                                              "url": f"/api/projects/{project_id}/clips/{index}/{lang}"})
+            except Exception as exc:  # one language failing must not lose the clip that already rendered
+                entry["translation_errors"].append({"lang": lang, "error": str(exc)[:160]})
+            done += 1
+        manifest.append(entry)
+    (p / "clips.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
+    return manifest
+
+
+def run_clips(project_id: str, job_id: str, items: list[dict], settings: dict, reframe: str,
+              polish: dict | None = None, languages: list[str] | None = None) -> None:
+    started = time.monotonic()
+    try:
+        manifest = render_clips_batch(project_id, job_id, items, settings, reframe, polish, languages=languages)
+        with job_lock:
+            jobs[job_id].update(status="done", stage="complete", progress=100,
+                                elapsed_seconds=round(time.monotonic() - started, 2), outputs={"clips": manifest})
+    except Exception as exc:
+        fail_job(job_id, exc, started)
+
+
+# ---- Brand kit ---------------------------------------------------------------------------------
+class BrandRequest(BaseModel):
+    brand: dict
+
+
+@app.get("/api/brand")
+def get_brand():
+    return {"brand": load_brand(), "languages": edit.LANGUAGES}
+
+
+@app.put("/api/brand")
+def put_brand(body: BrandRequest):
+    brand = edit.sanitize_brand({**body.brand, "has_logo": brand_logo_path() is not None})
+    (brand_dir() / "brand.json").write_text(json.dumps(brand, indent=2), encoding="utf-8")
+    return {"brand": brand}
+
+
+@app.post("/api/brand/logo")
+async def upload_brand_logo(file: UploadFile = File(...)):
+    if Path(file.filename or "").suffix.lower() not in {".png", ".jpg", ".jpeg", ".webp", ".gif"}:
+        raise HTTPException(400, "Upload a PNG, JPG, WebP or GIF image")
+    raw = brand_dir() / f"upload-{uuid.uuid4().hex}.tmp"
+    try:
+        await save_upload(file, raw, 5 * 1024 * 1024)
+        try:
+            edit.process_logo(raw, brand_dir() / "logo.png")
+        except ValueError as exc:
+            raise HTTPException(400, str(exc))
+    finally:
+        raw.unlink(missing_ok=True)
+    brand = load_brand()
+    (brand_dir() / "brand.json").write_text(json.dumps(brand, indent=2), encoding="utf-8")
+    return {"brand": brand}
+
+
+@app.get("/api/brand/logo")
+def get_brand_logo():
+    logo = brand_logo_path()
+    if logo is None:
+        raise HTTPException(404, "No logo yet")
+    return FileResponse(logo, media_type="image/png")
+
+
+@app.delete("/api/brand/logo")
+def delete_brand_logo():
+    (brand_dir() / "logo.png").unlink(missing_ok=True)
+    brand = load_brand()
+    (brand_dir() / "brand.json").write_text(json.dumps(brand, indent=2), encoding="utf-8")
+    return {"brand": brand}
+
+
+@app.post("/api/brand/asset/{kind}")
+async def upload_brand_asset(kind: str, file: UploadFile = File(...)):
+    if kind not in ASSET_EXTENSIONS:
+        raise HTTPException(404, "Unknown brand asset")
+    ext = Path(file.filename or "").suffix.lower()
+    if ext not in ASSET_EXTENSIONS[kind]:
+        raise HTTPException(400, "Unsupported file type: " + ", ".join(sorted(ASSET_EXTENSIONS[kind])))
+    raw = brand_dir() / f"upload-{uuid.uuid4().hex}{ext}"
+    try:
+        await save_upload(file, raw, ASSET_LIMITS[kind])
+        try:
+            store_brand_asset(kind, raw)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc))
+    finally:
+        raw.unlink(missing_ok=True)
+    brand = load_brand()
+    save_brand_json(brand)
+    return {"brand": brand}
+
+
+@app.delete("/api/brand/asset/{kind}")
+def delete_brand_asset(kind: str):
+    if kind not in ASSET_EXTENSIONS:
+        raise HTTPException(404, "Unknown brand asset")
+    for old in brand_dir().glob(f"{kind}.*"):
+        old.unlink(missing_ok=True)
+    brand = load_brand()
+    save_brand_json(brand)
+    return {"brand": brand}
+
+
+# ---- B-roll library (your own clips, matched to what you say) -------------------------------------
+BROLL_NAME = re.compile(r"[a-z0-9][a-z0-9-]{0,39}")
+
+
+def broll_dir() -> Path:
+    folder = brand_dir() / "broll"
+    folder.mkdir(parents=True, exist_ok=True)
+    return folder
+
+
+def broll_index() -> dict[str, dict]:
+    try:
+        data = json.loads((broll_dir() / "index.json").read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def save_broll_index(index: dict) -> None:
+    (broll_dir() / "index.json").write_text(json.dumps(index, indent=2), encoding="utf-8")
+
+
+def broll_library() -> list[dict]:
+    """Library clips that still exist on disk, ready for the planner."""
+    items = []
+    for name, entry in sorted(broll_index().items()):
+        path = broll_dir() / str(entry.get("file", ""))
+        if BROLL_NAME.fullmatch(name) and path.is_file() and entry.get("keywords"):
+            items.append({"name": name, "path": path, "duration": float(entry.get("duration") or 0),
+                          "keywords": list(entry["keywords"])})
+    return items
+
+
+def store_broll(src: Path, original_name: str, keywords_text: str = "") -> dict:
+    """Add a clip to the B-roll library. Keywords come from what you typed, else from the file name."""
+    ext = src.suffix.lower()
+    if ext not in VIDEO_EXT:
+        raise ValueError("Unsupported file type: " + ", ".join(sorted(VIDEO_EXT)))
+    index = broll_index()
+    if len(index) >= broll_lib.MAX_LIBRARY:
+        raise ValueError(f"The library holds at most {broll_lib.MAX_LIBRARY} clips. Remove one first.")
+    info = clips.probe_media(src)
+    if not info["has_video"] or not info["width"]:
+        raise ValueError("That file has no video")
+    if info["duration"] > 30.5:
+        raise ValueError("B-roll clips can be at most 30 seconds")
+    keywords = broll_lib.sanitize_keywords(keywords_text) or broll_lib.keywords_from_name(original_name)
+    if not keywords:
+        raise ValueError("Add at least one keyword (the word you say when this clip should appear)")
+    base = broll_lib.slug(original_name)
+    name, n = base, 1
+    while name in index:
+        n += 1
+        name = f"{base}-{n}"[:40]
+    filename = f"{name}{ext}"
+    shutil.copy2(src, broll_dir() / filename)
+    index[name] = {"file": filename, "keywords": keywords, "duration": round(info["duration"], 2)}
+    save_broll_index(index)
+    return {"name": name, "keywords": keywords, "duration": index[name]["duration"]}
+
+
+def broll_listing() -> list[dict]:
+    return [{"name": i["name"], "keywords": i["keywords"], "duration": round(i["duration"], 1)} for i in broll_library()]
+
+
+@app.get("/api/brand/broll")
+def list_broll():
+    return {"clips": broll_listing(), "max": broll_lib.MAX_LIBRARY}
+
+
+@app.post("/api/brand/broll")
+async def upload_broll(file: UploadFile = File(...), keywords: str = Form("")):
+    ext = Path(file.filename or "").suffix.lower()
+    if ext not in VIDEO_EXT:
+        raise HTTPException(400, "Upload an MP4, MOV, MKV, M4V or WebM clip")
+    raw = brand_dir() / f"upload-{uuid.uuid4().hex}{ext}"
+    try:
+        await save_upload(file, raw, 120 * 1024 * 1024)
+        try:
+            added = store_broll(raw, file.filename or "clip", keywords)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc))
+    finally:
+        raw.unlink(missing_ok=True)
+    return {"added": added, "clips": broll_listing()}
+
+
+class BrollKeywords(BaseModel):
+    keywords: str
+
+
+@app.put("/api/brand/broll/{name}")
+def update_broll_keywords(name: str, body: BrollKeywords):
+    index = broll_index()
+    if not BROLL_NAME.fullmatch(name) or name not in index:
+        raise HTTPException(404, "Unknown clip")
+    cleaned = broll_lib.sanitize_keywords(body.keywords)
+    if not cleaned:
+        raise HTTPException(400, "Add at least one keyword")
+    index[name]["keywords"] = cleaned
+    save_broll_index(index)
+    return {"clips": broll_listing()}
+
+
+@app.delete("/api/brand/broll/{name}")
+def delete_broll(name: str):
+    index = broll_index()
+    if not BROLL_NAME.fullmatch(name) or name not in index:
+        raise HTTPException(404, "Unknown clip")
+    (broll_dir() / str(index[name].get("file", ""))).unlink(missing_ok=True)
+    del index[name]
+    save_broll_index(index)
+    return {"clips": broll_listing()}
+
+
+# ---- Presets: one-click bundles of the auto-edit options -----------------------------------------------
+class PresetRequest(BaseModel):
+    options: dict
+
+
+def load_user_presets() -> dict[str, dict]:
+    try:
+        data = json.loads((brand_dir() / "presets.json").read_text(encoding="utf-8"))
+        return {k: v for k, v in data.items() if posts_lib.valid_preset_name(k) and isinstance(v, dict)}
+    except (OSError, ValueError, AttributeError):
+        return {}
+
+
+def normalize_options(raw: dict) -> dict:
+    """Normalize saved options, dropping unknown keys and clamping bounded values."""
+    known = {k: v for k, v in (raw or {}).items() if k in AutoEditRequest.__annotations__}
+    if "min_gap" in known:
+        known["min_gap"] = clamp(known["min_gap"], .4, 3, .8)
+    if "shorts" in known:
+        known["shorts"] = int(clamp(known["shorts"], 0, 6, 0))
+    try:
+        return autoedit_options(AutoEditRequest(**known))
+    except Exception as exc:
+        raise HTTPException(400, "Invalid option value in the preset") from exc
+
+
+@app.get("/api/presets")
+def get_presets():
+    return {"presets": posts_lib.list_presets(load_user_presets())}
+
+
+@app.put("/api/presets/{name}")
+def save_preset(name: str, body: PresetRequest):
+    if not posts_lib.valid_preset_name(name):
+        raise HTTPException(400, "Use 1-30 letters, numbers, spaces, - _ & or '")
+    if name in posts_lib.BUILTIN_PRESETS:
+        raise HTTPException(400, "That name belongs to a built-in preset. Pick another.")
+    user = load_user_presets()
+    if name not in user and len(user) >= posts_lib.MAX_USER_PRESETS:
+        raise HTTPException(400, f"You can save up to {posts_lib.MAX_USER_PRESETS} presets")
+    user[name] = {k: v for k, v in normalize_options(body.options).items() if k != "title"}
+    (brand_dir() / "presets.json").write_text(json.dumps(user, indent=2), encoding="utf-8")
+    return {"presets": posts_lib.list_presets(user)}
+
+
+@app.delete("/api/presets/{name}")
+def delete_preset(name: str):
+    user = load_user_presets()
+    if name not in user:
+        raise HTTPException(404, "No such saved preset")
+    del user[name]
+    (brand_dir() / "presets.json").write_text(json.dumps(user, indent=2), encoding="utf-8")
+    return {"presets": posts_lib.list_presets(user)}
+
+
+# ---- Post text for each platform -----------------------------------------------------------------------------
+class PostsRequest(BaseModel):
+    title: str
+    text: str = ""
+    tags: list[str] = Field(default_factory=list)
+    hook: str = ""
+    link: str = ""
+    use_ai: bool = False
+
+
+@app.post("/api/projects/{project_id}/posts")
+def make_posts(project_id: str, body: PostsRequest):
+    read_project(project_id)
+    link = body.link.strip()
+    if link and not re.fullmatch(r"https?://[^\s]{3,200}", link):
+        raise HTTPException(400, "The link must start with http:// or https://")
+    brand = load_brand()
+    tags = [str(t)[:40] for t in body.tags[:15]]
+    key, model = llm_key_and_model()
+    use_ai = bool(body.use_ai and key)
+    args = (body.title[:200], body.text[:4000], tags, brand)
+    kwargs = {"link": link or None, "hook": body.hook[:120] or None}
+    social = (posts_lib.llm_posts(*args, key, model, **kwargs) if use_ai else posts_lib.build_posts(*args, **kwargs))
+    return {"posts": social, "ai": use_ai}
+
+
+# ---- Transcript proofreading (fix names and jargon before anything is rendered) -----------------------------
+class TranscriptEdits(BaseModel):
+    edits: list[dict] = Field(default_factory=list)
+    replace: list[dict] = Field(default_factory=list)
+
+
+def require_ready_video(project_id: str) -> dict:
+    data = read_project(project_id)
+    if data.get("kind") != "clip_source" or data.get("status") != "ready":
+        raise HTTPException(409, "This video is not ready for proofreading")
+    return data
+
+
+@app.get("/api/projects/{project_id}/transcript")
+def get_transcript(project_id: str):
+    data = require_ready_video(project_id)
+    words = data.get("original_words") or []
+    return {"words": len(words), "uncertain": proof.uncertain_words(words)}
+
+
+@app.post("/api/projects/{project_id}/transcript")
+def edit_transcript(project_id: str, body: TranscriptEdits):
+    data = require_ready_video(project_id)
+    if len(body.edits) > proof.MAX_EDITS or len(body.replace) > proof.MAX_REPLACEMENTS:
+        raise HTTPException(400, "Too many corrections in one go")
+    with job_lock:
+        reject_if_busy(project_id)
+    words, changed = proof.apply_edits(data.get("original_words") or [], body.edits, body.replace)
+    fresh = read_project(project_id)
+    suggestions = fresh.get("clip_suggestions") or []
+    if changed:
+        fresh["original_words"] = words
+        suggestions = clip_suggestions_for(fresh, project_id, 8, False)
+        fresh["clip_suggestions"] = suggestions
+        save_project(project_dir(project_id), fresh)
+    return {"changed": changed, "uncertain": proof.uncertain_words(words), "suggestions": suggestions}
+
+
+# ---- Before/after demos and audio-reactive visualizers ---------------------------------------------------------
+DEMO_AUDIO_EXT = ASSET_EXTENSIONS["music"] | VIDEO_EXT
+DEMO_KINDS = ("ab", "viz")
+
+
+def prune_demo_projects(max_age_days: float = 3.0) -> None:
+    """One-off demo projects are not part of the library, so they are cleared out after a few days."""
+    cutoff = time.time() - max_age_days * 86400
+    if not DATA.exists():
+        return
+    for folder in DATA.iterdir():
+        manifest = folder / "project.json"
+        if not (folder.is_dir() and re.fullmatch(r"[0-9a-f]{32}", folder.name) and manifest.is_file()):
+            continue
+        try:
+            if json.loads(manifest.read_text(encoding="utf-8")).get("kind") in DEMO_KINDS and manifest.stat().st_mtime < cutoff:
+                shutil.rmtree(folder, ignore_errors=True)
+        except (OSError, ValueError):
+            continue
+
+
+def demo_project(kind: str, title: str, files: dict[str, Path], extra: dict) -> str:
+    """Copy source files into a fresh demo project folder. Returns its id."""
+    prune_demo_projects()
+    project_id = uuid.uuid4().hex
+    p = DATA / project_id
+    p.mkdir(parents=True)
+    try:
+        saved = {}
+        for label, src in files.items():
+            target = p / f"{label}{src.suffix.lower()}"
+            shutil.copy2(src, target)
+            saved[label] = target.name
+        save_project(p, {"id": project_id, "kind": kind, "title": title[:100] or "Demo", "status": "working",
+                         "save_state": "saved", "duration": 0, "files": saved, **extra})
+        return project_id
+    except Exception:
+        shutil.rmtree(p, ignore_errors=True)
+        raise
+
+
+def demo_options(raw: dict) -> dict:
+    """Validated, clamped options shared by the before/after and visualizer jobs."""
+    out = {"aspect": raw.get("aspect") if raw.get("aspect") in viz_lib.ASPECTS else "landscape",
+           "resolution": "720p" if raw.get("resolution") == "720p" else "1080p",
+           "title": edit._clip_text(raw.get("title"), 70), "watermark": bool(raw.get("watermark", True)),
+           "endcard": bool(raw.get("endcard", False))}
+    return out
+
+
+def finish_with_brand(p: Path, job_id: str, settings: dict, raw: Path, final: Path, W: int, H: int, fps: int,
+                      seconds: float, opts: dict, brand: dict, logo: Path | None, base: int, span: int) -> None:
+    """Optional second pass: logo watermark and brand end card on top of a finished demo render."""
+    watermark = bool(opts["watermark"] and brand["watermark"]["enabled"] and logo)
+    card = None
+    if opts["endcard"] and brand["endcard"]["enabled"]:
+        edit.write_endcard_ass(p / "endcard.ass", brand, W, H, brand["endcard"]["seconds"], logo is not None)
+        card = "endcard.ass"
+    if not watermark and not card:
+        raw.replace(final)
+        return
+    child = new_child_job(job_id, p.name, settings, base, span)
+    profile = perf.profile_config(settings["performanceMode"])
+    temporary = p / f"render-{child}.mp4"
+
+    def build(codec: str, target: Path, script: str):
+        return edit.build_render(raw, W, H, fps, target, perf.encode_args(codec, settings["renderSpeed"], W, H, profile["threads"]),
+                                 duration=seconds, logo=logo, brand=brand, watermark=watermark, endcard_ass=card,
+                                 has_audio=True, script_name=script)
+    encode_graph(child, settings, p, build, temporary)
+    temporary.replace(final)
+    finish_child(child)
+    raw.unlink(missing_ok=True)
+
+
+@app.post("/api/ab")
+async def create_before_after(before: UploadFile = File(...), after: UploadFile = File(...), mode: str = Form("repeat"),
+                              step: float = Form(4.0), rounds: int = Form(2), aspect: str = Form("landscape"),
+                              resolution: str = Form("1080p"), match_loudness: bool = Form(True), title: str = Form(""),
+                              label_before: str = Form("BEFORE"), label_after: str = Form("AFTER"),
+                              start: str = Form(""), watermark: bool = Form(True), endcard: bool = Form(False)):
+    for upload in (before, after):
+        if Path(upload.filename or "").suffix.lower() not in DEMO_AUDIO_EXT:
+            raise HTTPException(400, "Upload audio (MP3, WAV, M4A...) or a video recording for both files")
+    mode = mode if mode in ("repeat", "toggle") else "repeat"
+    step = float(min(10.0, max(2.0, clamp(step, 2, 10, 4.0))))
+    rounds = int(min(4, max(1, rounds)))
+    tmp = DATA / f"upload-{uuid.uuid4().hex}"
+    tmp.mkdir(parents=True)
+    try:
+        paths = {}
+        for label, upload in (("before", before), ("after", after)):
+            dest = tmp / f"{label}{Path(upload.filename or '').suffix.lower()}"
+            await save_upload(upload, dest, 150 * 1024 * 1024)
+            info = clips.probe_media(dest)
+            if not info["has_audio"] or info["duration"] < step + .5:
+                raise HTTPException(400, f"The {label} file needs audio and must be at least {step + .5:.0f} seconds long")
+            paths[label] = dest
+        opts = {**demo_options({"aspect": aspect, "resolution": resolution, "title": title, "watermark": watermark,
+                                "endcard": endcard}),
+                "mode": mode, "step": step, "rounds": rounds, "match": bool(match_loudness),
+                "labels": [viz_lib.clean_label(label_before, "BEFORE"), viz_lib.clean_label(label_after, "AFTER")],
+                "start": clamp(start, 0, 36000, -1.0) if str(start).strip() else None}
+        project_id = demo_project("ab", opts["title"] or "Before and after", paths, {"options": opts})
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    settings = sanitize_settings({"aspect": "landscape"})
+    job_id = register_job(project_id, "ab", settings)
+    executor.submit(run_before_after, project_id, job_id, opts, settings)
+    return {"job_id": job_id, "id": project_id}
+
+
+def run_before_after(project_id: str, job_id: str, opts: dict, settings: dict) -> None:
     started = time.monotonic()
     try:
         p = project_dir(project_id)
-        for old in p.glob("clip_*.mp4"):
-            match = re.fullmatch(r"clip_(\d+)\.mp4", old.name)
-            if match and int(match.group(1)) > len(items):
-                old.unlink(missing_ok=True)
+        files = read_project(project_id)["files"]
+        before, after = p / files["before"], p / files["after"]
+        info_a, info_b = clips.probe_media(before), clips.probe_media(after)
+        step, rounds, mode = opts["step"], opts["rounds"], opts["mode"]
+        length = viz_lib.excerpt_length(mode, step, rounds)
+        usable = min(info_a["duration"], info_b["duration"])
+        if usable < length + .2:
+            raise RuntimeError(f"Both files need at least {length + .2:.0f} seconds for these settings (shortest is {usable:.0f})")
         with job_lock:
-            jobs[job_id].update(stage="analyzing_video", progress=1)
-        source_size = clips.video_size(p / read_project(project_id)["source_file"])
-        manifest = []
-        for index, item in enumerate(items, start=1):
-            with job_lock:
-                jobs[job_id].update(stage=f"clip_{index}_of_{len(items)}")
-            child = new_child_job(job_id, project_id, settings,
-                                  2 + 96 * (index - 1) // len(items), 96 // len(items))
-            render_one_clip(project_id, child, index, item, settings, reframe, source_size)
-            finish_child(child)
-            manifest.append({"n": index, "file": f"clip_{index}.mp4", "start": round(item["start"], 2),
-                             "end": round(item["end"], 2), "hook": item["hook"], "title": item["title"],
-                             "description": item["description"], "tags": item["tags"],
-                             "score": item["score"], "reasons": item["reasons"],
-                             "url": f"/api/projects/{project_id}/clips/{index}"})
-        (p / "clips.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
+            jobs[job_id].update(stage="ab_analyze", progress=3)
+        start = opts["start"]
+        if start is None or start < 0:
+            start = viz_lib.pick_excerpt(clips.audio_envelope(before, 600), info_a["duration"], length)
+        start = min(max(0.0, start), usable - length - .1)
+        ref = sa.decode_mono(before, start=start, length=length)
+        other = sa.decode_mono(after, start=start, length=length)
+        gain = sa.match_gain_db(ref, other) if opts["match"] else 0.0
+        viz_gain = max(0.0, min(18.0, -18.0 - sa.rms_db(ref)))
+        W, H = viz_lib.output_size(opts["aspect"], opts["resolution"])
+        fps = 30
+        brand, logo = load_brand(), brand_logo_path()
+        segments = viz_lib.ab_segments(mode, start, step, rounds)
+        viz_lib.write_ab_ass(p / "ab.ass", brand, W, H, segments, step, tuple(opts["labels"]), opts["title"], opts["match"])
+        profile = perf.profile_config(settings["performanceMode"])
+        child = new_child_job(job_id, project_id, settings, 6, 70)
+        temporary = p / f"render-{child}.mp4"
+
+        def build(codec: str, target: Path, script: str):
+            return viz_lib.build_ab_render(
+                before, after, W, H, fps, target, perf.encode_args(codec, settings["renderSpeed"], W, H, profile["threads"]),
+                segments=segments, step=step, brand=brand, ass_name="ab.ass", after_gain_db=gain, viz_gain_db=viz_gain,
+                script_name=script)
+        seconds = encode_graph(child, settings, p, build, temporary)
+        temporary.replace(p / "ab_raw.mp4")
+        finish_child(child)
+        finish_with_brand(p, job_id, settings, p / "ab_raw.mp4", p / "ab.mp4", W, H, fps, seconds, opts, brand, logo, 78, 20)
         with job_lock:
             jobs[job_id].update(status="done", stage="complete", progress=100,
                                 elapsed_seconds=round(time.monotonic() - started, 2),
-                                outputs={"clips": manifest})
+                                outputs={"video": file_url(project_id, "ab.mp4"), "seconds": round(seconds, 1),
+                                         "gain_db": round(gain, 1), "start": round(start, 1), "mode": mode,
+                                         "matched": opts["match"]})
     except Exception as exc:
         fail_job(job_id, exc, started)
+
+
+def render_visualizer_video(project_id: str, job_id: str, audio_path: Path, opts: dict, settings: dict, *,
+                            with_audio: bool, out_name: str, title: str = "", artist: str = "", base: int = 4,
+                            span: int = 70) -> float:
+    """Render an audio-reactive video next to the project. Returns its length in seconds."""
+    p = project_dir(project_id)
+    info = clips.probe_media(audio_path)
+    if not info["has_audio"] or info["duration"] < 1:
+        raise RuntimeError("That file has no audio")
+    W, H = viz_lib.output_size(opts["aspect"], opts["resolution"])
+    fps = 30
+    brand, logo = load_brand(), brand_logo_path()
+    gain = max(0.0, min(18.0, -18.0 - sa.rms_db(sa.decode_mono(audio_path))))
+    ass_name = None
+    if with_audio and (title or artist):
+        viz_lib.write_title_ass(p / "viz_title.ass", brand, W, H, title, artist or brand["name"], info["duration"])
+        ass_name = "viz_title.ass"
+    profile = perf.profile_config(settings["performanceMode"])
+    child = new_child_job(job_id, project_id, settings, base, span)
+    temporary = p / f"render-{child}.mp4"
+
+    def build(codec: str, target: Path, script: str):
+        return viz_lib.build_visualizer_render(
+            audio_path, W, H, fps, target, perf.encode_args(codec, settings["renderSpeed"], W, H, profile["threads"]),
+            duration=info["duration"], style=opts["style"], brand=brand, viz_gain_db=gain, with_audio=with_audio,
+            ass_name=ass_name, logo=logo, watermark=bool(with_audio and opts.get("watermark") and brand["watermark"]["enabled"]),
+            script_name=script)
+    seconds = encode_graph(child, settings, p, build, temporary)
+    temporary.replace(p / out_name)
+    finish_child(child)
+    return seconds
+
+
+@app.post("/api/visualizer")
+async def create_visualizer(audio_file: UploadFile = File(...), style: str = Form("bars"), aspect: str = Form("landscape"),
+                            resolution: str = Form("1080p"), title: str = Form(""), artist: str = Form(""),
+                            watermark: bool = Form(True)):
+    if Path(audio_file.filename or "").suffix.lower() not in DEMO_AUDIO_EXT:
+        raise HTTPException(400, "Upload an audio file (MP3, WAV, M4A...) or a video")
+    tmp = DATA / f"upload-{uuid.uuid4().hex}"
+    tmp.mkdir(parents=True)
+    try:
+        dest = tmp / ("track" + Path(audio_file.filename or "").suffix.lower())
+        await save_upload(audio_file, dest, 250 * 1024 * 1024)
+        info = clips.probe_media(dest)
+        if not info["has_audio"]:
+            raise HTTPException(400, "That file has no audio")
+        if info["duration"] > 20 * 60:
+            raise HTTPException(400, "Visualizer videos can be at most 20 minutes long")
+        opts = {**demo_options({"aspect": aspect, "resolution": resolution, "title": title, "watermark": watermark}),
+                "style": style if style in viz_lib.STYLES else "bars", "artist": edit._clip_text(artist, 60)}
+        project_id = demo_project("viz", opts["title"] or "Visualizer", {"track": dest}, {"options": opts})
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    settings = sanitize_settings({"aspect": "landscape"})
+    job_id = register_job(project_id, "viz", settings)
+    executor.submit(run_visualizer, project_id, job_id, opts, settings)
+    return {"job_id": job_id, "id": project_id}
+
+
+def run_visualizer(project_id: str, job_id: str, opts: dict, settings: dict) -> None:
+    started = time.monotonic()
+    try:
+        p = project_dir(project_id)
+        track = p / read_project(project_id)["files"]["track"]
+        with job_lock:
+            jobs[job_id].update(stage="viz_render", progress=3)
+        seconds = render_visualizer_video(project_id, job_id, track, opts, settings, with_audio=True,
+                                          out_name="visualizer.mp4", title=opts["title"], artist=opts["artist"], span=90)
+        with job_lock:
+            jobs[job_id].update(status="done", stage="complete", progress=100,
+                                elapsed_seconds=round(time.monotonic() - started, 2),
+                                outputs={"video": file_url(project_id, "visualizer.mp4"), "seconds": round(seconds, 1)})
+    except Exception as exc:
+        fail_job(job_id, exc, started)
+
+
+class SongVisualizerRequest(BaseModel):
+    style: str = "bars"
+    lyrics: bool = True  # draw the lyrics over it with the normal lyric renderer
+
+
+@app.post("/api/projects/{project_id}/visualizer")
+def song_visualizer(project_id: str, body: SongVisualizerRequest):
+    data = read_project(project_id)
+    if data.get("kind") in ("clip_source", "ab", "viz") or data.get("status") == "transcribing":
+        raise HTTPException(409, "Open a song that has finished transcribing")
+    style = body.style if body.style in viz_lib.STYLES else "bars"
+    settings = sanitize_settings({**(data.get("settings") or {})})
+    job_id = register_job(project_id, "viz", settings)
+    executor.submit(run_song_visualizer, project_id, job_id, style, bool(body.lyrics), settings)
+    return {"job_id": job_id}
+
+
+def run_song_visualizer(project_id: str, job_id: str, style: str, lyrics: bool, settings: dict) -> None:
+    started = time.monotonic()
+    try:
+        p = project_dir(project_id)
+        data = read_project(project_id)
+        lines = song_lines_for(data) if lyrics else []
+        opts = {"style": style, "aspect": settings["aspect"], "resolution": settings["resolution"], "watermark": False}
+        with job_lock:
+            jobs[job_id].update(stage="viz_render", progress=3)
+        if not lines:  # no lyrics to draw: a finished music-visualizer video with the song's title
+            seconds = render_visualizer_video(project_id, job_id, p / data["audio_file"], opts, settings, with_audio=True,
+                                              out_name="visualizer.mp4", title=data.get("title", ""), span=90)
+            outputs = {"video": file_url(project_id, "visualizer.mp4"), "seconds": round(seconds, 1), "lyrics": False}
+        else:
+            render_visualizer_video(project_id, job_id, p / data["audio_file"], opts, settings, with_audio=False,
+                                    out_name="visualizer_bg.mp4", span=40)
+            fresh = read_project(project_id)
+            fresh["background_file"] = "visualizer_bg.mp4"
+            save_project(p, fresh)
+            lyric_settings = sanitize_settings({**settings, "background": "custom"})
+            with job_lock:
+                jobs[job_id].update(stage="viz_lyrics", progress=48)
+            child = new_child_job(job_id, project_id, lyric_settings, 48, 50)
+            render_project(project_id, child, lyric_settings, validate_lines(lines, data["duration"]))
+            finish_child(child)
+            outputs = {"video": f"/api/projects/{project_id}/export", "lyrics": True}
+        with job_lock:
+            jobs[job_id].update(status="done", stage="complete", progress=100,
+                                elapsed_seconds=round(time.monotonic() - started, 2), outputs=outputs)
+    except Exception as exc:
+        fail_job(job_id, exc, started)
+
+
+# ---- Auto-edit: one button that turns a recording into a finished, uploadable video ---------------
+class AutoEditRequest(BaseModel):
+    trim_silence: bool = True
+    min_gap: float = Field(default=.8, ge=.4, le=3)
+    zoom: str = "off"  # off | subtle | medium | strong
+    loudness: bool = True
+    captions: bool = False  # burn captions into the picture (SRT/VTT files are always written)
+    watermark: bool = True
+    endcard: bool = True
+    resolution: str = "1080p"
+    shorts: int = Field(default=0, ge=0, le=6)
+    shorts_reframe: str = "center"
+    title: str | None = None
+    # Added automatically by the "director" (all optional, all on by default)
+    sfx: bool = True  # synthesized whooshes/pops at titles, callouts, jump cuts and zooms
+    callouts: bool = True  # animated callout boxes when you say "tip", "never", "remember"...
+    chapter_titles: bool = True  # sliding lower-third at each chapter
+    music: bool = True  # your background track from the brand kit, ducked under your voice
+    intro_outro: bool = True  # your intro/outro clips from the brand kit
+    intro_card: bool = False  # an animated title card at the start (when there is no intro clip)
+    voice_cleanup: str = "off"  # off | light | medium | strong: rumble, noise and gentle compression on narration
+    fillers: str = "off"  # off | basic (um, uh) | more (also "you know", "I mean", "sort of", "kind of")
+    zoom_mode: str = "motion"  # motion: follow what moves | ui: zoom to small sudden changes and mark them with a ring
+    broll: bool = True  # cut in clips from your B-roll library when you say their keywords
+
+
+FILE_NAME = re.compile(r"autoedit\.mp4|thumbnail\.jpg|youtube\.txt|posts\.txt|ab\.mp4|visualizer\.mp4|captions(\.[a-z]{2})?\.(srt|vtt)")
+FILE_TYPES = {".mp4": "video/mp4", ".jpg": "image/jpeg", ".txt": "text/plain; charset=utf-8",
+              ".srt": "application/x-subrip", ".vtt": "text/vtt; charset=utf-8"}
+
+
+def autoedit_options(body: AutoEditRequest) -> dict:
+    return {"trim_silence": bool(body.trim_silence), "min_gap": float(body.min_gap),
+            "zoom": body.zoom if body.zoom in edit.ZOOM_LEVELS else "off", "loudness": bool(body.loudness),
+            "captions": bool(body.captions), "watermark": bool(body.watermark), "endcard": bool(body.endcard),
+            "resolution": "720p" if body.resolution == "720p" else "1080p", "shorts": int(body.shorts),
+            "shorts_reframe": "follow" if body.shorts_reframe == "follow" else "center",
+            "title": (body.title or "").strip()[:100] or None, "sfx": bool(body.sfx), "callouts": bool(body.callouts),
+            "chapter_titles": bool(body.chapter_titles), "music": bool(body.music),
+            "intro_outro": bool(body.intro_outro), "intro_card": bool(body.intro_card),
+            "voice_cleanup": body.voice_cleanup if body.voice_cleanup in sa.CLEANUP_LEVELS else "off",
+            "fillers": body.fillers if body.fillers in sa.FILLER_LEVELS else "off",
+            "zoom_mode": "ui" if body.zoom_mode == "ui" else "motion", "broll": bool(body.broll)}
+
+
+def file_url(project_id: str, name: str) -> str:
+    return f"/api/projects/{project_id}/files/{name}"
+
+
+@app.get("/api/projects/{project_id}/files/{name}")
+def download_generated_file(project_id: str, name: str):
+    if not FILE_NAME.fullmatch(name):
+        raise HTTPException(404, "Unknown file")
+    f = project_dir(project_id) / name
+    if not f.is_file():
+        raise HTTPException(404, "That file has not been created yet")
+    return FileResponse(f, media_type=FILE_TYPES[f.suffix], filename=f"SkellyMotion-{name}")
+
+
+@app.post("/api/projects/{project_id}/autoedit")
+def start_autoedit(project_id: str, body: AutoEditRequest):
+    data = read_project(project_id)
+    if data.get("kind") != "clip_source" or data.get("status") != "ready":
+        raise HTTPException(409, "Add a video and wait for the analysis to finish first")
+    opts = autoedit_options(body)
+    settings = sanitize_settings({**(data.get("settings") or {}), "aspect": "landscape"})
+    job_id = register_job(project_id, "autoedit", settings)
+    executor.submit(run_autoedit, project_id, job_id, opts, settings)
+    return {"job_id": job_id}
+
+
+def source_time_at(out_t: float, segments: list[tuple[float, float]]) -> float:
+    """Inverse of edit.map_time: where an output-timeline moment came from in the source."""
+    acc = 0.0
+    for a, b in segments:
+        if out_t <= acc + (b - a):
+            return a + max(0.0, out_t - acc)
+        acc += b - a
+    return segments[-1][1]
+
+
+def clip_info(path: Path | None) -> dict | None:
+    """Intro/outro clip details for the render graph, or None if it is missing or unreadable."""
+    if path is None or not path.is_file():
+        return None
+    info = clips.probe_media(path)
+    if not info["has_video"] or not info["width"]:
+        return None
+    return {"path": path, "duration": info["duration"], "has_audio": info["has_audio"]}
+
+
+def run_autoedit(project_id: str, job_id: str, opts: dict, settings: dict) -> None:
+    started = time.monotonic()
+    try:
+        p = project_dir(project_id)
+        data = read_project(project_id)
+        source = p / data["source_file"]
+        words = data.get("original_words") or []
+        duration = float(data["duration"])
+        media = clips.probe_media(source)
+        if not media["width"]:
+            raise RuntimeError("Cannot read this video")
+        brand, logo = load_brand(), brand_logo_path()
+        W, H = (1280, 720) if opts["resolution"] == "720p" else (1920, 1080)
+        fps = int(min(30, max(15, round(media["fps"] or 30))))
+        profile = perf.profile_config(settings["performanceMode"])
+
+        with job_lock:
+            jobs[job_id].update(stage="autoedit_plan", progress=2)
+        segments = (edit.plan_keep_segments(words, duration, opts["min_gap"])
+                    if opts["trim_silence"] and words else [(0.0, duration)])
+        filler_cuts = sa.filler_ranges(words, opts["fillers"])
+        if filler_cuts:
+            segments = sa.subtract_ranges(segments, filler_cuts) or segments
+        zoom, ui_events = [], []
+        if opts["zoom"] != "off":
+            with job_lock:
+                jobs[job_id].update(stage="autoedit_zoom", progress=4)
+            if opts["zoom_mode"] == "ui":
+                ui_events = focus.detect_ui_events(edit.activity_track(source, 0, duration, fps=5))
+                zoom = focus.plan_ui_zoom(ui_events, opts["zoom"])
+            else:
+                zoom = edit.plan_zoom(edit.activity_track(source, 0, duration), opts["zoom"])
+        out_words = edit.remap_words(words, segments)
+        main_len = edit.kept_duration(segments)
+        title = opts["title"] or data.get("title") or "My video"
+        transcript = " ".join(w["text"] for w in words)
+        sentences = clips.split_sentences(out_words)
+        chapters = edit.plan_chapters(sentences, main_len)
+
+        # The director: clips, music, animations and sound effects, chosen from what is said and where cuts fall.
+        music = None
+        if opts["music"] and brand_asset("music"):
+            music = {"path": brand_asset("music"), "volume": brand["audio"]["music_volume"]}
+        intro_clip = clip_info(brand_asset("intro")) if opts["intro_outro"] else None
+        outro_clip = clip_info(brand_asset("outro")) if opts["intro_outro"] else None
+        intro_card, intro_secs = None, 0.0
+        if opts["intro_card"] and not intro_clip:
+            intro_secs, intro_card = 2.5, "intro.ass"
+            edit.write_intro_card_ass(p / intro_card, brand, W, H, intro_secs, logo is not None, title)
+        lead = (min(intro_clip["duration"], 20.0) if intro_clip else 0.0) + intro_secs
+        plan = edit.plan_enhancements(sentences, chapters, segments, zoom, main_len, sfx=opts["sfx"],
+                                      callouts=opts["callouts"], chapter_titles=opts["chapter_titles"])
+
+        rings = focus.ring_marks(ui_events, zoom, segments, main_len) if ui_events and zoom else []
+        if rings and opts["sfx"]:  # a soft tick on each ring, still spaced out like every other effect
+            merged = sorted(plan["sfx"] + [(r["t"], "pop", .4) for r in rings])
+            plan["sfx"] = [e for i, e in enumerate(merged) if i == 0 or e[0] - merged[i - 1][0] >= .9]
+        broll_plan = []
+        if opts["broll"]:
+            library = broll_library()
+            broll_plan = broll_lib.plan_broll(out_words, library, main_len) if library else []
+
+        cues = edit.cues_from_words(out_words)
+        published = edit.shift_cues(cues, lead)  # captions for the finished file include the intro
+        (p / "captions.json").write_text(json.dumps(published, ensure_ascii=False), encoding="utf-8")
+        (p / "captions.srt").write_text(edit.to_srt(published), encoding="utf-8")
+        (p / "captions.vtt").write_text(edit.to_vtt(published), encoding="utf-8")
+
+        ass_names: list[str] = []
+        if opts["captions"] and out_words:
+            caption_style = sanitize_settings({"aspect": "landscape", "mode": "line", "animation": "fade",
+                                               "fontSize": 24, "position": 86})
+            create_ass(clips.lines_from_words(out_words, max_words=7), caption_style, W, H, p / "autoedit.ass")
+            ass_names.append("autoedit.ass")
+        if plan["callouts"] or plan["lower_thirds"]:
+            edit.write_motion_ass(p / "motion.ass", brand, W, H, plan["callouts"], plan["lower_thirds"])
+            ass_names.append("motion.ass")
+        if rings:
+            focus.write_ring_ass(p / "rings.ass", rings, W, H, brand["accent"])
+            ass_names.append("rings.ass")
+        sfx_path = None
+        if plan["sfx"] and brand["audio"]["sfx_volume"] > 0:
+            sfx_path = p / "sfx.wav"
+            edit.write_sfx_track(sfx_path, plan["sfx"], main_len)
+        card = None
+        if opts["endcard"] and brand["endcard"]["enabled"]:
+            edit.write_endcard_ass(p / "endcard.ass", brand, W, H, brand["endcard"]["seconds"], logo is not None)
+            card = "endcard.ass"
+        watermark = bool(opts["watermark"] and brand["watermark"]["enabled"] and logo)
+
+        with job_lock:
+            jobs[job_id].update(stage="autoedit_render", progress=6)
+        child = new_child_job(job_id, project_id, settings, 6, 66 if opts["shorts"] else 80)
+        temporary = p / f"render-{child}.mp4"
+
+        def build(codec: str, target: Path, script: str):
+            return edit.build_render(
+                source, W, H, fps, target, perf.encode_args(codec, settings["renderSpeed"], W, H, profile["threads"]),
+                duration=duration, zoom=zoom or None, segments=segments, ass_name=ass_names or None, logo=logo,
+                brand=brand, watermark=watermark, loudness=-14.0 if opts["loudness"] else None, endcard_ass=card,
+                has_audio=media["has_audio"], script_name=script, intro_ass=intro_card, intro_seconds=intro_secs,
+                intro_clip=intro_clip, outro_clip=outro_clip, music=music, sfx_track=sfx_path,
+                sfx_volume=brand["audio"]["sfx_volume"], voice_filters=sa.voice_cleanup_filters(opts["voice_cleanup"]),
+                broll=[{"path": b["path"], "start": b["start"], "length": b["length"]} for b in broll_plan] or None)
+
+        total_len = encode_graph(child, settings, p, build, temporary)
+        temporary.replace(p / "autoedit.mp4")
+        finish_child(child)
+
+        with job_lock:
+            jobs[job_id].update(stage="autoedit_package", progress=88 if opts["shorts"] else 90)
+        yt_chapters = edit.shift_chapters(chapters, lead)
+        tags = clips.heuristic_metadata(transcript, title)["tags"]
+        package = edit.youtube_package(title, transcript, yt_chapters, tags, brand)
+        (p / "youtube.txt").write_text(package["text"], encoding="utf-8")
+        (p / "youtube.json").write_text(json.dumps({**package, "chapters": yt_chapters}, ensure_ascii=False), encoding="utf-8")
+        social = posts_lib.build_posts(package["title"], transcript, tags, brand, link=brand["endcard"]["url"] or None)
+        (p / "posts.txt").write_text(posts_lib.posts_text(social), encoding="utf-8")
+        candidates = [source_time_at(main_len * f, segments) for f in (.08, .18, .28, .38, .5, .62, .74, .86)]
+        best = edit.pick_thumbnail_time(source, candidates, p)
+        frame = p / "thumb_frame.png"
+        edit.extract_frame(source, best, frame)
+        edit.render_thumbnail(frame, p / "thumbnail.jpg", package["title"], brand, logo)
+        frame.unlink(missing_ok=True)
+
+        outputs: dict[str, Any] = {
+            "video": file_url(project_id, "autoedit.mp4"), "thumbnail": file_url(project_id, "thumbnail.jpg"),
+            "youtube": {**package, "chapters": yt_chapters, "file": file_url(project_id, "youtube.txt")},
+            "captions": {"srt": file_url(project_id, "captions.srt"), "vtt": file_url(project_id, "captions.vtt")},
+            "seconds": round(total_len, 1), "removed_seconds": round(duration - main_len, 1),
+            "zoomed": bool(zoom), "cues": len(cues), "posts": social,
+            "extras": {"fillers_removed": len(filler_cuts), "voice_cleanup": opts["voice_cleanup"], "broll": len(broll_plan),
+                       "rings": len(rings), "zoom_mode": opts["zoom_mode"] if zoom else "off", "callouts": len(plan["callouts"]), "lower_thirds": len(plan["lower_thirds"]),
+                       "sfx": len(plan["sfx"]) if sfx_path else 0, "music": music is not None,
+                       "intro_clip": intro_clip is not None, "outro_clip": outro_clip is not None,
+                       "intro_card": intro_card is not None}}
+        if opts["shorts"]:
+            with job_lock:
+                jobs[job_id].update(stage="autoedit_shorts", progress=72)
+            picks = (read_project(project_id).get("clip_suggestions") or [])[:opts["shorts"]]
+            items = [{"start": c["start"], "end": c["end"], "hook": c.get("hook", ""), "title": c.get("title", "Clip"),
+                      "description": c.get("description", ""), "tags": c.get("tags", []), "score": c.get("score"),
+                      "reasons": c.get("reasons", [])} for c in picks]
+            if items:
+                polish = {"loudness": opts["loudness"], "watermark": opts["watermark"],
+                          "trim_silence": opts["trim_silence"], "min_gap": opts["min_gap"]}
+                outputs["shorts"] = render_clips_batch(project_id, job_id, items, short_settings(settings),
+                                                       opts["shorts_reframe"], polish, 72, 26)
+        with job_lock:
+            jobs[job_id].update(status="done", stage="complete", progress=100, outputs=outputs,
+                                elapsed_seconds=round(time.monotonic() - started, 2))
+    except Exception as exc:
+        fail_job(job_id, exc, started)
+
+
+# ---- Reach: translated captions and hook ideas (both opt-in, both need ANTHROPIC_API_KEY) ------------
+class TranslateRequest(BaseModel):
+    languages: list[str]
+
+
+def llm_key_and_model() -> tuple[str, str]:
+    return os.environ.get("ANTHROPIC_API_KEY", ""), os.environ.get("SKELLYMOTION_LLM_MODEL", "claude-haiku-5-5")
+
+
+@app.post("/api/projects/{project_id}/translate")
+def start_translate(project_id: str, body: TranslateRequest):
+    read_project(project_id)
+    p = project_dir(project_id)
+    if not (p / "captions.json").is_file():
+        raise HTTPException(409, "Run Auto-edit first so there are captions to translate")
+    key, model = llm_key_and_model()
+    if not key:
+        raise HTTPException(409, "Translation needs ANTHROPIC_API_KEY set on this computer")
+    languages = [x for x in dict.fromkeys(body.languages) if x in edit.LANGUAGES][:6]
+    if not languages:
+        raise HTTPException(400, "Choose at least one supported language")
+    cues = json.loads((p / "captions.json").read_text(encoding="utf-8"))
+    if len(cues) > 3000:
+        raise HTTPException(400, "This video has too many captions to translate in one go")
+    job_id = register_job(project_id, "translate", sanitize_settings({}))
+
+    def work():
+        started = time.monotonic()
+        try:
+            files = []
+            for index, lang in enumerate(languages):
+                with job_lock:
+                    jobs[job_id].update(stage=f"translating_{edit.LANGUAGES[lang]}", progress=int(100 * index / len(languages)))
+                translated = edit.translate_cues(cues, lang, key, model)
+                (p / f"captions.{lang}.srt").write_text(edit.to_srt(translated), encoding="utf-8")
+                (p / f"captions.{lang}.vtt").write_text(edit.to_vtt(translated), encoding="utf-8")
+                files.append({"lang": lang, "language": edit.LANGUAGES[lang],
+                              "srt": file_url(project_id, f"captions.{lang}.srt"),
+                              "vtt": file_url(project_id, f"captions.{lang}.vtt")})
+            with job_lock:
+                jobs[job_id].update(status="done", stage="complete", progress=100, outputs={"files": files},
+                                    elapsed_seconds=round(time.monotonic() - started, 2))
+        except Exception as exc:
+            fail_job(job_id, exc, started)
+
+    executor.submit(work)
+    return {"job_id": job_id}
+
+
+class VariantsRequest(BaseModel):
+    text: str
+    count: int = Field(default=3, ge=2, le=5)
+
+
+@app.post("/api/projects/{project_id}/clips/variants")
+def clip_hook_variants(project_id: str, body: VariantsRequest):
+    read_project(project_id)
+    key, model = llm_key_and_model()
+    if not key:
+        raise HTTPException(409, "Hook ideas need ANTHROPIC_API_KEY set on this computer")
+    variants = edit.hook_variants(body.text[:1500], key, model, body.count)
+    if not variants:
+        raise HTTPException(502, "Could not get hook ideas right now. Try again in a moment.")
+    return {"variants": variants}
+
+
+# ---- Hands-off: files in, finished videos out (CLI and watch folder share this) ---------------------
+def import_video_file(src: Path, recognition: str = "balanced", language: str = "auto",
+                      vocabulary: str = "", performance_mode: str = "balanced", use_ai: bool = False) -> str:
+    """Copy a video into a new clip-source project (no HTTP upload). Returns the project id."""
+    if src.suffix.lower() not in VIDEO_EXT or not src.is_file():
+        raise ValueError(f"Not a supported video file: {src.name}")
+    if src.stat().st_size > max_clip_source_bytes():
+        raise ValueError(f"{src.name} is larger than the {max_clip_source_bytes() // (1024 * 1024)} MB limit")
+    project_id = uuid.uuid4().hex
+    p = DATA / project_id
+    p.mkdir(parents=True)
+    try:
+        name = "source" + src.suffix.lower()
+        shutil.copy2(src, p / name)
+        duration = media_duration(p / name)
+        if not 3 < duration <= max_clip_source_seconds():
+            raise ValueError("Video length must be between 3 seconds and "
+                             f"{round(max_clip_source_seconds() / 60)} minutes")
+        save_project(p, {"id": project_id, "kind": "clip_source", "title": src.stem[:100], "audio_file": name,
+                         "source_file": name, "duration": duration, "status": "transcribing", "draft_lyrics": "",
+                         "original_words": [], "lines": [], "settings": {}, "language": None,
+                         "transcription_stage": "queued", "transcription_progress": 0, "save_state": "saved",
+                         "use_ai": bool(use_ai), "keep_fillers": True,
+                         **recognition_options(recognition, language, vocabulary, performance_mode)})
+        return project_id
+    except Exception:
+        shutil.rmtree(p, ignore_errors=True)
+        raise
+
+
+def process_video_file(src: Path, out_root: Path, opts: dict, *, language: str = "auto", recognition: str = "balanced",
+                       keep_project: bool = False, log=print) -> Path:
+    """Video in, finished package out: edited video, thumbnail, YouTube text, captions and optional Shorts."""
+    out_dir = out_root / re.sub(r"[^\w .-]+", "_", src.stem).strip(" .")[:80]
+    project_id = import_video_file(src, recognition=recognition, language=language)
+    try:
+        log(f"Transcribing {src.name}")
+        analyze_clip_source(project_id)
+        data = read_project(project_id)
+        if data.get("status") != "ready":
+            raise RuntimeError(data.get("clip_error") or "Could not analyze this video")
+        body = AutoEditRequest(**opts)
+        settings = sanitize_settings({"aspect": "landscape"})
+        job_id = register_job(project_id, "autoedit", settings)
+        log("Editing")
+        run_autoedit(project_id, job_id, autoedit_options(body), settings)
+        job = jobs[job_id]
+        if job["status"] != "done":
+            raise RuntimeError(job.get("error") or "Editing failed")
+        p = project_dir(project_id)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        for name, target in (("autoedit.mp4", "video.mp4"), ("thumbnail.jpg", "thumbnail.jpg"),
+                             ("youtube.txt", "youtube.txt"), ("captions.srt", "captions.srt"),
+                             ("captions.vtt", "captions.vtt")):
+            shutil.copy2(p / name, out_dir / target)
+        shorts = job["outputs"].get("shorts") or []
+        if shorts:
+            (out_dir / "shorts").mkdir(exist_ok=True)
+            for m in shorts:
+                shutil.copy2(p / m["file"], out_dir / "shorts" / m["file"])
+            shutil.copy2(p / "clips.json", out_dir / "shorts" / "shorts.json")
+        log(f"Done: {out_dir}")
+        return out_dir
+    finally:
+        if not keep_project:
+            shutil.rmtree(DATA / project_id, ignore_errors=True)
+
+
+WATCH_POLL_SECONDS, WATCH_STABLE_SECONDS = 5.0, 12.0  # tests shrink these
+WATCH: dict[str, Any] = {"thread": None, "stop": threading.Event(), "folder": None, "out": None, "events": [], "busy": None}
+
+
+def watch_log(message: str) -> None:
+    WATCH["events"] = (WATCH["events"] + [{"time": time.time(), "message": message}])[-60:]
+
+
+def watch_enabled() -> bool:
+    return os.environ.get("SKELLYMOTION_WATCH") == "1"
+
+
+def watch_loop(folder: Path, out_root: Path, opts: dict, language: str, recognition: str) -> None:
+    pending: dict[Path, tuple[tuple[int, int], float]] = {}
+    while not WATCH["stop"].wait(WATCH_POLL_SECONDS):
+        try:
+            candidates = [f for f in sorted(folder.iterdir())
+                          if f.is_file() and not f.is_symlink() and f.suffix.lower() in VIDEO_EXT and not f.name.startswith(".")]
+        except OSError as exc:
+            watch_log(f"Cannot read the folder: {exc}")
+            continue
+        now = time.monotonic()
+        for f in candidates:
+            if WATCH["stop"].is_set():
+                return
+            stat = f.stat()
+            sig = (stat.st_size, stat.st_mtime_ns)
+            if f not in pending or pending[f][0] != sig:
+                pending[f] = (sig, now)  # still being copied or recorded
+                continue
+            if now - pending[f][1] < WATCH_STABLE_SECONDS:
+                continue
+            WATCH["busy"] = f.name
+            try:
+                process_video_file(f, out_root, opts, language=language, recognition=recognition, log=watch_log)
+                dest = folder / "processed"
+            except Exception as exc:
+                watch_log(f"Failed: {f.name}: {str(exc)[:200]}")
+                dest = folder / "failed"
+            finally:
+                WATCH["busy"] = None
+            dest.mkdir(exist_ok=True)
+            target = dest / f.name
+            if target.exists():
+                target = dest / f"{f.stem}-{int(time.time())}{f.suffix}"
+            try:
+                f.replace(target)
+            except OSError as exc:
+                watch_log(f"Could not move {f.name}: {exc}")
+            pending.pop(f, None)
+
+
+class WatchRequest(BaseModel):
+    folder: str
+    out: str
+    options: AutoEditRequest = Field(default_factory=AutoEditRequest)
+    language: str = "auto"
+    recognition: str = "balanced"
+
+
+def require_watch() -> None:
+    if not watch_enabled():
+        raise HTTPException(403, "Watch folders are only available in the desktop app")
+
+
+@app.get("/api/watch/status")
+def watch_status():
+    running = bool(WATCH["thread"] and WATCH["thread"].is_alive())
+    return {"enabled": watch_enabled(), "running": running, "folder": WATCH["folder"], "out": WATCH["out"],
+            "busy": WATCH["busy"], "events": WATCH["events"][-20:]}
+
+
+@app.post("/api/watch/start")
+def watch_start(body: WatchRequest):
+    require_watch()
+    folder, out = Path(body.folder).expanduser(), Path(body.out).expanduser()
+    if not folder.is_dir():
+        raise HTTPException(400, "The folder to watch does not exist")
+    try:
+        out.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        raise HTTPException(400, "Cannot create the output folder")
+    folder, out = folder.resolve(), out.resolve()
+    if DATA in (folder, out) or DATA in folder.parents or DATA in out.parents:
+        raise HTTPException(400, "Choose folders outside the SkellyMotion workspace")
+    if WATCH["thread"] and WATCH["thread"].is_alive():
+        raise HTTPException(409, "A folder is already being watched. Stop it first.")
+    WATCH["stop"] = threading.Event()
+    WATCH.update(folder=str(folder), out=str(out), events=[], busy=None)
+    opts = body.options.model_dump() if hasattr(body.options, "model_dump") else body.options.dict()
+    thread = threading.Thread(target=watch_loop, args=(folder, out, opts, body.language, body.recognition), daemon=True)
+    WATCH["thread"] = thread
+    thread.start()
+    watch_log(f"Watching {folder}")
+    return watch_status()
+
+
+@app.post("/api/watch/stop")
+def watch_stop():
+    require_watch()
+    WATCH["stop"].set()
+    watch_log("Stopped")
+    return watch_status()
 
 
 @app.get("/api/clips/capabilities")
@@ -2222,7 +3502,10 @@ def clip_capabilities():
     return {"ai_rerank": bool(os.environ.get("ANTHROPIC_API_KEY")),
             "max_source_mb": max_clip_source_bytes() // (1024 * 1024),
             "max_source_minutes": round(max_clip_source_seconds() / 60),
-            "presets": [k for k in AUTOPILOT_PRESETS]}
+            "presets": [k for k in AUTOPILOT_PRESETS],
+            "ai_text": bool(os.environ.get("ANTHROPIC_API_KEY")), "watch": watch_enabled(),
+            "cleanup_levels": list(sa.CLEANUP_LEVELS), "filler_levels": list(sa.FILLER_LEVELS),
+            "languages": edit.LANGUAGES}
 
 
 app.mount("/static", StaticFiles(directory=STATIC), name="static")

@@ -32,6 +32,7 @@ def configure() -> Path:
     os.environ.setdefault("LYRICFORGE_DATA", str(home / "workspace"))
     os.environ.setdefault("HF_HOME", str(home / "models"))
     os.environ.pop("LYRICFORGE_REQUIRE_AUTH", None)  # Local-only mode
+    os.environ.setdefault("SKELLYMOTION_WATCH", "1")  # watch folders read local disk: desktop only
     home.mkdir(parents=True, exist_ok=True)
     # --windowed builds have no console streams; log errors instead of hiding them.
     if sys.stdout is None or sys.stderr is None:

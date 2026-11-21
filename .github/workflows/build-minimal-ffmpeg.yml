@@ -38,12 +38,14 @@ jobs:
           set -euo pipefail
           git clone --depth 1 --branch "${{ inputs.ffmpeg_ref }}" https://git.ffmpeg.org/ffmpeg.git ffmpeg-src
           cd ffmpeg-src
-          # Everything below comes from grepping the app's real FFmpeg commands:
-          #   video  : libx264 plus the h264_nvenc / h264_qsv / h264_amf hardware encoders, mp4 output
-          #   audio  : aac, plus pcm_s16le (Whisper regions) and pcm_f32le (waveform)
-          #   other  : rawvideo (motion tracking), null muxer (scene detection), lavfi color source
-          #   filters: scale crop setsar format eq ass fps select showinfo (+ the plumbing FFmpeg inserts itself)
-          #   sine, overlay, concat are enabled only so the test suite can generate its synthetic media (a few KB)
+          # The list comes from the filter graphs and commands the app builds (studio_edit.build_render and friends):
+          #   video  : libx264 plus the h264_nvenc / h264_qsv / h264_amf hardware encoders, mp4 output; png for thumbnails
+          #   audio  : aac, plus pcm_s16le (Whisper regions) and pcm_f32le (waveform); rawvideo (motion tracking)
+          #   filters: fps crop scale pad setsar zoompan select setpts format ass (video), aselect asetpts aresample
+          #            loudnorm aformat asplit sidechaincompress amix alimiter afade volume (audio: voice, ducked
+          #            music and sound effects), colorchannelmixer overlay concat (watermark, intro/outro, end card), showinfo
+          #            (scene detection), color + anullsrc sources, and the buffer/null plumbing FFmpeg inserts itself
+          #   test-only: sine is enabled just so the test suite can synthesise audio (a few KB)
           # All decoders, demuxers, parsers and bitstream filters stay, so any video a user uploads still plays.
           ./configure \
             --arch=x86_64 --target-os=mingw32 --pkg-config-flags=--static \
@@ -53,11 +55,14 @@ jobs:
             --enable-zlib --enable-iconv --enable-libx264 --enable-libass \
             --enable-ffnvcodec --enable-nvenc --enable-amf --enable-libvpl --enable-d3d11va --enable-dxva2 \
             --disable-encoders \
-            --enable-encoder=libx264,aac,pcm_s16le,pcm_f32le,rawvideo,h264_nvenc,h264_qsv,h264_amf \
-            --disable-muxers --enable-muxer=mp4,mov,wav,f32le,rawvideo,null \
+            --enable-encoder=libx264,aac,pcm_s16le,pcm_f32le,rawvideo,png,h264_nvenc,h264_qsv,h264_amf \
+            --disable-muxers --enable-muxer=mp4,mov,wav,f32le,rawvideo,null,image2 \
             --disable-filters \
-            --enable-filter=scale,crop,setsar,format,eq,ass,fps,select,showinfo,color,null,anull,aformat,aresample,buffer,buffersink,abuffer,abuffersink \
-            --enable-filter=sine,overlay,concat \
+            --enable-filter=fps,crop,scale,pad,setsar,zoompan,select,setpts,format,ass,showinfo,color,null \
+            --enable-filter=aselect,asetpts,aresample,loudnorm,aformat,anull,anullsrc \
+            --enable-filter=colorchannelmixer,overlay,concat,buffer,buffersink,abuffer,abuffersink \
+            --enable-filter=asplit,sidechaincompress,amix,alimiter,afade,volume \
+            --enable-filter=sine \
             --disable-protocols --enable-protocol=file,pipe \
             --disable-indevs --disable-outdevs --enable-indev=lavfi
           make -j"$(nproc)"

@@ -9,6 +9,8 @@ on:
       - 'server.py'
       - 'studio_performance.py'
       - 'studio_clips.py'
+      - 'studio_edit.py'
+      - 'studio_cli.py'
       - 'static/**'
       - 'Repair-SkellyMotion.cmd'
       - 'SkellyMotion-SafeMode.cmd'

@@ -27,6 +27,18 @@ def test_actions_artifact_contains_program_not_zip_inside_zip():
     assert "Compress-Archive" in zip_step
 
 
+
+def test_docker_image_copies_every_server_studio_dependency():
+    dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+    server_source = (ROOT / "server.py").read_text(encoding="utf-8")
+    required = ["studio_performance.py", "studio_clips.py", "studio_edit.py", "studio_audio.py",
+                "studio_broll.py", "studio_focus.py", "studio_post.py", "studio_viz.py", "studio_proof.py"]
+    copy_line = next((line for line in dockerfile.splitlines()
+                      if line.startswith("COPY server.py ")), "")
+    for module in required:
+        assert f"import {module.removesuffix('.py')}" in server_source
+        assert module in copy_line, f"Docker image is missing {module}"
+
 def test_desktop_starts_on_lightweight_welcome_with_resume_button():
     html = (ROOT / "static/index.html").read_text(encoding="utf-8")
     js = (ROOT / "static/app.js").read_text(encoding="utf-8")

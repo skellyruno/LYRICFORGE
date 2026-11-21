@@ -568,3 +568,10 @@ html.desktop-mode .welcome-overlay{scrollbar-width:thin;scrollbar-color:#4b704e 
  .word-timing-row{grid-template-columns:26px minmax(34px,1fr) 65px 65px}
  .word-timing-editor{padding-inline:8px}
 }
+
+
+/* Keep the primary export action reachable on narrow phone headers. */
+@media(max-width:760px){
+ #topExport{width:38px;min-width:38px;padding:0;font-size:0}
+ #topExport span{font-size:17px}
+}

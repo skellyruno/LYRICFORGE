@@ -164,18 +164,20 @@ const studio = { id: null, timer: null, busy: false, cards: [], caps: null };
 function setStep(name) {
   for (const step of ['clipUploadStep', 'clipProgressStep', 'clipReadyStep']) $(step).classList.toggle('hidden', step !== name);
 }
-function closeStudio() { clearTimeout(studio.timer); studio.timer = null; $('clipStudio').classList.add('hidden'); }
+function closeStudio() { clearTimeout(watch.timer); clearTimeout(studio.timer); studio.timer = null; $('clipStudio').classList.add('hidden'); }
 async function loadCaps() {
   if (studio.caps) return studio.caps;
   try { studio.caps = await api('/api/clips/capabilities'); } catch (e) { studio.caps = {}; }
   const ai = $('clipUseAi'); ai.disabled = !studio.caps.ai_rerank;
   if (!studio.caps.ai_rerank) ai.checked = false;
+  const watchBox = $('watchBox'); if (watchBox) watchBox.classList.toggle('hidden', !studio.caps.watch);
   if (studio.caps.max_source_mb) $('clipLimitNote').textContent = 'MP4, MOV, MKV, WebM · up to ' + studio.caps.max_source_mb + ' MB / ' + studio.caps.max_source_minutes + ' min';
   return studio.caps;
 }
 async function openStudio(id) {
   $('clipStudio').classList.remove('hidden');
   await loadCaps();
+  if (studio.caps.watch) refreshWatch();
   if (id) { studio.id = id; attach(); } else { studio.id = null; setStep('clipUploadStep'); }
 }
 async function uploadSource(file) {
@@ -221,7 +223,8 @@ function clipCard(clip, index) {
     el('label', { class: 'auto-card-top' }, include, el('b', { text: 'Clip ' + (index + 1) }), el('span', { class: 'auto-score', text: 'score ' + clip.score.toFixed(2) })),
     el('small', { class: 'auto-reasons', text: (clip.reasons || []).join(' · ') }),
     el('div', { class: 'auto-times' }, start, el('span', { text: 'to' }), end),
-    el('label', { class: 'clip-field' }, 'Hook (first 1.5 s)', hook), el('label', { class: 'clip-field' }, 'Title', title),
+    el('label', { class: 'clip-field' }, 'Hook (first 1.5 s)', hook), ideaRow(clip, hook, title),
+    el('label', { class: 'clip-field' }, 'Title', title),
     el('label', { class: 'clip-field' }, 'Description', desc), el('label', { class: 'clip-field' }, 'Tags', tags));
   card.read = () => ({ include: include.checked, start: Number(start.value), end: Number(end.value), hook: hook.value, title: title.value,
     description: desc.value, tags: tags.value.split(',').map((t) => t.trim()).filter(Boolean), score: clip.score, reasons: clip.reasons || [] });
@@ -255,7 +258,8 @@ async function renderClips() {
   studio.busy = true; updateRenderCount();
   const status = $('clipStatus');
   try {
-    const { job_id } = await post('/api/projects/' + studio.id + '/clips/render', { clips: chosen, reframe: $('clipReframe').value });
+    const { job_id } = await post('/api/projects/' + studio.id + '/clips/render', { clips: chosen, reframe: $('clipReframe').value,
+      polish: { loudness: $('clipLoud').checked, trim_silence: $('clipTrim').checked, watermark: $('clipWatermark').checked } });
     const job = await runJob(job_id, (j) => showStatus(status, j));
     status.textContent = 'Done. ' + job.outputs.clips.length + ' clip(s) rendered.';
     renderOutputs($('clipResults'), job.outputs.clips, 'Clip', studio.id, null);
@@ -264,6 +268,191 @@ async function renderClips() {
   finally { studio.busy = false; updateRenderCount(); }
 }
 
+
+/* ---------- Hook ideas (AI, opt-in) ---------- */
+function ideaRow(clip, hookInput, titleInput) {
+  const chips = el('div', { class: 'idea-chips' });
+  const button = el('button', { type: 'button', class: 'tiny-btn', text: 'Hook ideas', onclick: async () => {
+    button.disabled = true; button.textContent = 'Thinking…';
+    try {
+      const { variants } = await post('/api/projects/' + studio.id + '/clips/variants', { text: clip.text || clip.hook || '', count: 3 });
+      chips.replaceChildren(...variants.map((v) => el('button', { type: 'button', class: 'idea-chip', title: v.title, text: v.hook,
+        onclick: () => { hookInput.value = v.hook; titleInput.value = v.title; } })));
+    } catch (e) { toast(e.message, true); } finally { button.disabled = false; button.textContent = 'Hook ideas'; }
+  } });
+  const row = el('div', { class: 'idea-row' }, button, chips);
+  if (!(studio.caps && studio.caps.ai_text)) row.classList.add('hidden');
+  return row;
+}
+
+/* ---------- Brand kit ---------- */
+const ASSETS = [['Music', 'has_music'], ['Intro', 'has_intro'], ['Outro', 'has_outro']];
+function fillBrand(b) {
+  $('brName').value = b.name; $('brFont').value = b.font;
+  $('brAccent').value = b.accent.toLowerCase(); $('brBg').value = b.bg.toLowerCase(); $('brText').value = b.text.toLowerCase();
+  $('brWmOn').checked = b.watermark.enabled; $('brWmPos').value = b.watermark.position;
+  $('brWmOpacity').value = b.watermark.opacity; $('brWmSize').value = b.watermark.size;
+  $('brEcOn').checked = b.endcard.enabled; $('brEcSecs').value = b.endcard.seconds;
+  $('brEcTitle').value = b.endcard.title; $('brEcSub').value = b.endcard.subtitle; $('brEcUrl').value = b.endcard.url;
+  const img = $('brLogoImg');
+  if (b.has_logo) img.setAttribute('src', '/api/brand/logo?v=' + Date.now());
+  img.classList.toggle('hidden', !b.has_logo); $('brLogoClear').classList.toggle('hidden', !b.has_logo);
+  $('brLogoPick').textContent = b.has_logo ? 'Replace logo' : 'Upload logo';
+  for (const [kind, key] of ASSETS) {
+    $('br' + kind + 'Name').textContent = b[key] ? 'Added' : 'None';
+    $('br' + kind + 'Clear').classList.toggle('hidden', !b[key]); $('br' + kind + 'Pick').textContent = b[key] ? 'Replace' : 'Choose';
+  }
+  $('brMusicVol').value = b.audio.music_volume; $('brSfxVol').value = b.audio.sfx_volume;
+}
+function readBrand() {
+  return { name: $('brName').value, font: $('brFont').value, accent: $('brAccent').value, bg: $('brBg').value, text: $('brText').value,
+    watermark: { enabled: $('brWmOn').checked, position: $('brWmPos').value, opacity: Number($('brWmOpacity').value), size: Number($('brWmSize').value) },
+    audio: { music_volume: Number($('brMusicVol').value), sfx_volume: Number($('brSfxVol').value) },
+    endcard: { enabled: $('brEcOn').checked, seconds: Number($('brEcSecs').value), title: $('brEcTitle').value, subtitle: $('brEcSub').value, url: $('brEcUrl').value } };
+}
+async function openBrand() {
+  try { const { brand } = await api('/api/brand'); fillBrand(brand); $('brandModal').classList.remove('hidden'); }
+  catch (e) { toast(e.message, true); }
+}
+async function saveBrand() {
+  try { const { brand } = await api('/api/brand', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ brand: readBrand() }) });
+    fillBrand(brand); $('brandModal').classList.add('hidden'); toast('Brand kit saved'); }
+  catch (e) { toast(e.message, true); }
+}
+// After a server-side change (logo or clips), show the new file flags but keep whatever the person has typed.
+function keepDraft(brand) { fillBrand({ ...brand, ...readBrand(), has_logo: brand.has_logo, has_music: brand.has_music,
+  has_intro: brand.has_intro, has_outro: brand.has_outro }); }
+async function uploadAsset(kind, file) {
+  if (!file) return;
+  const form = new FormData(); form.append('file', file);
+  try { const { brand } = await api('/api/brand/asset/' + kind, { method: 'POST', body: form }); keepDraft(brand); toast('Saved'); }
+  catch (e) { toast(e.message, true); }
+}
+async function clearAsset(kind) {
+  try { const { brand } = await api('/api/brand/asset/' + kind, { method: 'DELETE' }); keepDraft(brand); }
+  catch (e) { toast(e.message, true); }
+}
+async function uploadLogo(file) {
+  if (!file) return;
+  const form = new FormData(); form.append('file', file);
+  try { const { brand } = await api('/api/brand/logo', { method: 'POST', body: form }); keepDraft(brand); }
+  catch (e) { toast(e.message, true); }
+}
+async function clearLogo() {
+  try { const { brand } = await api('/api/brand/logo', { method: 'DELETE' }); keepDraft(brand); }
+  catch (e) { toast(e.message, true); }
+}
+
+/* ---------- Auto-edit (the one-button video editor) ---------- */
+function labeledText(title, text, multiline) {
+  const field = multiline ? el('textarea', { rows: '7', readonly: true }) : el('input', { type: 'text', readonly: true });
+  field.value = text;
+  return el('div', { class: 'ae-field' }, el('div', { class: 'ae-field-head' }, el('b', { text: title }), copyButton('Copy', () => field.value)), field);
+}
+function translateBox(id) {
+  const box = el('div', { class: 'translate-box' }, el('b', { text: 'Reach more viewers: translate captions' }));
+  if (!(studio.caps && studio.caps.ai_text)) {
+    box.append(el('small', { text: 'Translated captions need ANTHROPIC_API_KEY on this computer. The original SRT and VTT files above work on YouTube as they are.' }));
+    return box;
+  }
+  const inputs = [];
+  const checks = Object.entries(studio.caps.languages || {}).map(([code, name]) => {
+    const input = el('input', { type: 'checkbox', value: code }); inputs.push(input);
+    return el('label', { class: 'lang-chip' }, input, name);
+  });
+  const status = el('div', { class: 'render-status hidden', role: 'status' });
+  const out = el('div', { class: 'translate-files' });
+  const go = el('button', { type: 'button', class: 'ghost-btn', text: 'Translate selected (up to 6)', onclick: async () => {
+    const langs = inputs.filter((i) => i.checked).map((i) => i.value);
+    if (!langs.length) { toast('Pick at least one language.', true); return; }
+    go.disabled = true;
+    try {
+      const { job_id } = await post('/api/projects/' + id + '/translate', { languages: langs });
+      const job = await runJob(job_id, (j) => showStatus(status, j));
+      status.textContent = 'Done.';
+      out.replaceChildren(...job.outputs.files.map((f) => el('div', { class: 'translate-file' }, el('span', { text: f.language }),
+        el('a', { class: 'tiny-btn', href: f.srt, download: '', text: 'SRT' }), el('a', { class: 'tiny-btn', href: f.vtt, download: '', text: 'VTT' }))));
+    } catch (e) { status.classList.remove('hidden'); status.textContent = 'Translation stopped: ' + e.message; toast(e.message, true); }
+    finally { go.disabled = false; }
+  } });
+  box.append(el('div', { class: 'lang-grid' }, ...checks), go, status, out);
+  return box;
+}
+function extrasLine(x) {
+  if (!x) return null;
+  const bits = [];
+  if (x.intro_clip) bits.push('your intro clip'); if (x.intro_card) bits.push('a title card');
+  if (x.lower_thirds) bits.push(x.lower_thirds + ' chapter title' + (x.lower_thirds === 1 ? '' : 's'));
+  if (x.callouts) bits.push(x.callouts + ' callout' + (x.callouts === 1 ? '' : 's'));
+  if (x.sfx) bits.push(x.sfx + ' sound effect' + (x.sfx === 1 ? '' : 's'));
+  if (x.music) bits.push('background music'); if (x.outro_clip) bits.push('your outro clip');
+  return el('div', { class: 'auto-result' }, el('strong', { text: 'Added automatically' }),
+    el('small', { class: 'auto-reasons', text: bits.length ? bits.join(' · ') : 'Nothing extra was needed for this video.' }));
+}
+function renderAutoEdit(out, id) {
+  const yt = out.youtube; const box = $('autoEditResults');
+  const chapters = (yt.chapters || []).length ? yt.chapters.map((c) => Math.floor(c.start / 60) + ':' + String(Math.round(c.start % 60)).padStart(2, '0') + ' ' + c.title).join('\n') : '';
+  box.replaceChildren(
+    el('div', { class: 'auto-result' },
+      el('strong', { text: 'Finished video · ' + clock(out.seconds) + (out.removed_seconds > 0 ? ' · removed ' + out.removed_seconds + ' s of dead air' : '') }),
+      el('video', { controls: true, preload: 'metadata', src: out.video }),
+      el('div', { class: 'auto-actions' }, el('a', { class: 'download-btn', href: out.video, download: '', text: 'Download video' }))),
+    extrasLine(out.extras),
+    el('div', { class: 'auto-result' }, el('strong', { text: 'Thumbnail' }),
+      el('img', { class: 'ae-thumb', src: out.thumbnail, alt: 'Generated thumbnail' }),
+      el('div', { class: 'auto-actions' }, el('a', { class: 'tiny-btn', href: out.thumbnail, download: '', text: 'Download thumbnail' }))),
+    el('div', { class: 'auto-result' }, el('strong', { text: 'YouTube upload text' }),
+      labeledText('Title', yt.title, false), labeledText('Description (with chapters)', yt.description, true),
+      labeledText('Tags', (yt.tags || []).join(', '), false),
+      chapters ? el('small', { class: 'auto-reasons', text: (yt.chapters.length) + ' chapters found.' }) : el('small', { class: 'auto-reasons', text: 'No chapters: the video is too short or has no clear topic changes.' }),
+      el('div', { class: 'auto-actions' }, el('a', { class: 'tiny-btn', href: yt.file, download: '', text: 'Download as .txt' }))),
+    el('div', { class: 'auto-result' }, el('strong', { text: 'Captions (' + out.cues + ')' }),
+      el('div', { class: 'auto-actions' }, el('a', { class: 'tiny-btn', href: out.captions.srt, download: '', text: 'SRT' }), el('a', { class: 'tiny-btn', href: out.captions.vtt, download: '', text: 'VTT' })),
+      translateBox(id)));
+  if (out.shorts && out.shorts.length) {
+    const wrap = el('div', { class: 'auto-results' }); box.append(el('strong', { class: 'ae-shorts-title', text: 'Shorts' }), wrap);
+    renderOutputs(wrap, out.shorts, 'Short', id, null);
+  } else {
+    box.append(el('a', { class: 'download-btn', href: '/api/projects/' + id + '/bundle.zip', text: 'Download everything (.zip)' }));
+  }
+}
+async function runAutoEdit() {
+  if (studio.busy || !studio.id) return;
+  studio.busy = true; const button = $('autoEditRun'); button.disabled = true;
+  const status = $('autoEditStatus');
+  try {
+    const { job_id } = await post('/api/projects/' + studio.id + '/autoedit', {
+      trim_silence: $('aeTrim').checked, loudness: $('aeLoud').checked, watermark: $('aeWatermark').checked,
+      endcard: $('aeEndcard').checked, captions: $('aeCaptions').checked, zoom: $('aeZoom').value,
+      resolution: $('aeRes').value, shorts: Number($('aeShorts').value),
+      sfx: $('aeSfx').checked, callouts: $('aeCallouts').checked, chapter_titles: $('aeTitles').checked,
+      music: $('aeMusic').checked, intro_outro: $('aeIntroOutro').checked, intro_card: $('aeIntroCard').checked });
+    const job = await runJob(job_id, (j) => showStatus(status, j));
+    status.textContent = 'Done. Your video, thumbnail and upload text are ready.';
+    renderAutoEdit(job.outputs, studio.id);
+  } catch (e) { status.classList.remove('hidden'); status.textContent = 'Auto-edit stopped: ' + e.message; toast(e.message, true); }
+  finally { studio.busy = false; button.disabled = false; }
+}
+
+/* ---------- Watch folder (desktop app only) ---------- */
+const watch = { timer: null };
+function paintWatch(s) {
+  $('watchStart').classList.toggle('hidden', s.running); $('watchStop').classList.toggle('hidden', !s.running);
+  const lines = (s.events || []).slice(-8).map((e) => new Date(e.time * 1000).toLocaleTimeString() + '  ' + e.message);
+  if (s.busy) lines.push('Working on ' + s.busy + '…');
+  $('watchLog').textContent = lines.join('\n');
+  clearTimeout(watch.timer);
+  if (s.running) watch.timer = setTimeout(refreshWatch, 3000);
+}
+async function refreshWatch() { try { paintWatch(await api('/api/watch/status')); } catch (e) { /* offline: try again on next open */ } }
+async function startWatch() {
+  try {
+    paintWatch(await post('/api/watch/start', { folder: $('watchFolder').value.trim(), out: $('watchOut').value.trim(),
+      options: { shorts: Number($('watchShorts').value) } }));
+  } catch (e) { toast(e.message, true); }
+}
+async function stopWatch() { try { paintWatch(await post('/api/watch/stop', {})); } catch (e) { toast(e.message, true); } }
+
 /* ---------- wiring (every element is optional so a page without them still loads) ---------- */
 const on = (id, type, fn) => { const node = $(id); if (node) node.addEventListener(type, fn); };
 on('autoRunBtn', 'click', runAutopilot);
@@ -271,10 +460,26 @@ on('autopilotFromReview', 'click', runAutopilot);
 on('autoFindShorts', 'click', findShorts);
 on('autoRenderShorts', 'click', renderPickedShorts);
 on('openClipStudio', 'click', () => openStudio(null));
+on('openClipStudioPanel', 'click', () => openStudio(null));
 on('clipStudioClose', 'click', closeStudio);
 on('clipPick', 'click', () => $('clipFile').click());
 on('clipFile', 'change', (e) => { const f = e.target.files && e.target.files[0]; if (f) uploadSource(f); e.target.value = ''; });
 on('clipRegen', 'click', regenerate);
+on('autoEditRun', 'click', runAutoEdit);
+on('brandOpen', 'click', openBrand);
+on('brandSave', 'click', saveBrand);
+on('brandCancel', 'click', () => $('brandModal').classList.add('hidden'));
+on('brLogoPick', 'click', () => $('brLogoFile').click());
+on('brLogoFile', 'change', (e) => { const f = e.target.files && e.target.files[0]; if (f) uploadLogo(f); e.target.value = ''; });
+on('brLogoClear', 'click', clearLogo);
+for (const [kind] of ASSETS) {
+  const slug = kind.toLowerCase();
+  on('br' + kind + 'Pick', 'click', () => $('br' + kind + 'File').click());
+  on('br' + kind + 'File', 'change', (e) => { const f = e.target.files && e.target.files[0]; if (f) uploadAsset(slug, f); e.target.value = ''; });
+  on('br' + kind + 'Clear', 'click', () => clearAsset(slug));
+}
+on('watchStart', 'click', startWatch);
+on('watchStop', 'click', stopWatch);
 on('clipRender', 'click', renderClips);
 document.addEventListener('keydown', (e) => { const s = $('clipStudio'); if (e.key === 'Escape' && s && !s.classList.contains('hidden')) closeStudio(); });
 

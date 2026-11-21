@@ -19,7 +19,7 @@
         <button id="redoBtn" class="ghost-btn icon-action" title="Redo (Ctrl+Y)" aria-label="Redo" disabled>↷</button>
         <button id="saveBtn" class="ghost-btn" title="Save this project permanently" disabled>Save</button>
         <button id="exitBtn" class="ghost-btn" title="Close the project with Save / Don't Save / Cancel">Exit</button>
-        <button id="topExport" class="primary-btn" disabled><span>↗</span> Export video</button>
+        <button id="topExport" class="primary-btn" title="Export video" aria-label="Export video" disabled><span>↗</span> Export video</button>
       </div>
     </header>
 
@@ -188,7 +188,8 @@
         <div class="panel hidden" id="panel-auto">
           <div class="section-top"><div class="eyebrow">AUTONOMOUS</div><h2>Autopilot.</h2><p>Full video plus Shorts, hands-free.</p></div>
           <div class="panel-content form-fields">
-            <div class="control-head">AUTOPILOT</div>
+            <button id="openClipStudioPanel" class="wide-ghost" type="button">✂ Open Clip Studio · long videos to Shorts</button>
+            <div class="control-head after-gap">AUTOPILOT</div>
             <div class="control-group"><label for="autoPreset">Caption style</label>
               <select id="autoPreset"><option value="classic">Classic lines</option><option value="bold">Bold words</option><option value="karaoke">Karaoke highlight</option><option value="project">Keep my current style</option></select></div>
             <div class="control-group"><label for="autoAspect">Full video shape</label>
@@ -387,7 +388,7 @@
   <div id="clipStudio" class="clip-studio hidden" role="dialog" aria-modal="true" aria-labelledby="clipStudioTitle">
     <header class="clip-studio-bar">
       <div><span class="eyebrow">CLIP STUDIO</span><h2 id="clipStudioTitle">Long video to Shorts</h2></div>
-      <button id="clipStudioClose" class="ghost-btn" type="button">Close</button>
+      <div class="clip-studio-actions"><button id="brandOpen" class="ghost-btn" type="button">Brand kit</button><button id="clipStudioClose" class="ghost-btn" type="button">Close</button></div>
     </header>
     <div class="clip-studio-body">
       <section id="clipUploadStep" class="clip-step">
@@ -398,15 +399,50 @@
           <label>Recognition<select id="clipRecognition"><option value="fast">Fast</option><option value="balanced" selected>Balanced</option><option value="accurate">Accurate (slower)</option></select></label>
           <label class="clip-check"><input id="clipUseAi" type="checkbox" disabled /> Rank picks with Claude <small id="clipAiNote">Needs ANTHROPIC_API_KEY on this computer. Sends transcript text only.</small></label>
         </div>
+        <details id="watchBox" class="watch-box hidden"><summary>Hands-off: auto-process a folder</summary>
+          <label>Watch this folder<input id="watchFolder" type="text" placeholder="C:\Users\you\Videos\Inbox" /></label>
+          <label>Save finished videos to<input id="watchOut" type="text" placeholder="C:\Users\you\Videos\Finished" /></label>
+          <label>Shorts per video<select id="watchShorts"><option value="0">None</option><option value="1">1</option><option value="3" selected>3</option><option value="5">5</option></select></label>
+          <p class="clip-fine">Drop a recording into the folder and walk away. Each video is auto-edited with your brand kit (trim dead air, normalize loudness, watermark, end card) and saved as its own folder with the video, thumbnail, YouTube text and captions. Finished originals move to <b>processed</b>; failures to <b>failed</b>.</p>
+          <div class="watch-actions"><button id="watchStart" class="primary-btn" type="button">Start watching</button><button id="watchStop" class="ghost-btn hidden" type="button">Stop</button></div>
+          <div id="watchLog" class="watch-log" aria-live="polite"></div>
+        </details>
         <p class="clip-fine">Clips are chosen from the transcript, loudness and scene changes. You approve every clip before anything is exported.</p>
       </section>
       <section id="clipProgressStep" class="clip-step hidden"><div class="loading-orbit"></div><strong id="clipProgressTitle">Working…</strong><div class="transcribe-meter"><div id="clipMeter"></div></div><small id="clipProgressNote"></small></section>
       <section id="clipReadyStep" class="clip-step hidden">
+        <div id="autoEditCard" class="auto-edit-card">
+          <div class="auto-edit-head"><div><strong>Auto-edit the whole video</strong><small>One click trims dead air, evens out the volume, adds your logo and end card, then writes the thumbnail, title, chapters and captions.</small></div>
+            <button id="autoEditRun" class="primary-btn" type="button">✦ Auto-edit this video</button></div>
+          <div class="auto-edit-opts">
+            <label class="clip-check"><input id="aeTrim" type="checkbox" checked /> Trim dead air</label>
+            <label class="clip-check"><input id="aeLoud" type="checkbox" checked /> Even out loudness</label>
+            <label class="clip-check"><input id="aeWatermark" type="checkbox" checked /> Logo watermark</label>
+            <label class="clip-check"><input id="aeEndcard" type="checkbox" checked /> End card</label>
+            <label class="clip-check"><input id="aeCaptions" type="checkbox" /> Burn in captions</label>
+            <label>Auto-zoom<select id="aeZoom"><option value="off">Off</option><option value="subtle">Subtle</option><option value="medium">Medium</option><option value="strong">Strong</option></select></label>
+            <label>Size<select id="aeRes"><option value="1080p">1080p</option><option value="720p">720p</option></select></label>
+            <label>Also make Shorts<select id="aeShorts"><option value="0">None</option><option value="1">1</option><option value="3" selected>3</option><option value="5">5</option></select></label>
+          </div>
+          <div class="auto-edit-extras"><b>Added automatically</b>
+            <label class="clip-check"><input id="aeSfx" type="checkbox" checked /> Sound effects</label>
+            <label class="clip-check"><input id="aeCallouts" type="checkbox" checked /> Animated callouts</label>
+            <label class="clip-check"><input id="aeTitles" type="checkbox" checked /> Chapter title animations</label>
+            <label class="clip-check"><input id="aeMusic" type="checkbox" checked /> Background music</label>
+            <label class="clip-check"><input id="aeIntroOutro" type="checkbox" checked /> Intro and outro clips</label>
+            <label class="clip-check"><input id="aeIntroCard" type="checkbox" /> Title card intro</label>
+            <small>Sound effects are generated by the app (nothing to license). Music and intro/outro clips come from your Brand kit.</small></div>
+          <div id="autoEditStatus" class="render-status hidden" role="status" aria-live="polite"></div>
+          <div id="autoEditResults" class="auto-results"></div>
+        </div>
         <div class="clip-toolbar">
           <label>Crop<select id="clipReframe"><option value="center">Center crop</option><option value="follow">Follow the action</option></select></label>
           <label>Clips<select id="clipSuggestCount"><option>4</option><option selected>8</option><option>12</option></select></label>
           <label>Min s<input id="clipMin" type="number" min="10" max="90" value="20" /></label>
           <label>Max s<input id="clipMax" type="number" min="15" max="120" value="60" /></label>
+          <label class="clip-check"><input id="clipLoud" type="checkbox" checked /> Even out loudness</label>
+          <label class="clip-check"><input id="clipTrim" type="checkbox" /> Trim dead air</label>
+          <label class="clip-check"><input id="clipWatermark" type="checkbox" checked /> Watermark</label>
           <button id="clipRegen" class="ghost-btn" type="button">↻ Find clips again</button>
           <span class="clip-spacer"></span>
           <button id="clipRender" class="primary-btn" type="button">Render selected (0)</button>
@@ -415,6 +451,40 @@
         <div id="clipCards" class="clip-grid"></div>
         <div id="clipResults" class="auto-results"></div>
       </section>
+    </div>
+  </div>
+  <div id="brandModal" class="brand-modal hidden" role="dialog" aria-modal="true" aria-labelledby="brandTitle">
+    <div class="brand-card">
+      <h3 id="brandTitle">Brand kit</h3>
+      <p class="clip-fine">Used on every Auto-edit and polished clip: logo watermark, end card, thumbnail colors.</p>
+      <div class="brand-grid">
+        <label>Name<input id="brName" type="text" maxlength="60" /></label>
+        <label>Font<input id="brFont" type="text" maxlength="60" placeholder="Arial" /></label>
+        <label>Accent<input id="brAccent" type="color" value="#7ce86e" /></label>
+        <label>Background<input id="brBg" type="color" value="#0e1410" /></label>
+        <label>Text<input id="brText" type="color" value="#ffffff" /></label>
+        <div class="brand-logo"><img id="brLogoImg" class="hidden" alt="Your logo" /><button id="brLogoPick" class="ghost-btn" type="button">Upload logo</button><button id="brLogoClear" class="ghost-btn hidden" type="button">Remove</button><input id="brLogoFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden /></div>
+        <label class="clip-check"><input id="brWmOn" type="checkbox" /> Watermark</label>
+        <label>Position<select id="brWmPos"><option value="top-right">Top right</option><option value="top-left">Top left</option><option value="bottom-right">Bottom right</option><option value="bottom-left">Bottom left</option></select></label>
+        <label>Opacity<input id="brWmOpacity" type="range" min="0.2" max="1" step="0.05" /></label>
+        <label>Size<input id="brWmSize" type="range" min="5" max="25" step="1" /></label>
+        <label class="clip-check"><input id="brEcOn" type="checkbox" /> End card</label>
+        <label>Seconds<input id="brEcSecs" type="number" min="2" max="8" step="0.5" /></label>
+        <label class="brand-wide">Title<input id="brEcTitle" type="text" maxlength="80" /></label>
+        <label class="brand-wide">Subtitle<input id="brEcSub" type="text" maxlength="100" /></label>
+        <label class="brand-wide">Link or handle<input id="brEcUrl" type="text" maxlength="100" /></label>
+      </div>
+      <div class="brand-sound">
+        <b>Clips and sound</b>
+        <div class="brand-asset"><span>Background music</span><span id="brMusicName" class="brand-asset-name">None</span><button id="brMusicPick" class="ghost-btn" type="button">Choose</button><button id="brMusicClear" class="ghost-btn hidden" type="button">Remove</button><input id="brMusicFile" type="file" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.flac" hidden /></div>
+        <div class="brand-asset"><span>Intro clip (max 20 s)</span><span id="brIntroName" class="brand-asset-name">None</span><button id="brIntroPick" class="ghost-btn" type="button">Choose</button><button id="brIntroClear" class="ghost-btn hidden" type="button">Remove</button><input id="brIntroFile" type="file" accept="video/*,.mp4,.mov,.mkv,.webm,.m4v" hidden /></div>
+        <div class="brand-asset"><span>Outro clip (max 20 s)</span><span id="brOutroName" class="brand-asset-name">None</span><button id="brOutroPick" class="ghost-btn" type="button">Choose</button><button id="brOutroClear" class="ghost-btn hidden" type="button">Remove</button><input id="brOutroFile" type="file" accept="video/*,.mp4,.mov,.mkv,.webm,.m4v" hidden /></div>
+        <div class="brand-grid">
+          <label>Music volume<input id="brMusicVol" type="range" min="0.03" max="0.6" step="0.01" /></label>
+          <label>Sound effect volume<input id="brSfxVol" type="range" min="0" max="1" step="0.05" /></label>
+        </div>
+      </div>
+      <div class="brand-actions"><button id="brandSave" class="primary-btn" type="button">Save</button><button id="brandCancel" class="ghost-btn" type="button">Close</button></div>
     </div>
   </div>
   <script src="/static/app.js"></script>

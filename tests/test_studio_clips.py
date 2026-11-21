@@ -290,6 +290,21 @@ def test_scene_changes_detects_a_cut(tmp_path):
 
 
 @needs_ffmpeg
+def test_probe_media_reads_size_fps_audio_without_ffprobe(moving_video, tmp_path, monkeypatch):
+    info = clips.probe_media(moving_video)
+    assert (info["width"], info["height"]) == (640, 360)
+    assert info["has_audio"] and abs(info["fps"] - 10) < .5 and 7.5 < info["duration"] < 8.5
+    # The packaged app has no ffprobe; nothing here may depend on it.
+    real_run = subprocess.run
+
+    def no_ffprobe(cmd, *a, **k):
+        assert cmd[0] != "ffprobe", "ffprobe is not bundled with the Windows app"
+        return real_run(cmd, *a, **k)
+    monkeypatch.setattr(subprocess, "run", no_ffprobe)
+    assert clips.video_size(moving_video) == (640, 360)
+
+
+@needs_ffmpeg
 def test_audio_envelope_reads_real_audio(moving_video):
     env = clips.audio_envelope(moving_video, 50)
     assert len(env) == 50 and max(env) > .05 and all(0 <= v <= 1 for v in env)
@@ -305,13 +320,15 @@ def test_real_vertical_clip_render_with_follow_crop_and_captions(tmp_path, movin
     (tmp_path / "c.ass").write_text(ASS_HEADER, encoding="utf-8-sig")
     assert clips.add_hook_to_ass(tmp_path / "c.ass", "Watch this", 360, 640, 1.0)
     out = tmp_path / "clip.mp4"
-    args = clips.build_clip_args(moving_video, 1.0, 4.0, crop_w, crop_h, expr, 360, 640, "c.ass", 24,
-                                 perf.encode_args("libx264", "fast", 360, 640, 2), out)
+    import studio_edit as edit
+    args, graph, seconds = edit.build_render(
+        moving_video, 360, 640, 24, out, perf.encode_args("libx264", "fast", 360, 640, 2), duration=4.0,
+        start=1.0, length=4.0, crop=(crop_w, crop_h, expr), ass_name="c.ass")
+    (tmp_path / "graph.txt").write_text(graph)
+    assert seconds == 4.0
     proc = subprocess.run(args, cwd=tmp_path, capture_output=True, text=True)
     assert proc.returncode == 0, proc.stdout[-400:] + proc.stderr[-400:]
     assert clips.video_size(out) == (360, 640)
-    probe = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration:stream=codec_type",
-                            "-of", "json", str(out)], capture_output=True, text=True)
-    info = json.loads(probe.stdout)
-    assert 3.5 < float(info["format"]["duration"]) < 4.6
-    assert {s["codec_type"] for s in info["streams"]} == {"video", "audio"}
+    info = clips.probe_media(out)
+    assert 3.5 < info["duration"] < 4.6
+    assert info["has_audio"] and info["has_video"] and info["fps"] > 20

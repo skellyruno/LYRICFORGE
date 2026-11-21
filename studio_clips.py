@@ -447,14 +447,32 @@ def scene_changes(video: Path, threshold: float = .3, timeout: int = 3600) -> li
     return [float(m) for m in re.findall(r"pts_time:([0-9.]+)", proc.stderr or "")]
 
 
+def probe_media(path: Path) -> dict:
+    """Size, fps, duration and audio presence, read from `ffmpeg -i` output.
+
+    The packaged app ships ffmpeg.exe only (no ffprobe), so this must not call ffprobe.
+    """
+    proc = subprocess.run(["ffmpeg", "-hide_banner", "-nostdin", "-i", str(path)],
+                          capture_output=True, text=True, timeout=60, stdin=subprocess.DEVNULL,
+                          **perf.windows_child_options(low_priority=True))
+    text = proc.stderr or ""
+    video = re.search(r"Stream #\S+: Video: (.*)", text)
+    size = re.search(r",\s*(\d{2,5})x(\d{2,5})[\s,\[]", (video.group(1) + " ") if video else "")
+    fps = re.search(r"([0-9.]+) fps", video.group(1)) if video else None
+    duration = re.search(r"Duration: (\d+):(\d+):(\d+(?:\.\d+)?)", text)
+    return {"width": int(size.group(1)) if size else 0, "height": int(size.group(2)) if size else 0,
+            "fps": float(fps.group(1)) if fps else 0.0,
+            "has_audio": bool(re.search(r"Stream #\S+: Audio:", text)),
+            "has_video": video is not None,
+            "duration": (int(duration.group(1)) * 3600 + int(duration.group(2)) * 60
+                         + float(duration.group(3))) if duration else 0.0}
+
+
 def video_size(video: Path) -> tuple[int, int]:
-    proc = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0",
-                           "-show_entries", "stream=width,height", "-of", "csv=p=0:s=x", str(video)],
-                          capture_output=True, text=True, timeout=60, stdin=subprocess.DEVNULL)
-    match = re.search(r"(\d+)x(\d+)", proc.stdout or "")
-    if proc.returncode or not match:
+    info = probe_media(video)
+    if not info["width"] or not info["height"]:
         raise RuntimeError("Cannot read video size")
-    return int(match.group(1)), int(match.group(2))
+    return info["width"], info["height"]
 
 
 def activity_centers(video: Path, start: float, length: float, fps: int = 1,
@@ -553,17 +571,6 @@ def lines_from_words(words: list[dict], max_words: int = 4, gap: float = .6) -> 
             flush()
     flush()
     return result
-
-
-def build_clip_args(source: Path, start: float, length: float, crop_w: int, crop_h: int,
-                    x_expr: str, out_w: int, out_h: int, ass_name: str, fps: int,
-                    encode: list[str], output: Path) -> list[str]:
-    vf = (f"crop={crop_w}:{crop_h}:x='{x_expr}':y=0,scale={out_w}:{out_h},"
-          f"setsar=1,format=yuv420p,ass={ass_name}")
-    return ["ffmpeg", "-hide_banner", "-loglevel", "error", "-nostats", "-nostdin",
-            "-progress", "pipe:1", "-y", "-ss", f"{start:.3f}", "-t", f"{length:.3f}",
-            "-i", str(source), "-vf", vf, "-r", str(fps), *encode,
-            "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart", str(output)]
 
 
 def clip_words(words: list[dict], start: float, end: float) -> list[dict]:
