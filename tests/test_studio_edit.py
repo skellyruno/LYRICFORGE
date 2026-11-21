@@ -40,8 +40,9 @@ def talk(spans):
 def test_dead_air_is_cut_with_padding_and_short_pauses_survive():
     words = talk([(1.0, 4.0), (4.5, 8.0), (14.0, 18.0)])  # 0.5 s pause kept, 6 s gap cut
     segs = edit.plan_keep_segments(words, 20.0, min_gap=.8, pad=.2)
-    assert segs == [(.8, 8.18), (13.8, 18.18)] or len(segs) == 2
-    assert segs[0][0] == pytest.approx(.8, abs=.01) and segs[1][0] == pytest.approx(13.8, abs=.01)
+    assert len(segs) == 2
+    assert segs[0] == pytest.approx((.8, 8.18), abs=.01)
+    assert segs[1] == pytest.approx((13.8, 18.18), abs=.01)
     assert edit.kept_duration(segs) < 20 - 6
     assert edit.plan_keep_segments([], 12.0) == [(0.0, 12.0)]
     assert edit.is_noop_cut([(0.0, 12.0)], 12.0)
@@ -64,13 +65,23 @@ def test_lerp_expression_matches_keyframes_and_stays_shallow():
     pts = [(0, 1.0), (2, 1.0), (3, 2.0), (6, 2.0), (7, 1.0)]
     expr = edit.lerp_expr(pts, "t")
     for t, want in [(0, 1), (2, 1), (2.5, 1.5), (3, 2), (5, 2), (6.5, 1.5), (7, 1), (99, 1), (-5, 1)]:
-        assert ev(expr, t=t) == pytest.approx(want, abs=1e-3)
+        assert ev(expr, t=t) == pytest.approx(want, abs=1e-6)
     many = [(i * .5, (i % 7) / 3 + 1) for i in range(48)]
-    assert edit.lerp_expr(many, "t").count("if(") == len(many) // 2 or True
-    assert max(len(s) for s in [edit.lerp_expr(many, "t")]) < 6000
+    many_expr = edit.lerp_expr(many, "t")
+    assert many_expr.count("if(") == len(many) - 2  # one branch for every internal node
+    assert len(many_expr) < 6000
+    # Every authored keyframe and every interval midpoint must evaluate accurately.
+    for i, (time, value) in enumerate(many):
+        assert ev(many_expr, t=time) == pytest.approx(value, abs=1e-6)
+        if i + 1 < len(many):
+            next_time, next_value = many[i + 1]
+            midpoint = (time + next_time) / 2
+            assert ev(many_expr, t=midpoint) == pytest.approx((value + next_value) / 2, abs=1e-6)
+    assert ev(many_expr, t=-10) == pytest.approx(many[0][1])
+    assert ev(many_expr, t=10_000) == pytest.approx(many[-1][1])
     assert edit.lerp_expr([], "t") == "0" and edit.lerp_expr([(0, 3), (9, 3)], "t") == "3"
     depth, best = 0, 0
-    for ch in edit.lerp_expr(many, "t"):
+    for ch in many_expr:
         depth += (ch == "(") - (ch == ")")
         best = max(best, depth)
     assert best < 40  # balanced tree, not a 48-deep chain

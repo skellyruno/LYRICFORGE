@@ -180,7 +180,7 @@ def _simplify(pts: list[tuple[float, float, float, float]], limit: int = 48):
 
 
 def _num(v: float) -> str:
-    text = f"{v:.4f}".rstrip("0").rstrip(".")
+    text = f"{v:.6f}".rstrip("0").rstrip(".")
     return text if text not in ("", "-0") else "0"
 
 
@@ -197,9 +197,9 @@ def lerp_expr(points: list[tuple[float, float]], tvar: str) -> str:
             (t0, v0), (t1, v1) = pts[lo], pts[hi]
             if v0 == v1:
                 return _num(v0)
-            return f"{_num(v0)}+({_num(v1 - v0)})*clip(({tvar}-{t0:.3f})/{max(t1 - t0, .001):.3f},0,1)"
+            return f"{_num(v0)}+({_num(v1 - v0)})*clip(({tvar}-{_num(t0)})/{_num(max(t1 - t0, .001))},0,1)"
         mid = (lo + hi) // 2
-        return f"if(lt({tvar},{pts[mid][0]:.3f}),{build(lo, mid)},{build(mid, hi)})"
+        return f"if(lt({tvar},{_num(pts[mid][0])}),{build(lo, mid)},{build(mid, hi)})"
     return build(0, len(pts) - 1)
 
 
