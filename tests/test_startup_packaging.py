@@ -28,6 +28,12 @@ def test_actions_artifact_contains_program_not_zip_inside_zip():
 
 
 
+def test_windows_build_triggers_for_any_studio_module_change():
+    workflow = (ROOT / ".github/workflows/windows-release.yml").read_text(encoding="utf-8")
+    assert "- 'studio_*.py'" in workflow
+    assert "- 'update_apply.ps1'" in workflow
+
+
 def test_docker_image_copies_every_server_studio_dependency():
     dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
     server_source = (ROOT / "server.py").read_text(encoding="utf-8")

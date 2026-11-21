@@ -7,10 +7,8 @@ on:
     paths:
       - 'desktop_launcher.py'
       - 'server.py'
-      - 'studio_performance.py'
-      - 'studio_clips.py'
-      - 'studio_edit.py'
-      - 'studio_cli.py'
+      - 'studio_*.py'
+      - 'update_apply.ps1'
       - 'static/**'
       - 'Repair-SkellyMotion.cmd'
       - 'SkellyMotion-SafeMode.cmd'
