@@ -363,6 +363,12 @@ jobs:
             }
             $width = [int]($rect.Right - $rect.Left)
             $height = [int]($rect.Bottom - $rect.Top)
+            $workArea = [System.Windows.Forms.Screen]::FromHandle($handle).WorkingArea
+            Write-Host "Desktop working area: $($workArea.Width)x$($workArea.Height); window: $width x $height"
+            if ($rect.Left -lt $workArea.Left -or $rect.Top -lt $workArea.Top -or
+                $rect.Right -gt $workArea.Right -or $rect.Bottom -gt $workArea.Bottom) {
+              throw 'Initial editor window extends beyond usable desktop area'
+            }
             if ($width -lt 400 -or $height -lt 300 -or $width -gt 3840 -or $height -gt 2160) {
               throw "Unreasonable native window dimensions: $width x $height"
             }

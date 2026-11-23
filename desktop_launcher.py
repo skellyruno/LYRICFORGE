@@ -17,6 +17,40 @@ from desktop_watchdog import ConsecutiveFailureDetector, windows_ui_responding
 WINDOW_TITLE = "SkellyMotion | Lyric video studio"
 
 
+def initial_window_geometry(usable_width: int, usable_height: int) -> tuple[int, int, tuple[int, int]]:
+    """Keep the complete initial editor inside the usable desktop, including the taskbar.
+
+    Do not change normal 960x623 layouts, but shrink both the requested and
+    minimum sizes on smaller monitors. The user can still maximize or resize.
+    """
+    width = min(960, max(320, int(usable_width) - 24))
+    height = min(623, max(240, int(usable_height) - 24))
+    return width, height, (min(800, width), min(520, height))
+
+
+def native_work_area() -> tuple[int, int]:
+    """Return the Windows working area without the taskbar, with safe fallback."""
+    if sys.platform != "win32":
+        return 1920, 1080
+    try:
+        import ctypes
+        from ctypes import wintypes
+        bounds = wintypes.RECT()
+        if ctypes.windll.user32.SystemParametersInfoW(
+                0x0030, 0, ctypes.byref(bounds), 0):  # SPI_GETWORKAREA
+            width = int(bounds.right - bounds.left)
+            height = int(bounds.bottom - bounds.top)
+            if width > 0 and height > 0:
+                return width, height
+        width = int(ctypes.windll.user32.GetSystemMetrics(0))
+        height = int(ctypes.windll.user32.GetSystemMetrics(1))
+        if width > 0 and height > 0:
+            return width, height
+    except (AttributeError, OSError, TypeError, ValueError):
+        pass
+    return 1920, 1080
+
+
 def runtime_dir() -> Path:
     return Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
 
@@ -452,10 +486,12 @@ def run_desktop(home: Path, safe_mode: bool = False,
 
     try:
         picker = DesktopFilePicker()
+        window_width, window_height, min_window = initial_window_geometry(*native_work_area())
+        log_stage(f"initial editor window {window_width}x{window_height}, minimum {min_window}")
         window = webview.create_window(WINDOW_TITLE,
                               "http://127.0.0.1:" + str(port) + "/?desktop=1",
-                              # 25% smaller default window; user can resize/maximize freely.
-                              width=960, height=623, min_size=(800, 520),
+                              # Full-size on normal monitors; fit smaller desktops.
+                              width=window_width, height=window_height, min_size=min_window,
                               resizable=True, background_color="#090c0c",
                               js_api=picker)
         picker._window = window
