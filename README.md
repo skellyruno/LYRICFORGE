@@ -380,3 +380,10 @@ enable speech recognition without the AI dependencies.
 Reading brand defaults and checking for absent logo/music assets no longer creates
 an empty Brand Kit folder. Invalid Make animation requests now leave the workspace
 untouched. Existing brand uploads and project manifests are not changed.
+
+
+## PyAV corrupt-media error normalization (November 2026)
+
+Corrupt media in full PyAV installations now returns the same readable 400
+validation error as the FFmpeg fallback. Invalid containers are rejected
+without leaving partial projects in the library.

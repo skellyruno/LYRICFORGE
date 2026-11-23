@@ -163,7 +163,13 @@ def media_duration(path: Path) -> float:
         if math.isfinite(seconds) and seconds > 0:
             return seconds
         raise ValueError("The uploaded audio/video has no readable duration")
-    with av.open(str(path)) as media:
+    try:
+        container = av.open(str(path))
+    except Exception as exc:
+        # A corrupt file raises PyAV InvalidDataError (not ValueError).
+        # Normalize only container-open errors so the API can return HTTP 400.
+        raise ValueError("The uploaded audio/video has no readable duration") from exc
+    with container as media:
         if media.duration is not None and media.duration > 0:
             duration = float(media.duration) / float(av.time_base)
             if math.isfinite(duration):
@@ -188,7 +194,11 @@ def video_stream_width(path: Path) -> int:
         if info["has_video"] and info["width"] > 0 and info["height"] > 0:
             return info["width"]
         raise ValueError("Background file has no readable video/image stream")
-    with av.open(str(path)) as media:
+    try:
+        container = av.open(str(path))
+    except Exception as exc:
+        raise ValueError("Background file has no readable video/image stream") from exc
+    with container as media:
         for stream in media.streams:
             if stream.type == "video":
                 width = int(stream.codec_context.width or 0)

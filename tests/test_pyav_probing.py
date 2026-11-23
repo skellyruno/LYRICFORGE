@@ -90,3 +90,25 @@ def test_invalid_audio_upload_is_400_and_cleans_partial_project(tmp_path, monkey
     assert response.status_code == 400, response.text
     assert "Cannot read" in response.json()["detail"]
     assert not any(tmp_path.iterdir())
+
+
+def test_corrupt_media_when_pyav_is_installed_still_returns_400(tmp_path, monkeypatch):
+    """PyAV InvalidDataError must not turn a malformed song into HTTP 500."""
+    import sys
+    from types import SimpleNamespace
+    from fastapi.testclient import TestClient
+
+    class InvalidDataError(Exception):
+        pass
+
+    fake_av = SimpleNamespace(open=lambda _: (_ for _ in ()).throw(InvalidDataError("bad container")))
+    monkeypatch.setitem(sys.modules, "av", fake_av)
+    monkeypatch.setattr(server, "DATA", tmp_path)
+    response = TestClient(server.app).post(
+        "/api/projects", files={"file": ("bad.wav", b"corrupt", "audio/wav")})
+    assert response.status_code == 400, response.text
+    assert not list(tmp_path.iterdir())
+    bad_background = tmp_path / "bad.png"
+    bad_background.write_bytes(b"invalid")
+    with pytest.raises(ValueError, match="no readable video"):
+        server.video_stream_width(bad_background)
