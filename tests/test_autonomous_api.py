@@ -138,9 +138,12 @@ def test_autoedit_options_validate_and_new_flags_are_accepted(tmp_path, monkeypa
     assert c.post(f"/api/projects/{pid}/autoedit", json={"sfx": "maybe"}).status_code == 422
 
 
-def test_invalid_animation_does_not_create_brand_folder(tmp_path, monkeypatch):
-    """A rejected animation cannot create an empty brand directory."""
+def test_missing_brand_assets_are_read_only(tmp_path, monkeypatch):
+    """Actual Brand Kit read endpoints must not create storage for missing assets."""
     c = client(tmp_path, monkeypatch)
-    response = c.post("/api/animation", data={"template": "kinetic", "text": "  "})
-    assert response.status_code == 400
+    assert c.get("/api/brand").status_code == 200
+    assert c.get("/api/brand/logo").status_code == 404
+    assert server.brand_asset("music") is None
+    assert server.brand_asset("intro") is None
+    assert server.brand_asset("outro") is None
     assert not (tmp_path / "_brand").exists()
