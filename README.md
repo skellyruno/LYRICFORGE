@@ -373,3 +373,10 @@ background dimensions fall back to the existing FFmpeg executable; the Windows
 portable distribution still does not require FFprobe. Corrupt song uploads
 return HTTP 400 and leave no orphan project folder. This fallback does not
 enable speech recognition without the AI dependencies.
+
+
+## Read-only Brand Kit checks (November 2026)
+
+Reading brand defaults and checking for absent logo/music assets no longer creates
+an empty Brand Kit folder. Invalid Make animation requests now leave the workspace
+untouched. Existing brand uploads and project manifests are not changed.

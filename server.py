@@ -2193,7 +2193,8 @@ def brand_dir() -> Path:
 
 
 def brand_logo_path() -> Path | None:
-    logo = brand_dir() / "logo.png"
+    # Read-only brand checks must not create storage on invalid requests.
+    logo = DATA / "_brand" / "logo.png"
     return logo if logo.is_file() else None
 
 
@@ -2204,7 +2205,7 @@ ASSET_LIMITS = {"music": 40 * 1024 * 1024, "intro": 200 * 1024 * 1024, "outro": 
 def brand_asset(kind: str) -> Path | None:
     if kind not in ASSET_EXTENSIONS:
         return None
-    return next(iter(sorted(brand_dir().glob(f"{kind}.*"))), None)
+    return next(iter(sorted((DATA / "_brand").glob(f"{kind}.*"))), None)
 
 
 def store_brand_asset(kind: str, src: Path) -> None:
@@ -2238,7 +2239,7 @@ def store_brand_asset(kind: str, src: Path) -> None:
 
 def load_brand() -> dict:
     try:
-        raw = json.loads((brand_dir() / "brand.json").read_text(encoding="utf-8"))
+        raw = json.loads((DATA / "_brand" / "brand.json").read_text(encoding="utf-8"))
     except (OSError, ValueError):
         raw = {}
     raw["has_logo"] = brand_logo_path() is not None
