@@ -23,8 +23,17 @@ def initial_window_geometry(usable_width: int, usable_height: int) -> tuple[int,
     Do not change normal 960x623 layouts, but shrink both the requested and
     minimum sizes on smaller monitors. The user can still maximize or resize.
     """
-    width = min(960, max(320, int(usable_width) - 24))
-    height = min(623, max(240, int(usable_height) - 24))
+    # On compact Windows sessions, logical work-area metrics can be larger
+    # than the physically visible capture/display area (DPI/remote desktop).
+    # Keep additional headroom instead of relying only on a 24px border.
+    room_width = max(320, int(usable_width) - 24)
+    room_height = max(240, int(usable_height) - 24)
+    if 800 <= usable_width < 1200:
+        room_width = min(room_width, max(800, int(usable_width * 0.84)))
+    if 560 <= usable_height < 820:
+        room_height = min(room_height, max(520, int(usable_height * 0.78)))
+    width = min(960, room_width)
+    height = min(623, room_height)
     return width, height, (min(800, width), min(520, height))
 
 

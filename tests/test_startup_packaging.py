@@ -221,9 +221,10 @@ def test_initial_window_geometry_fits_compact_windows_work_area():
     """The native welcome screen must remain on-screen, not under the taskbar."""
     import desktop_launcher
     assert desktop_launcher.initial_window_geometry(1920, 1040) == (960, 623, (800, 520))
-    assert desktop_launcher.initial_window_geometry(896, 574) == (872, 550, (800, 520))
+    assert desktop_launcher.initial_window_geometry(1024, 720) == (860, 561, (800, 520))
+    assert desktop_launcher.initial_window_geometry(896, 574) == (800, 520, (800, 520))
     assert desktop_launcher.initial_window_geometry(780, 520) == (756, 496, (756, 496))
-    for area in ((1920, 1040), (896, 574), (780, 520)):
+    for area in ((1920, 1040), (1024, 720), (896, 574), (780, 520)):
         width, height, minimum = desktop_launcher.initial_window_geometry(*area)
         assert width <= area[0] and height <= area[1]
         assert minimum[0] <= width and minimum[1] <= height
