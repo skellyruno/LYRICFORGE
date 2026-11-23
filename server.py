@@ -151,13 +151,18 @@ def run(cmd: list[str]) -> subprocess.CompletedProcess[str]:
 
 
 def media_duration(path: Path) -> float:
-    """Read audio/video duration with already-bundled PyAV; no FFprobe binary.
+    """Read media duration with PyAV or the existing FFmpeg binary, not FFprobe.
 
-    Container timestamps are most reliable for MP3, WAV, M4A, MP4 and other
-    supported uploads. Some formats expose only stream time bases, so try
-    those as a fallback. Nothing is decoded into RAM.
+    Full desktop/AI builds keep the accurate PyAV path. Lightweight source
+    installations without the AI stack can still inspect media with FFmpeg.
     """
-    import av
+    try:
+        import av
+    except ImportError:
+        seconds = clips.probe_media(path)["duration"]
+        if math.isfinite(seconds) and seconds > 0:
+            return seconds
+        raise ValueError("The uploaded audio/video has no readable duration")
     with av.open(str(path)) as media:
         if media.duration is not None and media.duration > 0:
             duration = float(media.duration) / float(av.time_base)
@@ -175,8 +180,14 @@ def media_duration(path: Path) -> float:
 
 
 def video_stream_width(path: Path) -> int:
-    """Check a picture or video has a readable picture stream via PyAV."""
-    import av
+    """Check a picture/video stream with PyAV or existing FFmpeg if unavailable."""
+    try:
+        import av
+    except ImportError:
+        info = clips.probe_media(path)
+        if info["has_video"] and info["width"] > 0 and info["height"] > 0:
+            return info["width"]
+        raise ValueError("Background file has no readable video/image stream")
     with av.open(str(path)) as media:
         for stream in media.streams:
             if stream.type == "video":
@@ -745,7 +756,10 @@ async def create_project(file: UploadFile = File(...), recognition: str = Form("
     name = "song" + ext
     try:
         await save_upload(file, p / name)
-        duration = media_duration(p / name)
+        try:
+            duration = media_duration(p / name)
+        except (ValueError, OSError) as exc:
+            raise HTTPException(400, "Cannot read audio/video file") from exc
         if not 0.25 < duration <= MAX_DURATION:
             raise HTTPException(400, "Audio length must be between 0.25 seconds and 15 minutes")
         data = {"id": project_id, "title": Path(file.filename or "My Song").stem[:100],

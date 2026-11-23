@@ -363,3 +363,13 @@ python -m uvicorn server:app --host 127.0.0.1 --port 8000
 Visit `http://127.0.0.1:8000`. On Windows you can also run `RUN-WINDOWS.bat` (requires preinstalled Python and FFmpeg).
 
 > Never put your own song files, API keys or passwords into the GitHub repository. The `.gitignore` omits private media, local project storage, the AI model cache and `.env` files.
+
+    
+## Source-only media probing fallback (November 2026)
+
+PyAV remains the preferred metadata reader for full desktop/AI installations.
+When it is unavailable in a lightweight source checkout, media duration and
+background dimensions fall back to the existing FFmpeg executable; the Windows
+portable distribution still does not require FFprobe. Corrupt song uploads
+return HTTP 400 and leave no orphan project folder. This fallback does not
+enable speech recognition without the AI dependencies.
