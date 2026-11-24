@@ -14,6 +14,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import tempfile
 import time
 from typing import Any
 
@@ -135,10 +136,21 @@ def read_cache(path: Path) -> dict:
         return {}
 
 
+def atomic_write_json(path: Path, value: Any, **json_options: Any) -> None:
+    """Publish complete JSON using a private sibling file (safe on Windows too)."""
+    payload = json.dumps(value, **json_options)
+    fd, name = tempfile.mkstemp(prefix=f".{path.name}-", suffix=".tmp", dir=path.parent)
+    staging = Path(name)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as out:
+            out.write(payload)
+        staging.replace(path)
+    finally:
+        staging.unlink(missing_ok=True)
+
+
 def store_cache(path: Path, cache: dict) -> None:
-    temp = path.with_suffix(".tmp")
-    temp.write_text(json.dumps(cache, sort_keys=True), encoding="utf-8")
-    temp.replace(path)
+    atomic_write_json(path, cache, sort_keys=True)
 
 
 def uncertain_words(words: list[dict], threshold: float = .60, limit: int = 45) -> list[dict]:

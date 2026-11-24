@@ -130,9 +130,7 @@ def read_project(project_id: str) -> dict:
 
 
 def save_project(p: Path, data: dict) -> None:
-    tmp = p / "project.tmp"
-    tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
-    tmp.replace(p / "project.json")
+    perf.atomic_write_json(p / "project.json", data, indent=2, ensure_ascii=False)
 
 
 def silent_subprocess_flags() -> dict:
@@ -209,18 +207,23 @@ def video_stream_width(path: Path) -> int:
 
 
 async def save_upload(file: UploadFile, dest: Path, limit: int | None = None) -> None:
+    # Stage the stream beside its destination; never unlink an open Windows
+    # handle or truncate a previous upload when a stream fails midway through.
     size = 0
-    cap = limit or MAX_UPLOAD
-    with dest.open("wb") as out:
-        while chunk := await file.read(1024 * 1024):
-            size += len(chunk)
-            if size > cap:
-                dest.unlink(missing_ok=True)
-                raise HTTPException(413, f"File exceeds {cap // (1024 * 1024)} MB limit")
-            out.write(chunk)
-    if not size:
-        dest.unlink(missing_ok=True)
-        raise HTTPException(400, "Empty upload")
+    cap = MAX_UPLOAD if limit is None else limit
+    staging = dest.with_name(f".{dest.name}-{uuid.uuid4().hex}.tmp")
+    try:
+        with staging.open("xb") as out:
+            while chunk := await file.read(1024 * 1024):
+                size += len(chunk)
+                if size > cap:
+                    raise HTTPException(413, f"File exceeds {cap // (1024 * 1024)} MB limit")
+                out.write(chunk)
+        if not size:
+            raise HTTPException(400, "Empty upload")
+        staging.replace(dest)
+    finally:
+        staging.unlink(missing_ok=True)
 
 
 def load_model():
@@ -701,9 +704,7 @@ def store_recovery(project_id: str, body: RecoveryRequest):
     }
     if previous.get("pending_background"):
         values["pending_background"] = previous["pending_background"]
-    staging = path.with_suffix(".tmp")
-    staging.write_text(json.dumps(values, ensure_ascii=False), encoding="utf-8")
-    staging.replace(path)
+    perf.atomic_write_json(path, values, ensure_ascii=False)
     return {"recovered": True, "saved": False}
 
 
@@ -836,8 +837,24 @@ def import_desktop_audio_file(source: Path, recognition: str = "balanced",
 
 def background_destination(project_id: str, ext: str) -> Path:
     d = read_project(project_id)
-    prefix = "background" if d.get("save_state") == "draft" else "background-pending-" + uuid.uuid4().hex
-    return project_dir(project_id) / (prefix + ext)
+    # Draft replacements also keep the previous image until validation succeeds.
+    prefix = "background-" if d.get("save_state") == "draft" else "background-pending-"
+    return project_dir(project_id) / (prefix + uuid.uuid4().hex + ext)
+
+
+def retire_background(folder: Path, filename: Any) -> None:
+    """Retire an old image only after publishing the replacement manifest."""
+    if (not isinstance(filename, str) or Path(filename).name != filename
+            or "/" in filename or "\\" in filename
+            or not (filename.startswith("background") or filename == "visualizer_bg.mp4")
+            or Path(filename).suffix.lower() not in BG_EXT):
+        return
+    try:
+        (folder / filename).unlink(missing_ok=True)
+    except OSError as exc:
+        # A background may still be open on Windows. Never roll back a
+        # successfully published manifest because its old file is locked.
+        print(f"Could not retire old background {filename}: {exc}", file=sys.stderr)
 
 
 def register_background(project_id: str, dest: Path) -> dict:
@@ -850,18 +867,16 @@ def register_background(project_id: str, dest: Path) -> dict:
         previous = recovery.get("pending_background")
         recovery["pending_background"] = dest.name
         recovery["updated_at"] = time.time()
-        staged = path.with_suffix(".tmp")
-        staged.write_text(json.dumps(recovery, ensure_ascii=False), encoding="utf-8")
-        staged.replace(path)
+        perf.atomic_write_json(path, recovery, ensure_ascii=False)
         if isinstance(previous, str) and previous != dest.name and previous.startswith("background-pending-"):
-            (p / previous).unlink(missing_ok=True)
+            retire_background(p, previous)
         return {"background_url": f"/api/projects/{project_id}/background?pending=1",
                 "name": dest.name}
     previous = d.get("background_file")
     d["background_file"] = dest.name
     save_project(p, d)
     if previous and previous != dest.name:
-        (p / previous).unlink(missing_ok=True)
+        retire_background(p, previous)
     return {"background_url": f"/api/projects/{project_id}/background",
             "name": dest.name}
 
@@ -978,7 +993,7 @@ def save_edit(project_id: str, body: SaveRequest):
     save_project(project_dir(project_id), d)
     recovery_file(project_id).unlink(missing_ok=True)
     if old_background and old_background != d.get("background_file"):
-        (project_dir(project_id) / old_background).unlink(missing_ok=True)
+        retire_background(project_dir(project_id), old_background)
     return {"saved": True, "save_state": "saved"}
 
 
@@ -1343,30 +1358,14 @@ def render_project(project_id: str, job_id: str, settings: dict,
     output = p / ("lyric_preview.mp4" if preview else "lyric_video.mp4")
     try:
         d = read_project(project_id)
-        w, h = SIZES[settings["aspect"]]
-        if settings["resolution"] == "1080p":
-            w, h = round(w * 1.5), round(h * 1.5)
-        elif settings["resolution"] == "540p":
-            w, h = round(w * .75), round(h * .75)
+        w, h = output_size(settings)
         fps = settings.get("fps", 30)
         length = min(15.0, float(d["duration"])) if preview else float(d["duration"])
         audio = p / d["audio_file"]
-        user_bg = None
-        use_bg_video = False
-        if settings["background"] == "custom":
-            pending = perf.read_cache(recovery_file(project_id)).get("pending_background")
-            if pending and re.fullmatch(r"background-pending-[0-9a-f]{32}\.(?:jpg|jpeg|png|webp|mp4|mov|webm)", str(pending)) and (p / pending).is_file():
-                user_bg = p / pending
-            elif d.get("background_file"):
-                user_bg = p / d["background_file"]
-            if user_bg:
-                use_bg_video = user_bg.suffix.lower() in {".mp4", ".mov", ".webm"}
-        cache_path = p / "render_cache.json"
+        user_bg = selected_background(p, d, settings)
         cache_slot = "preview" if preview else "full"
         fingerprint = perf.render_fingerprint(lines, settings, audio, user_bg, preview)
-        cached = perf.read_cache(cache_path)
-        if (cached.get(cache_slot) == fingerprint and output.is_file()
-                and output.stat().st_size > 1024):
+        if cached_output(p, cache_slot, fingerprint, output):
             with job_lock:
                 jobs[job_id].update(status="done", stage="cached", progress=100, cached=True,
                                     elapsed_seconds=round(time.monotonic() - started, 2),
@@ -1374,15 +1373,7 @@ def render_project(project_id: str, job_id: str, settings: dict,
                                     ("preview-video" if preview else "export"))
             return
 
-        if user_bg is None:
-            bg_file = p / "generated_bg.png"
-            palette_file = p / "generated_bg.palette"
-            style = settings["background"] if settings["background"] in PRESETS else "midnight"
-            if not bg_file.is_file() or not palette_file.is_file() or palette_file.read_text() != style:
-                create_gradient(style, bg_file)
-                palette_file.write_text(style)
-        else:
-            bg_file = user_bg
+        bg_file, use_bg_video, _ = render_background(p, settings, user_bg)
 
         # Preview renders the FIRST 15 seconds, using the same absolute ASS timings.
         # No trim offsets or side effects to the saved video/corrected lyrics.
@@ -1394,12 +1385,6 @@ def render_project(project_id: str, job_id: str, settings: dict,
         background_input = (["-stream_loop", "-1", "-i", str(bg_file)] if use_bg_video
                             else ["-loop", "1", "-framerate", str(fps), "-i", str(bg_file)])
         profile = perf.profile_config(settings.get("performanceMode", "balanced"))
-        preference = settings.get("encoder", "auto")
-        with job_lock:
-            jobs[job_id].update(stage="checking_encoder", progress=0)
-        available = perf.available_gpu_encoders() if preference != "cpu" else ()
-        encoder = perf.choose_encoder(preference, available)
-
         def arguments(codec: str, target: Path) -> list[str]:
             return ["ffmpeg", "-hide_banner", "-loglevel", "error", "-nostats", "-nostdin",
                     "-stats_period", "0.5", "-progress", "pipe:1",
@@ -1413,33 +1398,11 @@ def render_project(project_id: str, job_id: str, settings: dict,
 
         temporary = p / ("render-" + job_id + ".mp4")
         try:
-            with job_lock:
-                jobs[job_id].update(stage="encoding", encoder_used=encoder,
-                                    gpu_available=list(available))
-            try:
-                render_with_progress(arguments(encoder, temporary), p, job_id, length)
-            except Exception:
-                # Hardware can disappear or fail partway through an export. Use
-                # CPU instead of losing the user's video.
-                if encoder == "libx264":
-                    raise
-                temporary.unlink(missing_ok=True)
-                with job_lock:
-                    jobs[job_id].update(stage="cpu_fallback", progress=0, encoder_used="libx264",
-                                        hardware_fallback=True)
-                render_with_progress(arguments("libx264", temporary), p, job_id, length)
-            if not temporary.is_file() or temporary.stat().st_size < 1024:
-                raise RuntimeError("Encoder completed without a usable video")
+            encode_with_fallback(job_id, settings, length, p, arguments, temporary)
             temporary.replace(output)
         finally:
             temporary.unlink(missing_ok=True)
-
-        # Rendering cache is advisory. Losing this manifest never loses an MP4.
-        cached[cache_slot] = fingerprint
-        try:
-            perf.store_cache(cache_path, cached)
-        except OSError:
-            pass
+        remember_output(p, cache_slot, fingerprint)
         elapsed = max(.001, time.monotonic() - started)
         with job_lock:
             jobs[job_id].update(status="done", stage="complete", progress=100,
@@ -1448,9 +1411,7 @@ def render_project(project_id: str, job_id: str, settings: dict,
                                 download=f"/api/projects/{project_id}/" +
                                 ("preview-video" if preview else "export"))
     except Exception as exc:
-        with job_lock:
-            jobs[job_id].update(status="error", stage="error", error=str(exc)[:1800],
-                                elapsed_seconds=round(time.monotonic() - started, 2))
+        fail_job(job_id, exc, started)
 
 
 def queue_render(project_id: str, body: RenderRequest, preview: bool = False) -> dict:
@@ -1676,7 +1637,9 @@ def finish_child(child: str) -> None:
 
 def encode_with_fallback(job_id: str, settings: dict, length: float, folder: Path,
                          build_args, temporary: Path) -> None:
-    """Pick an encoder like render_project does, retrying on CPU if hardware fails."""
+    """Shared encoder selection and CPU fallback for all export paths."""
+    with job_lock:
+        jobs[job_id].update(stage="checking_encoder", progress=0)
     preference = settings.get("encoder", "auto")
     available = perf.available_gpu_encoders() if preference != "cpu" else ()
     encoder = perf.choose_encoder(preference, available)
@@ -1700,14 +1663,28 @@ def encode_with_fallback(job_id: str, settings: dict, length: float, folder: Pat
         raise
 
 
+def selected_background(p: Path, data: dict, settings: dict) -> Path | None:
+    """Choose the same pending/saved background for full videos, previews and Shorts."""
+    if settings["background"] != "custom":
+        return None
+    pending = perf.read_cache(p / "recovery.json").get("pending_background")
+    if isinstance(pending, str) and re.fullmatch(r"background-pending-[0-9a-f]{32}\.(?:jpg|jpeg|png|webp|mp4|mov|webm)", pending):
+        if (p / pending).is_file():
+            return p / pending
+    filename = data.get("background_file")
+    if isinstance(filename, str) and Path(filename).name == filename and "/" not in filename and "\\" not in filename:
+        if (p / filename).is_file():
+            return p / filename
+    return None
+
+
 def resolve_background(project_id: str, data: dict, settings: dict) -> tuple[Path, bool, Path | None]:
-    """(background file, is a video, user background or None) for Shorts."""
     p = project_dir(project_id)
-    user_bg = None
-    if settings["background"] == "custom" and data.get("background_file"):
-        candidate = p / data["background_file"]
-        if candidate.is_file():
-            user_bg = candidate
+    return render_background(p, settings, selected_background(p, data, settings))
+
+
+def render_background(p: Path, settings: dict, user_bg: Path | None) -> tuple[Path, bool, Path | None]:
+    """Generate a fallback only on cache misses."""
     if user_bg is not None:
         return user_bg, user_bg.suffix.lower() in {".mp4", ".mov", ".webm"}, user_bg
     bg_file, palette_file = p / "generated_bg.png", p / "generated_bg.palette"
@@ -1821,7 +1798,7 @@ def render_shorts_batch(project_id: str, job_id: str, segments: list[dict], sett
         finish_child(child)
         text = " ".join(ln["text"] for ln in clips.shift_lines(lines, segment["start"], segment["end"]))
         manifest.append(short_manifest_entry(data, index, segment, text))
-    (p / "shorts.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
+    perf.atomic_write_json(p / "shorts.json", manifest, indent=2, ensure_ascii=False)
     return manifest
 
 
@@ -1865,6 +1842,9 @@ def fail_job(job_id: str, exc: Exception, started: float) -> None:
     with job_lock:
         jobs[job_id].update(status="error", stage="error", error=str(exc)[:1800],
                             elapsed_seconds=round(time.monotonic() - started, 2))
+        for child in jobs.values():
+            if child.get("parent") == job_id and child.get("status") == "rendering":
+                child.update(status="error", stage="error", error=jobs[job_id]["error"])
 
 
 def song_envelope(project_id: str) -> list[float]:
@@ -2215,7 +2195,8 @@ ASSET_LIMITS = {"music": 40 * 1024 * 1024, "intro": 200 * 1024 * 1024, "outro": 
 def brand_asset(kind: str) -> Path | None:
     if kind not in ASSET_EXTENSIONS:
         return None
-    return next(iter(sorted((DATA / "_brand").glob(f"{kind}.*"))), None)
+    return next((path for path in sorted((DATA / "_brand").glob(f"{kind}.*"))
+                 if path.is_file() and path.suffix.lower() in ASSET_EXTENSIONS[kind]), None)
 
 
 def store_brand_asset(kind: str, src: Path) -> None:
@@ -2242,16 +2223,22 @@ def store_brand_asset(kind: str, src: Path) -> None:
             raise ValueError("Intro and outro clips can be at most 20 seconds")
     elif ext not in allowed:
         raise ValueError("Unsupported file type: " + ", ".join(sorted(allowed)))
-    for old in brand_dir().glob(f"{kind}.*"):
-        old.unlink(missing_ok=True)
-    shutil.copy2(src, brand_dir() / f"{kind}{ext}")
+    folder = brand_dir()
+    target = folder / f"{kind}{ext}"
+    staging = folder / f".{kind}-{uuid.uuid4().hex}.tmp"
+    try:
+        shutil.copy2(src, staging)
+        staging.replace(target)
+    finally:
+        staging.unlink(missing_ok=True)
+    # Retire old media only after the replacement is published.
+    for old in folder.glob(f"{kind}.*"):
+        if old != target and old.is_file() and old.suffix.lower() in ASSET_EXTENSIONS[kind]:
+            old.unlink(missing_ok=True)
 
 
 def load_brand() -> dict:
-    try:
-        raw = json.loads((DATA / "_brand" / "brand.json").read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        raw = {}
+    raw = perf.read_cache(DATA / "_brand" / "brand.json")
     raw["has_logo"] = brand_logo_path() is not None
     for kind in ASSET_EXTENSIONS:
         raw[f"has_{'music' if kind == 'music' else kind}"] = brand_asset(kind) is not None
@@ -2259,7 +2246,7 @@ def load_brand() -> dict:
 
 
 def save_brand_json(brand: dict) -> None:
-    (brand_dir() / "brand.json").write_text(json.dumps(brand, indent=2), encoding="utf-8")
+    perf.atomic_write_json(brand_dir() / "brand.json", brand, indent=2)
 
 
 def brand_signature(brand: dict, logo: Path | None) -> dict:
@@ -2416,7 +2403,7 @@ def render_clips_batch(project_id: str, job_id: str, items: list[dict], settings
                 entry["translation_errors"].append({"lang": lang, "error": str(exc)[:160]})
             done += 1
         manifest.append(entry)
-    (p / "clips.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
+    perf.atomic_write_json(p / "clips.json", manifest, indent=2, ensure_ascii=False)
     return manifest
 
 
@@ -2445,7 +2432,7 @@ def get_brand():
 @app.put("/api/brand")
 def put_brand(body: BrandRequest):
     brand = edit.sanitize_brand({**body.brand, "has_logo": brand_logo_path() is not None})
-    (brand_dir() / "brand.json").write_text(json.dumps(brand, indent=2), encoding="utf-8")
+    save_brand_json(brand)
     return {"brand": brand}
 
 
@@ -2463,7 +2450,7 @@ async def upload_brand_logo(file: UploadFile = File(...)):
     finally:
         raw.unlink(missing_ok=True)
     brand = load_brand()
-    (brand_dir() / "brand.json").write_text(json.dumps(brand, indent=2), encoding="utf-8")
+    save_brand_json(brand)
     return {"brand": brand}
 
 
@@ -2479,7 +2466,7 @@ def get_brand_logo():
 def delete_brand_logo():
     (brand_dir() / "logo.png").unlink(missing_ok=True)
     brand = load_brand()
-    (brand_dir() / "brand.json").write_text(json.dumps(brand, indent=2), encoding="utf-8")
+    save_brand_json(brand)
     return {"brand": brand}
 
 
@@ -2526,25 +2513,35 @@ def broll_dir() -> Path:
 
 
 def broll_index() -> dict[str, dict]:
-    try:
-        data = json.loads((broll_dir() / "index.json").read_text(encoding="utf-8"))
-        return data if isinstance(data, dict) else {}
-    except (OSError, ValueError):
-        return {}
+    index = perf.read_cache(DATA / "_brand" / "broll" / "index.json")
+    clean = {}
+    for name, entry in index.items():
+        if not BROLL_NAME.fullmatch(name) or not isinstance(entry, dict):
+            continue
+        filename = entry.get("file")
+        if not isinstance(filename, str) or filename not in {name + ext for ext in VIDEO_EXT}:
+            continue
+        clean[name] = entry
+    return clean
 
 
 def save_broll_index(index: dict) -> None:
-    (broll_dir() / "index.json").write_text(json.dumps(index, indent=2), encoding="utf-8")
+    perf.atomic_write_json(broll_dir() / "index.json", index, indent=2)
 
 
 def broll_library() -> list[dict]:
     """Library clips that still exist on disk, ready for the planner."""
     items = []
     for name, entry in sorted(broll_index().items()):
-        path = broll_dir() / str(entry.get("file", ""))
-        if BROLL_NAME.fullmatch(name) and path.is_file() and entry.get("keywords"):
-            items.append({"name": name, "path": path, "duration": float(entry.get("duration") or 0),
-                          "keywords": list(entry["keywords"])})
+        path = DATA / "_brand" / "broll" / str(entry.get("file", ""))
+        keywords = entry.get("keywords")
+        try:
+            duration = float(entry.get("duration") or 0)
+        except (ValueError, TypeError):
+            continue
+        if (path.is_file() and not path.is_symlink() and math.isfinite(duration) and duration > 0
+                and isinstance(keywords, list) and keywords and all(isinstance(k, str) for k in keywords)):
+            items.append({"name": name, "path": path, "duration": duration, "keywords": list(keywords)})
     return items
 
 
@@ -2636,11 +2633,8 @@ class PresetRequest(BaseModel):
 
 
 def load_user_presets() -> dict[str, dict]:
-    try:
-        data = json.loads((brand_dir() / "presets.json").read_text(encoding="utf-8"))
-        return {k: v for k, v in data.items() if posts_lib.valid_preset_name(k) and isinstance(v, dict)}
-    except (OSError, ValueError, AttributeError):
-        return {}
+    return {k: v for k, v in perf.read_cache(DATA / "_brand" / "presets.json").items()
+            if posts_lib.valid_preset_name(k) and isinstance(v, dict)}
 
 
 def normalize_options(raw: dict) -> dict:
@@ -2671,7 +2665,7 @@ def save_preset(name: str, body: PresetRequest):
     if name not in user and len(user) >= posts_lib.MAX_USER_PRESETS:
         raise HTTPException(400, f"You can save up to {posts_lib.MAX_USER_PRESETS} presets")
     user[name] = {k: v for k, v in normalize_options(body.options).items() if k != "title"}
-    (brand_dir() / "presets.json").write_text(json.dumps(user, indent=2), encoding="utf-8")
+    perf.atomic_write_json(brand_dir() / "presets.json", user, indent=2)
     return {"presets": posts_lib.list_presets(user)}
 
 
@@ -2681,7 +2675,7 @@ def delete_preset(name: str):
     if name not in user:
         raise HTTPException(404, "No such saved preset")
     del user[name]
-    (brand_dir() / "presets.json").write_text(json.dumps(user, indent=2), encoding="utf-8")
+    perf.atomic_write_json(brand_dir() / "presets.json", user, indent=2)
     return {"presets": posts_lib.list_presets(user)}
 
 
@@ -3192,7 +3186,7 @@ def run_autoedit(project_id: str, job_id: str, opts: dict, settings: dict) -> No
 
         cues = edit.cues_from_words(out_words)
         published = edit.shift_cues(cues, lead)  # captions for the finished file include the intro
-        (p / "captions.json").write_text(json.dumps(published, ensure_ascii=False), encoding="utf-8")
+        perf.atomic_write_json(p / "captions.json", published, ensure_ascii=False)
         (p / "captions.srt").write_text(edit.to_srt(published), encoding="utf-8")
         (p / "captions.vtt").write_text(edit.to_vtt(published), encoding="utf-8")
 
@@ -3243,7 +3237,7 @@ def run_autoedit(project_id: str, job_id: str, opts: dict, settings: dict) -> No
         tags = clips.heuristic_metadata(transcript, title)["tags"]
         package = edit.youtube_package(title, transcript, yt_chapters, tags, brand)
         (p / "youtube.txt").write_text(package["text"], encoding="utf-8")
-        (p / "youtube.json").write_text(json.dumps({**package, "chapters": yt_chapters}, ensure_ascii=False), encoding="utf-8")
+        perf.atomic_write_json(p / "youtube.json", {**package, "chapters": yt_chapters}, ensure_ascii=False)
         social = posts_lib.build_posts(package["title"], transcript, tags, brand, link=brand["endcard"]["url"] or None)
         (p / "posts.txt").write_text(posts_lib.posts_text(social), encoding="utf-8")
         candidates = [source_time_at(main_len * f, segments) for f in (.08, .18, .28, .38, .5, .62, .74, .86)]
