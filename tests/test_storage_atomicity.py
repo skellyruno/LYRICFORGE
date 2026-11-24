@@ -25,8 +25,11 @@ def test_atomic_json_writers_use_distinct_staging_files(tmp_path, monkeypatch):
     original = Path.replace
     def synchronized_replace(self, destination):
         if destination == target:
-            observed.append(self)
-            rendezvous.wait(timeout=5)
+            # Only synchronize each writer's first attempt. A sharing violation
+            # must be allowed to retry after the other writers have finished.
+            if self not in observed:
+                observed.append(self)
+                rendezvous.wait(timeout=5)
         return original(self, destination)
     monkeypatch.setattr(Path, "replace", synchronized_replace)
     with ThreadPoolExecutor(max_workers=workers) as pool:
@@ -215,3 +218,47 @@ def test_failed_parent_releases_child_job(monkeypatch):
     server.fail_job("parent", RuntimeError("encoder failed"), time.monotonic())
     assert work["parent"]["status"] == work["child"]["status"] == "error"
     assert work["unrelated"]["status"] == "rendering"
+
+
+@pytest.mark.parametrize("winerror", [5, 32, 33])
+def test_transient_windows_publication_retry(tmp_path, monkeypatch, winerror):
+    target = tmp_path / "project.json"
+    perf.atomic_write_json(target, {"old": True})
+    original_replace = Path.replace
+    attempts = []
+    delays = []
+    def temporarily_locked(self, destination):
+        attempts.append(self)
+        if len(attempts) <= 2:
+            error = PermissionError("temporary Windows sharing conflict")
+            error.winerror = winerror
+            raise error
+        return original_replace(self, destination)
+    monkeypatch.setattr(Path, "replace", temporarily_locked)
+    monkeypatch.setattr(perf.time, "sleep", delays.append)
+    perf.atomic_write_json(target, {"new": True})
+    assert len(attempts) == 3 and len(set(attempts)) == 1
+    assert delays == [0.01, 0.02]
+    assert json.loads(target.read_text(encoding="utf-8")) == {"new": True}
+    assert list(tmp_path.iterdir()) == [target]
+
+
+def test_persistent_windows_lock_preserves_previous_json(tmp_path, monkeypatch):
+    target = tmp_path / "project.json"
+    perf.atomic_write_json(target, {"old": True})
+    original_bytes = target.read_bytes()
+    attempts = []
+    delays = []
+    def locked(self, destination):
+        attempts.append(self)
+        error = PermissionError("persistent Windows sharing conflict")
+        error.winerror = 32
+        raise error
+    monkeypatch.setattr(Path, "replace", locked)
+    monkeypatch.setattr(perf.time, "sleep", delays.append)
+    with pytest.raises(PermissionError, match="persistent"):
+        perf.atomic_write_json(target, {"new": True})
+    assert len(attempts) == 9
+    assert sum(delays) < 1.0
+    assert target.read_bytes() == original_bytes
+    assert list(tmp_path.iterdir()) == [target]
