@@ -114,7 +114,7 @@ def test_cut_removes_the_middle(data):
     out, job, _ = run_tool(data, "cut", {"video": [up(src)]}, start="2", end="4")
     info = clips.probe_media(out)
     assert info["duration"] == pytest.approx(4, abs=.4) and info["has_audio"]
-    assert not different(pixel_frame(out, 3.0, data / "a.png"), pixel_frame(src, 5.0, data / "b.png")) or True
+    assert score(pixel_frame(out, 3.0, data / "a.png"), pixel_frame(src, 5.0, data / "b.png")) / (640 * 360) < 4.0
     assert "0.3 seconds" in rejected("cut", {"video": [up(src)]}, {"start": "2", "end": "2.1"})
     assert "less than one second" in rejected("cut", {"video": [up(src)]}, {"start": "0.5", "end": "6"})
 
@@ -375,3 +375,19 @@ def test_second_batch_stays_out_of_the_library_and_cleans_up(data):
     for m in server.recent_makes()["makes"]:
         folder = data / "data" / m["id"]
         assert not list(folder.glob("render-*")) and not list(folder.glob("graph-*"))
+
+
+@needs_ffmpeg
+def test_hold_start_only_is_finite_and_keeps_audio(data):
+    src = make_video(data / "start.mp4", 2)
+    out, _, _ = run_tool(data, "hold", {"video": [up(src)]}, start="1", end="0")
+    info = clips.probe_media(out)
+    assert info["duration"] == pytest.approx(3, abs=.2) and info["has_audio"]
+
+
+@needs_ffmpeg
+def test_cut_silent_clip_has_correct_duration(data):
+    src = make_video(data / "silent.mp4", 4, audio=False)
+    out, _, _ = run_tool(data, "cut", {"video": [up(src)]}, start="1", end="2.5")
+    info = clips.probe_media(out)
+    assert info["duration"] == pytest.approx(2.5, abs=.2) and not info["has_audio"]

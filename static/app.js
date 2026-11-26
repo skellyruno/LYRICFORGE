@@ -1432,6 +1432,7 @@ function wireUI(){
   mayLeaveProject().then(ok=>{if(ok){resetWorkspace();loadDemo();}});
  });
  $('openProjectsWelcome').addEventListener('click',()=>{$('welcome').classList.add('hidden');panel('library');});
+ $('openCreatorWelcome').addEventListener('click',()=>{$('welcome').classList.add('hidden');panel('auto');const creator=$('creatorProduct');creator.closest('details').open=true;creator.scrollIntoView({block:'center'});creator.focus({preventScroll:true});});
  $('resumeLastBtn').addEventListener('click',()=>restore(true));
  $('playButton').addEventListener('click',play);$('skipBack').addEventListener('click',()=>seek(state.time-5));$('skipAhead').addEventListener('click',()=>seek(state.time+5));
  $('zoomIn').addEventListener('click',()=>{state.zoom=clamp(state.zoom+.25,1,5);$('zoomDisplay').textContent=`${Math.round(state.zoom*100)}%`;renderTimeline();});

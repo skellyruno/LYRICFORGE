@@ -16,6 +16,7 @@ on:
       - 'requirements.txt'
       - 'requirements-desktop.txt'
       - 'tests/**'
+      - 'packaging/**'
       - '.github/workflows/windows-release.yml'
   push:
     branches:
@@ -32,6 +33,7 @@ on:
       - 'requirements.txt'
       - 'requirements-desktop.txt'
       - 'tests/**'
+      - 'packaging/**'
       - '.github/workflows/windows-release.yml'
     tags:
       - 'v*'
@@ -407,6 +409,16 @@ jobs:
           path: release-gate-evidence/SkellyMotion-WebView2.png
           retention-days: 7
           if-no-files-found: warn
+      - name: Build and smoke-test single-file Windows installer
+        shell: pwsh
+        run: ./packaging/test-installer.ps1
+      - uses: actions/upload-artifact@v6
+        if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main' || (github.event_name == 'pull_request' && (contains(github.event.pull_request.labels.*.name, 'release-gate') || github.head_ref == 'feature/creator-consolidated-20261126'))
+        with:
+          name: SkellyMotion-Windows-Setup
+          path: dist/installer/SkellyMotion-Setup.exe
+          retention-days: 7
+          if-no-files-found: error
       # The release page needs a standalone ZIP. Manual Actions downloads
       # already arrive as an archive, so skip the redundant compression there.
       - name: Package GitHub Release ZIP
@@ -432,4 +444,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${{ github.ref_name }}" dist/SkellyMotion-Windows-x64.zip --verify-tag --title "SkellyMotion ${{ github.ref_name }}" --generate-notes
+          gh release create "${{ github.ref_name }}" dist/SkellyMotion-Windows-x64.zip dist/installer/SkellyMotion-Setup.exe --verify-tag --title "SkellyMotion ${{ github.ref_name }}" --generate-notes

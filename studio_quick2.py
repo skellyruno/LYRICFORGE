@@ -78,18 +78,27 @@ def letterbox_build(p, o, out, safe):
 HOLD_MAX = 10.0
 
 
+def _edit_fps(info):
+    """Normalize to a finite CFR before timing filters; FRAME_RATE may be undefined for VFR."""
+    return min(120.0, max(1.0, clips._clean_float(info.get("fps"), 30.0) or 30.0))
+
+
 def hold_prepare(f, i):
     a, b = _num(f, "start", 0, HOLD_MAX, 0), _num(f, "end", 0, HOLD_MAX, 2)
     if a <= 0 and b <= 0:
         raise ValueError("Choose how long to hold the first frame, the last frame, or both")
     v = i["video"]
-    return {"start": round(a, 2), "end": round(b, 2), "seconds": v["duration"] + a + b, "has_audio": v["has_audio"]}
+    return {"start": round(a, 2), "end": round(b, 2), "seconds": v["duration"] + a + b, "has_audio": v["has_audio"], "fps": _edit_fps(v)}
 
 
 def hold_build(p, o, out, safe):
-    vf = f"tpad=start_mode=clone:start_duration={o['start']}:stop_mode=clone:stop_duration={o['end']}"
-    af = (f"adelay={round(o['start'] * 1000)}:all=1," if o["start"] else "") + f"apad=pad_dur={o['end']}"  # the sound waits and rests with the picture
-    return _reencode(p["video"], vf, o["has_audio"], out, af=af) + []
+    fps = o.get("fps", 30.0)
+    # Integer frame counts avoid tpad's duration rounding and unbounded pads.
+    vf = (f"setpts=PTS-STARTPTS,fps={fps:g},"
+          f"tpad=start_mode=clone:start={round(o['start']*fps)}:stop_mode=clone:stop={round(o['end']*fps)}")
+    af = (f"adelay={round(o['start'] * 1000)}:all=1," if o["start"] else "") + f"apad=whole_dur={o['seconds']},atrim=duration={o['seconds']}"
+    args = _reencode(p["video"], vf, o["has_audio"], out, af=af)
+    return [*args[:-1], "-t", str(o["seconds"]), args[-1]]
 
 
 # ---- cut out a section
@@ -102,12 +111,15 @@ def cut_prepare(f, i):
     kept = v["duration"] - (e - s)
     if kept < 1:
         raise ValueError("That would leave less than one second of video")
-    return {"start": round(s, 3), "end": round(e, 3), "seconds": kept, "has_audio": v["has_audio"]}
+    return {"start": round(s, 3), "end": round(e, 3), "seconds": kept, "has_audio": v["has_audio"], "fps": _edit_fps(v)}
 
 
 def cut_build(p, o, out, safe):
-    gone = f"not(between(t,{o['start']},{o['end']}))"
-    return _reencode(p["video"], f"select='{gone}',setpts=N/FRAME_RATE/TB", o["has_audio"], out, af=f"aselect='{gone}',asetpts=N/SR/TB")
+    fps = o.get("fps", 30.0)
+    # Preserve a defined frame clock even when the decoder's FRAME_RATE is NaN.
+    gone = f"lt(t,{o['start']})+gte(t,{o['end']})"
+    args = _reencode(p["video"], f"setpts=PTS-STARTPTS,fps={fps:g},select='{gone}',setpts=N/({fps:g}*TB)", o["has_audio"], out, af=f"asetpts=PTS-STARTPTS,aselect='{gone}',asetpts=N/SR/TB")
+    return [*args[:-1], "-t", str(o["seconds"]), args[-1]]
 
 
 # ---- look presets
@@ -580,9 +592,9 @@ MORE: dict[str, Quick] = {q.id: q for q in (
     _t("zoom", "Zoom in", "zoomed.mp4", "video", V, zoom_prepare, zoom_build, lambda o: f"Zoomed in {o['zoom']:g}x", ("crop", "scale", "setsar")),
     _t("letterbox", "Add borders", "bordered.mp4", "video", V, letterbox_prepare, letterbox_build, lambda o: f"Fitted into {o['shape']}",
        ("scale", "pad", "setsar")),
-    _t("hold", "Hold first / last frame", "held.mp4", "video", V, hold_prepare, hold_build, lambda o: "Video with held frames", ("tpad", "adelay", "apad")),
+    _t("hold", "Hold first / last frame", "held.mp4", "video", V, hold_prepare, hold_build, lambda o: "Video with held frames", ("fps", "setpts", "tpad", "adelay", "apad", "atrim")),
     _t("cut", "Cut out a section", "cut.mp4", "video", V, cut_prepare, cut_build, lambda o: "Video with a section removed",
-       ("select", "setpts", "aselect", "asetpts")),
+       ("fps", "select", "setpts", "aselect", "asetpts")),
     _t("look", "Look", "looked.mp4", "video", V, look_prepare, look_build, lambda o: f"{LOOKS[o['look']][1]} look",
        ("eq", "colorchannelmixer", "vignette")),
     _t("side", "Side by side", "side_by_side.mp4", "video", (("video", "video", True), ("second", "video", True)), side_prepare, side_build,

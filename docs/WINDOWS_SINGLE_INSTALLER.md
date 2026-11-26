@@ -1,0 +1,5 @@
+# Single-download Windows distribution
+
+The single SkellyMotion-Setup.exe is built from the verified PyInstaller onedir runtime using Inno Setup 6. Install per user without elevation, into LocalAppData/Programs/SkellyMotion; Start menu entry, optional desktop shortcut and uninstall entry. The data/model directories are not deleted. WebView2 runtime is required; use the existing repair path if it is absent. Setup and program are currently unsigned, so SmartScreen warnings may occur. AI voice/Whisper models remain separately installed or downloaded where appropriate. The installer is not an application single-file runtime. Do not ship a setup EXE before its actual install/startup/uninstall checks pass. GitHub Actions wraps artifacts in ZIP; tagged releases may expose the standalone setup directly.
+
+Local regression: 4 Hold/Cut real FFmpeg tests passed including start-only hold and silent cut; all three JS smoke suites passed. New Creator welcome link awaits visual capture. Linux FFmpeg regression fix is not confirmed on exact CI until it passes.
