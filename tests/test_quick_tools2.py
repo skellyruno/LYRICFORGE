@@ -391,3 +391,58 @@ def test_cut_silent_clip_has_correct_duration(data):
     out, _, _ = run_tool(data, "cut", {"video": [up(src)]}, start="1", end="2.5")
     info = clips.probe_media(out)
     assert info["duration"] == pytest.approx(2.5, abs=.2) and not info["has_audio"]
+
+
+@needs_ffmpeg
+def test_fractional_cut_preserves_audio_sample_clock(data):
+    import numpy as np
+    import wave
+    rate = 48000
+    original = (np.random.default_rng(2).standard_normal(rate * 6) * .08 * 32767).astype("<i2")
+    source_wav = data / "cut-reference.wav"
+    with wave.open(str(source_wav), "wb") as wav:
+        wav.setparams((1, 2, rate, 0, "NONE", "not compressed"))
+        wav.writeframes(original.tobytes())
+    source = data / "cut-source.mov"
+    ffmpeg("-f", "lavfi", "-i", "testsrc=s=320x180:r=30:d=6", "-i", str(source_wav),
+           "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "pcm_s16le", str(source))
+    a, b = 1.173, 3.286
+    out, _, _ = run_tool(data, "cut", {"video": [up(source)]}, start=str(a), end=str(b))
+    def decoded(path):
+        raw = subprocess.check_output(["ffmpeg", "-v", "error", "-i", str(path), "-vn",
+                                       "-ac", "1", "-ar", str(rate), "-f", "f32le", "-"])
+        return np.frombuffer(raw, dtype="<f4")
+    dry = decoded(source)
+    expected = np.concatenate((dry[:round(a * rate)], dry[round(b * rate):]))
+    actual = decoded(out)
+    base, n, radius = round(a * rate) + rate // 4, 4096, 4096
+    reference = expected[base:base+n]
+    correlation = np.correlate(actual[base-radius:base+n+radius], reference, "valid")
+    assert correlation.max() / np.dot(reference, reference) > .7
+    assert abs(int(correlation.argmax()) - radius) <= 96, "post-cut audio must align within 2 ms"
+    assert clips.probe_media(out)["duration"] == pytest.approx(6 - (b - a), abs=.12)
+
+
+@needs_ffmpeg
+def test_fractional_hold_on_one_fps_keeps_picture_and_audio_equal(data):
+    source = data / "low-fps.mp4"
+    ffmpeg("-f", "lavfi", "-i", "testsrc=s=320x180:r=1:d=3",
+           "-f", "lavfi", "-i", "sine=f=220:d=3:sample_rate=48000",
+           "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", str(source))
+    out, _, _ = run_tool(data, "hold", {"video": [up(source)]}, start=".25", end=".25")
+    import json
+    probe = json.loads(subprocess.check_output(["ffprobe", "-v", "error", "-show_streams",
+                                                "-of", "json", str(out)]))
+    streams = {s["codec_type"]: float(s["duration"]) for s in probe["streams"]}
+    assert streams["video"] == pytest.approx(3.5, abs=.05)
+    assert streams["audio"] == pytest.approx(3.5, abs=.05)
+    assert rms(pcm(out, .02, .1)) < rms(pcm(out, .5, .2)) / 10
+
+
+@needs_ffmpeg
+@pytest.mark.parametrize("start,end,expected", [("0", "1.4", 4.6), ("3.1", "6", 3.1)])
+def test_cut_at_clip_boundary_keeps_remaining_audio(data, start, end, expected):
+    source = make_video(data / "edge.mp4", 6)
+    out, _, _ = run_tool(data, "cut", {"video": [up(source)]}, start=start, end=end)
+    assert clips.probe_media(out)["duration"] == pytest.approx(expected, abs=.15)
+    assert rms(pcm(out, .2, .5)) > 500

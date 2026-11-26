@@ -83,20 +83,31 @@ def _edit_fps(info):
     return min(120.0, max(1.0, clips._clean_float(info.get("fps"), 30.0) or 30.0))
 
 
+def _hold_frames(seconds, fps):
+    return max(1, round(seconds * fps)) if seconds > 0 else 0
+
+
 def hold_prepare(f, i):
-    a, b = _num(f, "start", 0, HOLD_MAX, 0), _num(f, "end", 0, HOLD_MAX, 2)
+    a, b = round(_num(f, "start", 0, HOLD_MAX, 0), 2), round(_num(f, "end", 0, HOLD_MAX, 2), 2)
     if a <= 0 and b <= 0:
         raise ValueError("Choose how long to hold the first frame, the last frame, or both")
     v = i["video"]
-    return {"start": round(a, 2), "end": round(b, 2), "seconds": v["duration"] + a + b, "has_audio": v["has_audio"], "fps": _edit_fps(v)}
+    fps = _edit_fps(v)
+    # Preserve the source cadence when the requested holds fit its frame clock.
+    # Very low-frame-rate material needs a finer clock for fractional holds.
+    if fps < 24 and any(abs(_hold_frames(t, fps) / fps - t) > .001 for t in (a, b)):
+        fps = 24.0
+    held_seconds = (_hold_frames(a, fps) + _hold_frames(b, fps)) / fps
+    return {"start": a, "end": b, "seconds": v["duration"] + held_seconds, "has_audio": v["has_audio"], "fps": fps}
 
 
 def hold_build(p, o, out, safe):
     fps = o.get("fps", 30.0)
-    # Integer frame counts avoid tpad's duration rounding and unbounded pads.
+    # Use the same frame clock for the picture, audio delay and duration.
+    first, last = _hold_frames(o["start"], fps), _hold_frames(o["end"], fps)
     vf = (f"setpts=PTS-STARTPTS,fps={fps:g},"
-          f"tpad=start_mode=clone:start={round(o['start']*fps)}:stop_mode=clone:stop={round(o['end']*fps)}")
-    af = (f"adelay={round(o['start'] * 1000)}:all=1," if o["start"] else "") + f"apad=whole_dur={o['seconds']},atrim=duration={o['seconds']}"
+          f"tpad=start_mode=clone:start={first}:stop_mode=clone:stop={last}")
+    af = (f"adelay={round(first / fps * 1000)}:all=1," if first else "") + f"apad=whole_dur={o['seconds']},atrim=duration={o['seconds']}"
     args = _reencode(p["video"], vf, o["has_audio"], out, af=af)
     return [*args[:-1], "-t", str(o["seconds"]), args[-1]]
 
@@ -118,7 +129,17 @@ def cut_build(p, o, out, safe):
     fps = o.get("fps", 30.0)
     # Preserve a defined frame clock even when the decoder's FRAME_RATE is NaN.
     gone = f"lt(t,{o['start']})+gte(t,{o['end']})"
-    args = _reencode(p["video"], f"setpts=PTS-STARTPTS,fps={fps:g},select='{gone}',setpts=N/({fps:g}*TB)", o["has_audio"], out, af=f"asetpts=PTS-STARTPTS,aselect='{gone}',asetpts=N/SR/TB")
+    # fps sets a 1/fps time base; integer frame PTS avoid floating-point drift.
+    # aselect removes entire decoded audio packets, not the requested samples.
+    # Trim and concatenate at the cut boundaries instead.
+    if o["start"] > 0:
+        af = (f"asetpts=PTS-STARTPTS,asplit=2[pre][post];"
+              f"[pre]atrim=end={o['start']},asetpts=PTS-STARTPTS[a];"
+              f"[post]atrim=start={o['end']},asetpts=PTS-STARTPTS[b];"
+              "[a][b]concat=n=2:v=0:a=1")
+    else:
+        af = f"asetpts=PTS-STARTPTS,atrim=start={o['end']},asetpts=PTS-STARTPTS"
+    args = _reencode(p["video"], f"setpts=PTS-STARTPTS,fps={fps:g},select='{gone}',setpts=N", o["has_audio"], out, af=af)
     return [*args[:-1], "-t", str(o["seconds"]), args[-1]]
 
 
