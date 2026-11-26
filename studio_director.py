@@ -18,6 +18,7 @@ from uuid import uuid4
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 import studio_performance as perf
+import studio_theme as theme
 import studio_director_intelligence as intel
 import studio_live_diagrams as live
 from studio_effect_visuals import KINDS as EFFECT_VISUALS
@@ -25,7 +26,7 @@ import studio_cinematic as cinema
 import studio_walkthrough as walk
 from studio_clips import probe_media
 
-VERSION = 17
+VERSION = 18
 IMAGE_EXT = {'.png', '.jpg', '.jpeg', '.webp'}
 VIDEO_EXT = {'.mp4', '.mov', '.mkv', '.m4v', '.webm'}
 PRESETS = {
@@ -67,7 +68,7 @@ def assets_for(folder: Path, include_disabled=False) -> list[dict]:
 
 
 def make_plan(lines: list[dict], duration: float, assets: list[dict], preset: str,
-              brand: str = 'SKELLYMOTION', *, fps: int = 30, preview: bool = False, analysis: dict | None = None, intensity: str = "medium", diagrams: bool = False, motion: str = "dynamic", transitions: bool = False, audio_start: float = 0., silent: bool = False, cinematic: bool = False, guided_replay: bool = False, title_motion: bool = False, editorial_style: str = 'standard') -> dict:
+              brand: str = 'SKELLYMOTION', *, fps: int = 30, preview: bool = False, analysis: dict | None = None, intensity: str = "medium", diagrams: bool = False, motion: str = "dynamic", transitions: bool = False, audio_start: float = 0., silent: bool = False, cinematic: bool = False, guided_replay: bool = False, title_motion: bool = False, editorial_style: str = 'standard', visual_theme: str = 'legacy', skell_terminology: bool = False) -> dict:
     """Deterministic shot selection from real transcript and asset descriptions.
 
     Timing is represented in frames to avoid gaps/drift. No invented facts,
@@ -80,6 +81,7 @@ def make_plan(lines: list[dict], duration: float, assets: list[dict], preset: st
         raise ValueError('Director currently supports up to 30 minutes of audio')
     total = max(1, round(duration * fps))
     if editorial_style not in ('standard','reference'):raise ValueError('Unknown editorial style')
+    theme.validate(visual_theme)
     look = dict(PRESETS[preset])
     reference=editorial_style=='reference'
     if reference and preset=='doc':look.update(pace=4.,maximum=8.)
@@ -222,7 +224,9 @@ def make_plan(lines: list[dict], duration: float, assets: list[dict], preset: st
             scene.pop('asset', None); scene.pop('asset_name', None); scene.pop('before_asset',None); scene.pop('guided_replay',None)
         scenes.append(scene)
         cursor = end
-    plan={'version': VERSION, 'preset': preset, 'fps': fps, 'duration': duration, 'frames': total,
+    for scene in scenes:
+        scene.update(visual_theme=visual_theme,skell_terminology=bool(skell_terminology))
+    plan={'version': VERSION, 'preset': preset, 'visual_theme':visual_theme,'skell_terminology':bool(skell_terminology),'fps': fps, 'duration': duration, 'frames': total,
             'scenes': scenes, 'director': 'local', 'editorial_style':editorial_style, 'audio_start':audio_start, 'silent':silent,
             'cinematic_finish':cinematic,'title_motion':bool(cinematic and title_motion),'crossfades':bool(cinematic and transitions),'caption_repairs':repairs, 'warnings': ([] if assets or preset=='music' else ['No visual assets supplied: transcript-based text cards will be used.'])}
     if preset=='music':
@@ -251,7 +255,9 @@ def centered_text(draw: ImageDraw.ImageDraw, text: str, w: int, y: int, size: in
 
 
 def artwork(scene: dict, preset: str, w: int, h: int, asset: Path | None, base: Path, overlay: Path) -> None:
-    look = PRESETS[preset]
+    look = dict(PRESETS[preset])
+    colors=theme.palette(scene.get('visual_theme','legacy'))
+    if colors:look.update(background=colors['background'],accent=colors['accent'])
     bg = Image.new('RGB', (w, h), look['background'])
     if asset and asset.suffix in IMAGE_EXT:
         with Image.open(asset) as original:
@@ -345,7 +351,7 @@ def artwork(scene: dict, preset: str, w: int, h: int, asset: Path | None, base: 
         bg=evidence_card(scene,w,h,font)
     elif scene['type']=='proof':
         draw=ImageDraw.Draw(bg)
-        centered_text(draw,'LISTEN TO THE ACTUAL AUDIO',w,int(h*.22),max(16,h//36),look['accent'])
+        centered_text(draw,theme.label(scene,'LISTEN TO THE ACTUAL AUDIO'),w,int(h*.22),max(16,min(h//36,w//27)),look['accent'])
         centered_text(draw,scene['proof_label'],w,int(h*.46),max(24,h//11),'#f4f8f2')
         centered_text(draw,'SAME TIMESTAMPS · UNCHANGED PLAYBACK GAIN',w,int(h*.65),max(14,h//42),'#a8b9ad')
         draw.rectangle((int(w*.13),int(h*.79),int(w*.87),int(h*.797)),fill=look['accent'])
@@ -386,6 +392,14 @@ def artwork(scene: dict, preset: str, w: int, h: int, asset: Path | None, base: 
         while len(label)>16 and d.textlength(label,font=f)>w*.9:label=label[:-5]+'…'
         d.rounded_rectangle((x,y,x+int(d.textlength(label,font=f))+20,y+int(h*.05)),radius=5,fill=(10,14,12,225))
         d.text((x+10,y+int(h*.025)),label,font=f,fill='#d6e2dc',anchor='lm')
+    # Small, bounded editorial label in the title safe region; never paint
+    # over source pixels or the actual plugin control area.
+    if scene.get('skell_terminology') and scene['type'] in ('ui_demo','diagram','big_text','outro'):
+        label=theme.label(scene,'')
+        f=font(max(11,min(h//50,w//36)),True)
+        x,y=round(w*.035),round(h*.022)
+        if scene['type']=='ui_demo':y=round(h*.014)
+        d.text((x,y),label,font=f,fill=look['accent'])
     layer.save(overlay)
 
 
@@ -433,19 +447,20 @@ def render(plan: dict, audio: Path, assets_folder: Path, work: Path, output: Pat
                 cmd=['ffmpeg','-hide_banner','-loglevel','error','-nostdin','-y','-progress','pipe:1','-nostats','-filter_complex_threads','1']
                 live_diagram=scene['type']=='diagram' and scene['text'] in ({'Compression','Pitch processing','Note selection'} | EFFECT_VISUALS)
                 replay_rate=None
+                static_still=False
                 if scene.get('guided_replay') and asset and asset.suffix in IMAGE_EXT:
                     frames=scratch/'replay_frames';shutil.rmtree(frames,ignore_errors=True)
                     with Image.open(base) as backdrop:
                         replay_rate=walk.replay_frames(scene,before,asset,backdrop.convert('RGB'),frames,fps,check_cancel)
                     if not replay_rate: scene['replay_fallback']='No localized control change found; static capture used'
                 if replay_rate:
-                    cmd+=['-framerate',str(replay_rate),'-i',str(frames/'%05d.jpg')]
+                    cmd+=['-threads','1','-framerate',str(replay_rate),'-i',str(frames/'%05d.jpg')]
                     vf=f'fps={fps},tpad=stop_mode=clone:stop_duration=0.2,setsar=1'
                 elif live_diagram:
                     frames=scratch/'live_frames'
                     shutil.rmtree(frames,ignore_errors=True)
-                    source_fps=live.write_frames(scene['text'],seconds,frames,fps,check_cancel,retune_ms=scene.get('retune_demo_ms',70.),compressor=scene.get('compressor_demo'))
-                    cmd+=['-framerate',str(source_fps),'-i',str(frames/'%05d.jpg')]
+                    source_fps=live.write_frames(scene['text'],seconds,frames,fps,check_cancel,retune_ms=scene.get('retune_demo_ms',70.),compressor=scene.get('compressor_demo'),theme=scene.get('visual_theme','legacy'))
+                    cmd+=['-threads','1','-framerate',str(source_fps),'-i',str(frames/'%05d.jpg')]
                     vf=f'fps={fps},scale={w}:{h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:color=0x101615,tpad=stop_mode=clone:stop_duration=0.2,setsar=1'
                 elif scene['type']=='visualizer':
                     cmd+=['-ss',f'{audio_start+scene["start"]:.6f}','-t',f'{seconds:.6f}','-i',str(audio)]
@@ -453,12 +468,13 @@ def render(plan: dict, audio: Path, assets_folder: Path, work: Path, output: Pat
                     vf=f"[0:a]aformat=channel_layouts=mono,showwaves=s={wave_w}x{wave_h}:mode=cline:colors=0x94f58c:rate={fps}:scale=sqrt:draw=full,format=rgba,colorkey=0x000000:0.02:0.04[wave];[2:v][wave]overlay=x=(W-w)/2:y={int(h*.46)-wave_h//2}:shortest=1,fps={fps},tpad=stop_mode=clone:stop_duration=0.2,setsar=1"
                 elif asset and asset.suffix in VIDEO_EXT:
                     if scene.get('recorded_demo'):
-                        cmd+=['-ss',str(scene.get('asset_start',0)),'-i',str(asset)]
+                        cmd+=['-threads','2','-ss',str(scene.get('asset_start',0)),'-i',str(asset)]
                     else:
-                        cmd+=['-stream_loop','-1','-ss',str(scene.get('asset_start',0)),'-i',str(asset)]
+                        cmd+=['-threads','2','-stream_loop','-1','-ss',str(scene.get('asset_start',0)),'-i',str(asset)]
                     if scene['type']=='ui_demo':
+                        bg_color=(theme.palette(scene.get('visual_theme','legacy')) or {'background':'#101216'})['background'].replace('#','0x')
                         ratio_w,ratio_h,center=(.96,.76,.49) if scene.get('layout')=='full_ui' else (.92,.65,.46)
-                        vf=f"fps={fps},scale={int(w*ratio_w)//2*2}:{int(h*ratio_h)//2*2}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:{int(h*center)}-ih/2:color=0x101216,setsar=1"
+                        vf=f"fps={fps},scale={int(w*ratio_w)//2*2}:{int(h*ratio_h)//2*2}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:{int(h*center)}-ih/2:color={bg_color},setsar=1"
                         if scene.get('recorded_demo'): vf+=f',trim=duration={scene["recorded_seconds"]:.6f},setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration={seconds:.6f}'
                     else:
                         focus=scene.get('features',{}).get('focus',[.5,.5]);fx,fy=(max(0.,min(1.,float(v))) for v in focus)
@@ -476,7 +492,11 @@ def render(plan: dict, audio: Path, assets_folder: Path, work: Path, output: Pat
                         expr=f'0.10*on/{max(1,scene["frames"]-1)}'
                         z='1+'+expr if scene['camera']=='push' else '1.10-'+expr
                         vf=f"scale={w*2}:{h*2},zoompan=z='{z}':x='iw/2-iw/zoom/2':y='ih/2-ih/zoom/2':d={scene['frames']}:s={w}x{h}:fps={fps},setsar=1"
-                    else: vf=f'setsar=1,loop=loop=-1:size=1:start=0,setpts=N/({fps}*TB)'
+                    else:
+                        # Blend a static image/overlay once, then repeat that
+                        # composite. Time-dependent captions and fades follow.
+                        static_still=not scene.get('variation')
+                        vf='setsar=1' if static_still else f'setsar=1,loop=loop=-1:size=1:start=0,setpts=N/({fps}*TB)'
                 variation=scene.get('variation')
                 if variation in ('mirror','mirror_reverse'): vf+=',hflip'
                 if variation=='grade': vf+=',eq=contrast=1.06:saturation=1.10'
@@ -484,10 +504,11 @@ def render(plan: dict, audio: Path, assets_folder: Path, work: Path, output: Pat
                 # overlay repeats its last decoded frame by default, so a
                 # single input image suffices even on moving footage.
                 cmd+=['-threads','1','-framerate',str(fps),'-i',str(overlay)]
-                if scene['type']=='visualizer': cmd+=['-loop','1','-framerate',str(fps),'-i',str(base)]
+                if scene['type']=='visualizer': cmd+=['-threads','1','-loop','1','-framerate',str(fps),'-i',str(base)]
                 # Relative ASS filename avoids Windows drive/path escaping issues.
                 # The server runs the scene subprocess in scratch.
                 graph=(vf if scene['type']=='visualizer' else '[0:v]'+vf)+'[base];[base][1:v]overlay=0:0,format=yuv420p'
+                if static_still:graph+=f',loop=loop=-1:size=1:start=0,setpts=N/({fps}*TB)'
                 if scene['type']=='diagram' and not live_diagram:
                     graph+='[diagram];'
                     dot=scratch/'dot.png'; ball=Image.new('RGBA',(max(8,h//24),max(8,h//24)),(0,0,0,0));ImageDraw.Draw(ball).ellipse((1,1,ball.width-2,ball.height-2),fill='#94f58c');ball.save(dot)

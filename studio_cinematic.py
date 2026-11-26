@@ -36,10 +36,14 @@ def write_kinetic_ass(plan, width, height, target):
     """Stable phrase positions; per-word progressive highlighting, short entrance.
     Timestamp-based where supplied; estimated timings are not invented ASR results.
     """
+    from studio_theme import palette,ass_color
+    colors=palette(plan.get('visual_theme','legacy'))
+    primary=ass_color(colors['accent']) if colors else '&H008CF5A0'
+    secondary=ass_color(colors['ink']) if colors else '&H00F0F2EF'
     style=plan.get("caption_style","karaoke")
     size=max(18,round(min(width*.045,height*.055)*plan.get("caption_scale",1.)))
     x,y=width//2,round(height*.89)
-    rows=[f'''[Script Info]\nScriptType: v4.00+\nPlayResX: {width}\nPlayResY: {height}\nWrapStyle: 0\nScaledBorderAndShadow: yes\n[V4+ Styles]\nFormat: Name,Fontname,Fontsize,PrimaryColour,SecondaryColour,OutlineColour,BackColour,Bold,Italic,Underline,StrikeOut,ScaleX,ScaleY,Spacing,Angle,BorderStyle,Outline,Shadow,Alignment,MarginL,MarginR,MarginV,Encoding\nStyle: Main,Arial,{size},&H008CF5A0,&H00F0F2EF,&H00101712,&H88000000,-1,0,0,0,100,100,0,0,1,{max(2,size//15)},1,5,{width//12},{width//12},0,1\n[Events]\nFormat: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text\n''']
+    rows=[f'''[Script Info]\nScriptType: v4.00+\nPlayResX: {width}\nPlayResY: {height}\nWrapStyle: 0\nScaledBorderAndShadow: yes\n[V4+ Styles]\nFormat: Name,Fontname,Fontsize,PrimaryColour,SecondaryColour,OutlineColour,BackColour,Bold,Italic,Underline,StrikeOut,ScaleX,ScaleY,Spacing,Angle,BorderStyle,Outline,Shadow,Alignment,MarginL,MarginR,MarginV,Encoding\nStyle: Main,Arial,{size},{primary},{secondary},&H00101712,&H88000000,-1,0,0,0,100,100,0,0,1,{max(2,size//15)},1,5,{width//12},{width//12},0,1\n[Events]\nFormat: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text\n''']
     # Independent title layer: transitions never blend duplicated titles or captions.
     if plan.get('title_motion'):
         for index,scene in enumerate(plan['scenes']):

@@ -125,7 +125,7 @@ def frame(kind,rows,index,*,threshold=-18.,ratio=4.,attack_ms=30.,release_ms=200
     return im
 
 
-def write_frames(kind: str, seconds: float, folder: Path, fps: int, check_cancel=lambda:None, *, retune_ms=70., compressor=None):
+def write_frames(kind: str, seconds: float, folder: Path, fps: int, check_cancel=lambda:None, *, retune_ms=70., compressor=None, theme='legacy'):
     """Use a 15 fps source (interpolated to output FPS) and bounded 960x540 frames."""
     source_fps=15
     from studio_effect_visuals import KINDS,render_frame
@@ -133,7 +133,7 @@ def write_frames(kind: str, seconds: float, folder: Path, fps: int, check_cancel
         folder.mkdir(parents=True,exist_ok=True)
         for i in range(math.ceil(seconds*source_fps)):
             check_cancel()
-            render_frame(kind,i/source_fps).save(folder/f'{i:05d}.jpg',quality=91,subsampling=0)
+            render_frame(kind,i/source_fps,theme=theme).save(folder/f'{i:05d}.jpg',quality=91,subsampling=0)
         return source_fps
     params=compressor or {}
     rows=simulate_compression(seconds,**params) if kind=='Compression' else simulate_pitch(seconds,retune_ms)

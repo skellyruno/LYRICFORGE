@@ -4412,6 +4412,8 @@ class DirectorAssetEdit(BaseModel):
 class DirectorRequest(BaseModel):
     title_motion: bool = False
     editorial_style: str = "standard"
+    visual_theme: str | None = None
+    skell_terminology: bool | None = None
     title_style: str = "slide"
     guided_replay: bool = False
     transition_style: str = "dissolve"
@@ -4451,6 +4453,8 @@ class CreatorBrief(BaseModel):
 
 
 class CreatorRequest(CreatorBrief):
+    visual_theme: str = "clean"
+    skell_terminology: bool = False
     chapters: list[dict] = Field(default_factory=list,max_length=120)
     voice: str = "auto"
     speed: float = Field(default=1.,ge=.8,le=1.2)
@@ -4505,6 +4509,8 @@ async def create_video_request(payload: str = Form(...), files: list[UploadFile]
     try:
         if len(payload)>256*1024: raise ValueError('Creator request exceeds 256 KiB')
         body=CreatorRequest.model_validate_json(payload)
+        import studio_theme
+        studio_theme.validate(body.visual_theme)
         if body.title_style not in cinema_finish.TITLE_STYLES:raise ValueError("Unknown title style")
         if bool(proof_before)!=bool(proof_after):raise ValueError('Attach both dry and processed comparison files')
         if proof_before is not None:
@@ -4533,7 +4539,7 @@ async def create_video_request(payload: str = Form(...), files: list[UploadFile]
     except (ValueError,TypeError) as exc: raise HTTPException(400,str(exc)[:500]) from exc
     project_id=uuid.uuid4().hex;p=DATA/project_id;p.mkdir()
     settings=sanitize_settings({'fps':24,'performanceMode':request_perf_mode.get()})
-    data={'id':project_id,'title':body.product.strip(),'duration':0.,'status':'creator_pending','save_state':'draft','settings':settings,'lines':[],'audio_file':'voice.wav','creator_script':script,'creator_brief':body.brief,'creator_production_mode':body.production_mode}
+    data={'id':project_id,'title':body.product.strip(),'duration':0.,'status':'creator_pending','save_state':'draft','settings':settings,'lines':[],'audio_file':'voice.wav','creator_script':script,'creator_brief':body.brief,'creator_production_mode':body.production_mode,'creator_visual_theme':body.visual_theme,'creator_skell_terminology':body.skell_terminology}
     save_project(p,data)
     try:
         if recording is not None:
@@ -4573,7 +4579,7 @@ def run_creator(project_id,job_id,body,script,voice):
             data.update(status='editor',duration=result['duration'],lines=lines,original_words=[w for line in lines for w in line['words']],creator_metadata={k:v for k,v in result.items() if k!='lines'},creator_cues=[{'id':r['id'],'text':r['text'],'chapter_title':r['chapter_title'],'visual_hint':r['visual_hint'],**({'source_url':r['source_url']} if r.get('source_url') else {})} for r in result['lines']])
             save_project(p,data)
         if body.auto_render:
-            _,settings,plan=prepare_director(project_id,DirectorRequest(preset='doc' if body.production_mode=='research' else 'plugin',brand=body.product,preview=body.preview,output_format=body.format,cinematic_finish=True,guided_replay=True,editorial_style='reference',caption_style='clean',caption_scale=.85,transition_style='cut',transition_seconds=.24,sound_design=body.sound_design,title_motion=body.title_motion,title_style=body.title_style))
+            _,settings,plan=prepare_director(project_id,DirectorRequest(preset='doc' if body.production_mode=='research' else 'plugin',brand=body.product,preview=body.preview,output_format=body.format,cinematic_finish=True,guided_replay=True,editorial_style='reference',visual_theme=body.visual_theme,skell_terminology=body.skell_terminology,caption_style='clean',caption_scale=.85,transition_style='cut',transition_seconds=.24,sound_design=body.sound_design,title_motion=body.title_motion,title_style=body.title_style))
             run_director(project_id,job_id,plan,settings,body.preview)
             with job_lock: jobs[job_id]['project_id']=project_id
         else:
@@ -4731,7 +4737,7 @@ def prepare_director(project_id: str, body: DirectorRequest):
         analysis=director_intel.beat_info(project_dir(project_id)/data['audio_file'],duration,start) if body.preset=='music' else None
         plan = director.make_plan(lines,duration,director.assets_for(director_folder(project_id)),
                                   body.preset, body.brand.strip() or "SKELLYMOTION", fps=settings["fps"], preview=body.preview,
-                                  analysis=analysis,intensity=body.intensity,diagrams=body.diagrams,motion=body.motion,transitions=body.transitions,audio_start=start,silent=silent,cinematic=body.cinematic_finish,guided_replay=body.guided_replay,title_motion=body.title_motion,editorial_style=body.editorial_style)
+                                  analysis=analysis,intensity=body.intensity,diagrams=body.diagrams,motion=body.motion,transitions=body.transitions,audio_start=start,silent=silent,cinematic=body.cinematic_finish,guided_replay=body.guided_replay,title_motion=body.title_motion,editorial_style=body.editorial_style,visual_theme=body.visual_theme if body.visual_theme is not None else data.get('creator_visual_theme','legacy'),skell_terminology=body.skell_terminology if body.skell_terminology is not None else data.get('creator_skell_terminology',False))
         for scene in plan['scenes']:
             if scene['type']=='diagram' and scene['text']=='Compression':
                 scene['compressor_demo']=body.compressor_demo.model_dump()

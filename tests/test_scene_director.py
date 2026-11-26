@@ -142,3 +142,14 @@ def test_director_memory_policy():
     assert 'sync-lookahead=0' in a
     assert 'sync-lookahead=0:rc-lookahead=2:bframes=1' in b
     assert b[b.index('-threads')+1]=='1'
+
+
+def test_cached_limiter_demo_trace_matches_original_causal_prefix():
+    import numpy as np
+    from studio_effect_visuals import limiter_demo_trace,limiter_levels
+    from studio_live_diagrams import simulate_compression
+    cached=limiter_demo_trace()
+    expected=limiter_levels([v[0] for v in simulate_compression(4.,ratio=1)])
+    assert np.array_equal(cached[:len(expected)],expected)
+    assert not cached.flags.writeable
+    assert limiter_demo_trace() is cached

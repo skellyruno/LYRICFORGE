@@ -60,3 +60,11 @@ def test_maximum_15_minute_song_has_bounded_work():
     assert peaks[-1] > 0.0
     assert all(math.isfinite(v) for v in peaks)
     print(f"15min waveform envelope CPU duration: {elapsed:.3f}s")
+
+
+def test_large_pcm_fast_path_matches_scalar_reference():
+    import random
+    rng=random.Random(554)
+    raw=array('f',(rng.uniform(-1,1) for _ in range(70003)))
+    raw[10]=float('nan');raw[11]=float('inf');raw[-1]=4.
+    assert waveform_envelope(raw,511)==waveform_envelope(list(raw),511)

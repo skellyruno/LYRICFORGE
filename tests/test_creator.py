@@ -117,3 +117,15 @@ def test_spectral_and_width_diagrams_are_animated():
         a,b=render_frame(name,0),render_frame(name,1)
         assert a.size==b.size==(960,540)
         assert a.tobytes()!=b.tobytes()
+
+
+def test_theme_is_optional_and_preserves_claims():
+    rows=[{'text':'A confirmed claim','start':0,'end':4,'source_url':'https://example.org/report'}]
+    plain=director.make_plan(rows,4,[],'doc',editorial_style='reference')
+    themed=director.make_plan(rows,4,[],'doc',editorial_style='reference',visual_theme='skelly_neon',skell_terminology=True)
+    assert plain['visual_theme']=='legacy'
+    assert themed['visual_theme']=='skelly_neon'
+    assert themed['scenes'][0]['evidence_text']==plain['scenes'][0]['evidence_text']
+    assert themed['scenes'][0]['claim_sources']==plain['scenes'][0]['claim_sources']
+    assert themed['scenes'][0]['skell_terminology']
+    with pytest.raises(ValueError):director.make_plan(rows,4,[],'doc',visual_theme='invalid')

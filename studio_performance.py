@@ -31,15 +31,29 @@ def waveform_envelope(pcm, points: int) -> list[float]:
     count = len(pcm)
     if count == 0:
         return [0.0] * points
+    # For decoded PCM, vectorize the reductions without copying the entire
+    # track. Float64 preserves the scalar path's abs/denormal semantics.
+    from array import array
+    samples = None
+    if count >= 65536 and isinstance(pcm, array) and pcm.typecode in ('f','d'):
+        import numpy as np
+        samples = np.asarray(pcm)
     peaks = []
     for i in range(points):
         start, end = (i * count) // points, ((i + 1) * count) // points
         amplitude = 0.0
-        for j in range(start, end):
-            sample = float(pcm[j])
-            if not math.isfinite(sample) or abs(sample) < 1e-30:
-                continue
-            amplitude = max(amplitude, abs(sample))
+        if samples is not None:
+            for j in range(start,end,65536):
+                values=np.abs(samples[j:min(j+65536,end)].astype(np.float64,copy=False))
+                values[~np.isfinite(values)]=0.
+                peak=float(values.max(initial=0.))
+                amplitude=max(amplitude,peak if peak>=1e-30 else 0.)
+        else:
+            for j in range(start, end):
+                sample = float(pcm[j])
+                if not math.isfinite(sample) or abs(sample) < 1e-30:
+                    continue
+                amplitude = max(amplitude, abs(sample))
         peaks.append(amplitude)
     reference = max(1e-5, sorted(peaks)[round((len(peaks) - 1) * .98)])
     return [round(min(1.0, (peak / reference) ** .65), 3)
