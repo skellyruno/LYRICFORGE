@@ -172,3 +172,8 @@ select.further{background:#1b221d;border:1px solid #303c32;color:#cdd9ce;border-
 .director-asset-card[open]{display:grid;gap:7px}.director-asset-card input,.director-asset-card select{width:100%;min-width:0;margin:3px 0}.director-asset-pair{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:5px;align-items:center}
 .director-edit-thumb{display:block;max-width:100%;max-height:220px;width:auto;height:auto;margin:6px auto;cursor:crosshair;border-radius:4px}
 .director-finish-settings .control-group{margin-top:8px}.director-asset-pair button{white-space:normal}
+
+/* Creator script stays editable while providing a compact, non-modal timing guide. */
+.creator-script-stats{display:block;color:#a6b9aa;font-size:11px;font-variant-numeric:tabular-nums;line-height:1.5;margin-top:4px;overflow-wrap:anywhere}
+.creator-panel textarea{resize:vertical;min-height:48px;max-width:100%;box-sizing:border-box}
+.creator-panel .render-btn{min-height:34px;white-space:normal}

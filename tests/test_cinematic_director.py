@@ -65,3 +65,11 @@ def test_cinematic_export_with_music_and_sfx(tmp_path,monkeypatch):
     job=server.jobs[r.json()['job_id']];assert job['status']=='done',job
     info=server.clips.probe_media(p/'director_preview.mp4');assert info['has_audio'] and info['has_video'] and abs(info['duration']-4.2)<.15
     assert job['outputs']['crossfades']==1
+
+
+def test_transition_respects_real_recordings_and_identical_static_shots():
+    from studio_cinematic import transition_frames
+    a={'type':'ui_demo','frames':120,'camera':'still','asset':'a'}
+    assert transition_frames(a,{**a},24)==0
+    assert transition_frames({**a,'recorded_demo':True},{**a,'asset':'b'},24)==0
+    assert transition_frames(a,{**a,'asset':'b'},24)>0

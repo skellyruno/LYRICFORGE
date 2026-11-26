@@ -7,6 +7,7 @@ import json
 import math
 import re
 import subprocess
+import shutil
 from pathlib import Path
 import numpy as np
 from PIL import Image
@@ -49,7 +50,7 @@ def validate(root, sealed=True):
     dry,wet=(pcm(files[name],rate,samples) for name in ('dry.wav','processed.wav'))
     rows=table(files['editor.csv'],FIELDS,count)
     if len(rows)!=count: raise ValueError('Incomplete editor trace')
-    n=rate//fps;values=[]
+    n=rate//fps;values=[];max_meter_error=0.
     for i,row in enumerate(rows):
         if int(row['frame'])!=i or int(row['sample'])!=i*n or row['parameter']!='gain': raise ValueError('Editor trace clock mismatch')
         nums=[float(row[k]) for k in FIELDS[3:]]
@@ -57,10 +58,13 @@ def validate(root, sealed=True):
             raise ValueError('Invalid parameter readback or measured levels')
         a,b=dry[i*n:(i+1)*n],wet[i*n:(i+1)*n]
         expected=(float(np.sqrt(np.mean(a*a))),float(np.sqrt(np.mean(b*b))),float(np.max(np.abs(a))),float(np.max(np.abs(b))))
-        if max(abs(x-y) for x,y in zip(nums[2:],expected))>.0001: raise ValueError('Editor meter/audio mismatch')
+        error=max(abs(x-y) for x,y in zip(nums[2:],expected))
+        max_meter_error=max(max_meter_error,error)
+        if error>.0001: raise ValueError('Editor meter/audio mismatch')
         values.append(nums[1])
     if max(values)-min(values)<.1: raise ValueError('Parameter readback never changes')
-    return {'meta':meta,'hashes':hashes,'distinct_frames':len(pixels),'gain_range':[min(values),max(values)]}
+    return {'meta':meta,'hashes':hashes,'distinct_frames':len(pixels),'gain_range':[min(values),max(values)],
+            'max_meter_error':max_meter_error,'duration_seconds':samples/rate}
 
 
 def seal(root):
@@ -80,7 +84,15 @@ def render(root,out):
         if not video.is_file() or video.stat().st_size<1024:raise RuntimeError('Missing rendered editor clip')
     except (subprocess.SubprocessError,OSError,RuntimeError):
         video.unlink(missing_ok=True);raise
-    (out/'editor_demo_report.json').write_text(json.dumps({**result,'video_sha256':digest(video),'note':'Offline programmatic JUCE slider demonstration; not a live DAW recording. Original processed test audio.'},indent=2),encoding='utf-8')
+    # Export the original aligned A/B pair losslessly for independent listening.
+    references={}
+    for source,name in [('dry.wav','dry_reference.wav'),('processed.wav','processed_reference.wav')]:
+        target=out/name
+        shutil.copyfile(root/source,target)
+        actual=digest(target)
+        if actual!=result['hashes'][source]:raise RuntimeError('Capture reference changed during export')
+        references[name]=actual
+    (out/'editor_demo_report.json').write_text(json.dumps({**result,'video_sha256':digest(video),'audio_references':references,'note':'Offline programmatic JUCE slider demonstration; not a live DAW recording. Original processed test audio.'},indent=2),encoding='utf-8')
     return video
 
 

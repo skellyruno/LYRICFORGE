@@ -37,5 +37,7 @@ jobs:
           node tests/editor_smoke.mjs
           node tests/autoclip_smoke.mjs
           node tests/compressor_lab_smoke.mjs
+      - name: Fail fast on Hold and Cut release regressions
+        run: python -m pytest tests/test_quick_tools2.py -q -k 'hold or cut'
       - name: Test API, timing and actual MP4 export
         run: python -m pytest tests -q

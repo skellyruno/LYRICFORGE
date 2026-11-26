@@ -266,7 +266,7 @@ def apply_semantic(plan, folder, assets):
         if scene['type'] not in ('broll','visualizer','big_text') or plan['preset']=='plugin': continue
         key=' '.join(c['text'] for c in scene['captions'])[:220]; ranking=scores.get(key,{})
         if not ranking or len(ranking)<2: continue
-        eligible=[a for a in assets if a['id'] in ranking and not a.get('source')]
+        eligible=[a for a in assets if a['id'] in ranking and not a.get('source') and not a.get('disabled')]
         if not eligible: continue
         best=max(eligible,key=lambda a:ranking[a['id']]-.18*int(a['id']==previous)+.15*float(a.get('features',{}).get('quality',.5)))
         if ranking[best['id']]<.6: continue

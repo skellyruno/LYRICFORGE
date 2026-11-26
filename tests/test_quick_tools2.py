@@ -446,3 +446,13 @@ def test_cut_at_clip_boundary_keeps_remaining_audio(data, start, end, expected):
     out, _, _ = run_tool(data, "cut", {"video": [up(source)]}, start=start, end=end)
     assert clips.probe_media(out)["duration"] == pytest.approx(expected, abs=.15)
     assert rms(pcm(out, .2, .5)) > 500
+
+
+@needs_ffmpeg
+@pytest.mark.parametrize("start,end", [("1","0"),("0","2"),("1","2")])
+def test_hold_frame_clock_exact(data,start,end):
+    import json
+    source=make_video(data / "clock.mp4",3)
+    out,_,_=run_tool(data,"hold",{"video":[up(source)]},start=start,end=end)
+    stream=json.loads(subprocess.check_output(["ffprobe","-v","error","-select_streams","v:0","-count_frames","-show_streams","-of","json",str(out)]))["streams"][0]
+    assert int(stream["nb_read_frames"])==15*(3+int(start)+int(end))

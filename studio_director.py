@@ -6,6 +6,7 @@ Plan at transcript boundaries, select supplied media, render and cache individua
 from __future__ import annotations
 
 import hashlib
+from collections import Counter
 import json
 import math
 import re
@@ -96,6 +97,9 @@ def make_plan(lines: list[dict], duration: float, assets: list[dict], preset: st
     if preset == "plugin": assets = [a for a in assets if walk.is_plugin_asset(a)]
     rhythm = intel.cut_boundaries(analysis or {}, duration, fps, lines, intensity) if preset == "music" else []
     scenes, cursor, used, repairs = [], 0, [], 0
+    asset_terms={a['id']:terms(a['name']+' '+a.get('description','')) for a in assets}
+    asset_features={a['id']:a.get('features') or {} for a in assets}
+    usage=Counter()
     while cursor < total:
         ideal = cursor + round(look['pace'] * fps)
         maximum = min(total, cursor + round(look['maximum'] * fps))
@@ -134,15 +138,22 @@ def make_plan(lines: list[dict], duration: float, assets: list[dict], preset: st
                 scene['hero_title']='100 ms / Slow response' if re.search(r'\b(?:100|one hundred)\b',text.lower()) else '0 ms / Hard response' if re.search(r'\b(?:zero|0)\b',text.lower()) else 'Retune speed'
         # Asset matching prefers a semantic filename/description and diversity.
         if assets:
-            pool = [a for a in assets if not (len(used) >= 2 and used[-1] == used[-2] == a['id'])] or assets
+            spoken_terms, hint_terms=terms(text),terms(hint)
+            previous=asset_features.get(used[-1],{}) if used else {}
             def score(a):
-                overlap = len(terms(text) & terms(a['name'] + ' ' + a.get('description', ''))) + 2*len(terms(hint) & terms(a['name']+' '+a.get('description','')))
-                features=a.get('features') or {}
-                previous=next((v.get('features',{}) for v in assets if used and v['id']==used[-1]),{})
-                visual = float(features.get('quality',.5)) + .4*intel.diversity(features,previous)
-                if preset=='music': visual += float(features.get('motion',0))
-                return (overlap, visual - .35*used.count(a['id']), int(preset == 'plugin' and a['kind'] == 'image'))
-            chosen = max(pool, key=score)
+                key=a['id']; features=asset_features[key]; tags=asset_terms[key]
+                overlap=len(spoken_terms & tags)+2*len(hint_terms & tags)
+                distance=intel.diversity(features,previous)
+                visual=float(features.get('quality',.5))+.4*distance
+                if preset=='music': visual+=float(features.get('motion',0))
+                # Keep factual/technical relevance first. Among equally relevant
+                # visuals, avoid repeating identical shots or perceptual duplicates.
+                recent=used[-3:]
+                penalty=.22*usage[key]+.45*int(key in recent)
+                if previous.get('hash') and features.get('hash') and distance<.08:penalty+=.7
+                return (overlap,visual-penalty,int(preset=='plugin' and a['kind']=='image'))
+            pool=assets
+            chosen=max(pool,key=score)
             if preset=="plugin":
                 recording=walk.choose_recording(assets,text+' '+hint,terms,used)
                 if recording is not None: chosen=recording
@@ -172,7 +183,7 @@ def make_plan(lines: list[dict], duration: float, assets: list[dict], preset: st
                     scene['variation']=variant
                     clip_duration=float(scene['features'].get('duration',0) or 0)
                     if clip_duration>0: scene['asset_start']=round((used.count(chosen['id'])*((end-cursor)/fps))%clip_duration,3)
-                used.append(chosen['id'])
+                used.append(chosen['id']);usage[chosen['id']]+=1
         if not scene.get('asset') and diagrams and preset=='plugin' and intel.diagram_kind(text+' '+hint):
             scene.update(type='diagram',text=intel.diagram_kind(text+' '+hint),camera='still')
             if scene['text']=='Pitch processing':

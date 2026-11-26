@@ -38,4 +38,7 @@ def test_editor_rejects_audio_mismatch(tmp_path):
 @pytest.mark.skipif(not shutil.which('ffmpeg'),reason='FFmpeg required')
 def test_editor_render_fixture(tmp_path):
     root=fixture(tmp_path/'capture');demo.seal(root);path=demo.render(root,tmp_path/'out');assert path.stat().st_size>1024
-    assert json.loads((path.parent/'editor_demo_report.json').read_text())['meta']['frame_count']==24
+    report=json.loads((path.parent/'editor_demo_report.json').read_text())
+    assert report['meta']['frame_count']==24 and report['max_meter_error']<=.0001
+    assert (path.parent/'dry_reference.wav').read_bytes()==(root/'dry.wav').read_bytes()
+    assert (path.parent/'processed_reference.wav').read_bytes()==(root/'processed.wav').read_bytes()

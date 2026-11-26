@@ -105,11 +105,19 @@ def hold_build(p, o, out, safe):
     fps = o.get("fps", 30.0)
     # Use the same frame clock for the picture, audio delay and duration.
     first, last = _hold_frames(o["start"], fps), _hold_frames(o["end"], fps)
-    vf = (f"setpts=PTS-STARTPTS,fps={fps:g},"
-          f"tpad=start_mode=clone:start={first}:stop_mode=clone:stop={last}")
+    # Avoid tpad's start-mode clone path: Linux FFmpeg can stall before
+    # emitting any video when it is fed by a CFR filter. Shift the frame
+    # clock and let fps backfill with copies of the real first frame.
+    vf = f"setpts=PTS-STARTPTS,fps={fps:g}"
+    if first:
+        vf += f",setpts=PTS+{first},fps={fps:g}:start_time=0"
+    if last:
+        vf += f",tpad=stop_mode=clone:stop={last}"
     af = (f"adelay={round(first / fps * 1000)}:all=1," if first else "") + f"apad=whole_dur={o['seconds']},atrim=duration={o['seconds']}"
     args = _reencode(p["video"], vf, o["has_audio"], out, af=af)
-    return [*args[:-1], "-t", str(o["seconds"]), args[-1]]
+    # A small explicit thread budget bounds FFmpeg's decoded-frame queues.
+    args[args.index("-i"):args.index("-i")] = ["-filter_threads", "1", "-threads", "2"]
+    return [*args[:-1], "-threads", "2", "-t", str(o["seconds"]), args[-1]]
 
 
 # ---- cut out a section

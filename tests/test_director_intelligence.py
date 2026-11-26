@@ -144,3 +144,11 @@ def test_detect_actual_steady_click_grid(tmp_path):
 def test_local_worker_missing_model_falls_back(tmp_path,monkeypatch):
     monkeypatch.setenv('SKELLYMOTION_VISION_MODEL',str(tmp_path/'missing'))
     with pytest.raises(RuntimeError,match='not configured'):intel.semantic_scores(tmp_path,[],[])
+
+
+def test_disabled_assets_do_not_return_through_semantic_reranking(tmp_path,monkeypatch):
+    assets=[{'id':'a'*32+'.png','name':'forest','kind':'image'}, {'id':'b'*32+'.png','name':'forest','kind':'image','disabled':True}]
+    monkeypatch.setattr(intel,'semantic_scores',lambda *args:{'forest':{assets[0]['id']:.8,assets[1]['id']:1.}})
+    plan=director.make_plan([{'text':'forest','start':0,'end':4}],4,assets,'doc')
+    intel.apply_semantic(plan,tmp_path,assets)
+    assert plan['scenes'][0]['asset']==assets[0]['id']

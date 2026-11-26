@@ -107,12 +107,14 @@ def split_phrases(text):
             if len(word)>100:raise ValueError('Script contains an excessively long word')
             if current and (len(' '.join(current+[word]))>240 or len(current)>=30):result.append(' '.join(current));current=[]
             current.append(word)
+            if len(current)>=12 and word.endswith((',', ';', ':')):
+                result.append(' '.join(current));current=[]
         if current:result.append(' '.join(current))
     return result
 
 def narration(chapters, output, voice='auto', speed=1., check_cancel=lambda:None, progress=lambda i,n:None, *, delivery='neutral', pronunciation=None):
     chapters=validate_script(chapters);voice=resolve_voice(voice)
-    speed,phrase_gap,chapter_gap,pitch=vs.delivery(delivery,speed);pronunciation=vs.dictionary(pronunciation or {})
+    speed,phrase_gap,chapter_gap,pitch=vs.delivery(delivery,speed);pronunciation=vs.speech_dictionary(pronunciation or {})
     rate=24000;lines=[];cursor=0;output=Path(output).resolve();output.parent.mkdir(parents=True,exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='creator-',dir=output.parent) as root:
         root=Path(root);staged=root/'voice.wav'
@@ -128,6 +130,7 @@ def narration(chapters, output, voice='auto', speed=1., check_cancel=lambda:None
                         n=reader.getnframes()
                         if not 0<n<=rate*100:raise ValueError('Invalid synthesized phrase length')
                         pcm=reader.readframes(n)
+                    pcm=vs.phrase_pcm(pcm,rate);n=len(pcm)//2
                     if cursor+n+rate>rate*1800:raise ValueError('Narration exceeds 30 minutes')
                     samples=np.frombuffer(pcm,dtype='<i2');peak=float(np.max(np.abs(samples.astype(np.float32))))
                     if peak<5:raise RuntimeError('Narrator generated silent audio')
@@ -136,11 +139,11 @@ def narration(chapters, output, voice='auto', speed=1., check_cancel=lambda:None
                     active=np.flatnonzero(np.abs(samples.astype(np.int32))>max(100,peak*.015))
                     a=(cursor+(int(active[0]) if len(active) else 0))/rate;b=(cursor+(int(active[-1])+1 if len(active) else n))/rate
                     if b-a<.08:a=cursor/rate;b=(cursor+n)/rate
-                    tokens=phrase.split();weights=np.array([max(1,len(x.strip('.,!?;:'))) for x in tokens],dtype=float);edges=np.r_[0,np.cumsum(weights)/sum(weights)]
+                    tokens=phrase.split();weights=np.array([max(1,len(vs.spoken(x,pronunciation).strip('.,!?;:').replace(' ',''))) for x in tokens],dtype=float);edges=np.r_[0,np.cumsum(weights)/sum(weights)]
                     words=[{'text':t,'start':float(a+(b-a)*edges[k]),'end':float(a+(b-a)*edges[k+1])} for k,t in enumerate(tokens)]
                     if len(lines)>=500:raise ValueError('Narration exceeds 500 editor clips')
                     lines.append({'id':uuid.uuid4().hex[:12],'text':phrase,'start':a,'end':b,'words':words,'chapter_title':chapter['title'],'visual_hint':chapter['visual_hint']})
                     wav.writeframes(pcm);cursor+=n
-                    gap=round(rate*(phrase_gap if j+1<len(phrases) else chapter_gap));wav.writeframes(b'\0\0'*gap);cursor+=gap
+                    gap=round(rate*vs.pause_after(phrase,phrase_gap,chapter_gap,j+1==len(phrases)));wav.writeframes(b'\0\0'*gap);cursor+=gap
         check_cancel();perf.publish_staged_file(staged,output)
     return {'duration':cursor/rate,'lines':lines,'provider':voice,'delivery':delivery,'word_timing':'estimated within measured phrase audio','warnings':(['Draft synthesizer, not neural narration.'] if voice=='draft' else ['System voice quality depends on installed Windows speech voices.'] if voice=='system' else [])}

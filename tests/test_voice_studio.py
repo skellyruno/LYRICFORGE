@@ -78,3 +78,14 @@ def test_compare_cli_inputs(tmp_path):
     args=cli.build_parser().parse_args(['compare','a.wav','b.wav','--out',str(tmp_path/'output'),'--start','1.5'])
     assert args.start==1.5 and args.command=='compare'
     with pytest.raises(ValueError):cli.compare_from_files(args)
+
+
+def test_voice_trims_only_exterior_silence_and_respects_overrides():
+    import numpy as np
+    rate=24000
+    audio=np.r_[np.zeros(rate),np.full(6000,2000),np.zeros(3000),np.full(6000,-2000),np.zeros(rate)].astype("<i2")
+    trimmed=np.frombuffer(vs.phrase_pcm(audio.tobytes(),rate),dtype="<i2")
+    assert len(trimmed)==15000+round(.055*rate)+round(.080*rate)
+    assert np.count_nonzero(trimmed)==12000
+    assert vs.spoken("DSP and VST3",vs.speech_dictionary({"DSP":"digital signal processing"}))=="digital signal processing and V S T three"
+    assert vs.pause_after("a clause,",.2,.4,False)<vs.pause_after("a sentence.",.2,.4,False)<vs.pause_after("chapter.",.2,.4,True)

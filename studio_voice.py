@@ -19,6 +19,37 @@ DELIVERY = {
     'documentary': (.91, .22, .40, 38),
 }
 FORMATS = {'tutorial', 'review', 'advertisement', 'documentary'}
+# Common audio initialisms only; owner-supplied pronunciations override these.
+TECH_SPEECH = {'dsp':'D S P', 'vst':'V S T', 'vst3':'V S T three',
+               'daw':'D A W', 'gui':'G U I', 'cpu':'C P U',
+               'rms':'R M S', 'lufs':'L U F S', 'fft':'F F T'}
+
+def speech_dictionary(values):
+    return {**TECH_SPEECH, **dictionary(values)}
+
+def phrase_pcm(pcm, rate):
+    """Remove only surplus exterior silence; retain quiet phoneme safety margins."""
+    samples=np.frombuffer(pcm,dtype='<i2')
+    if not samples.size: raise RuntimeError('Narrator generated empty audio')
+    magnitude=np.abs(samples.astype(np.int32))
+    peak=int(magnitude.max())
+    if peak<5: raise RuntimeError('Narrator generated silent audio')
+    active=np.flatnonzero(magnitude>max(30,peak*.006))
+    if not len(active): return pcm
+    start=max(0,int(active[0])-round(.055*rate))
+    end=min(len(samples),int(active[-1])+1+round(.080*rate))
+    # Keep short or very quiet material intact; do not gate internal pauses.
+    if end-start<round(.12*rate): return pcm
+    if start<round(.04*rate): start=0
+    if len(samples)-end<round(.04*rate): end=len(samples)
+    return samples[start:end].tobytes()
+
+def pause_after(text, phrase_gap, chapter_gap, final_phrase):
+    if final_phrase:return chapter_gap
+    if text.rstrip().endswith((',', ';', ':')):return phrase_gap*.65
+    if text.rstrip().endswith(('?', '!')):return phrase_gap*1.15
+    if text.rstrip().endswith('.'):return phrase_gap
+    return phrase_gap*.45
 
 
 def delivery(name, speed):

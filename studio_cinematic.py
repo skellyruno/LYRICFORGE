@@ -3,6 +3,7 @@ optional original backing bed and subtle cut accents. No cloud or media download
 """
 from __future__ import annotations
 import math
+from bisect import bisect_left, bisect_right
 import wave
 from pathlib import Path
 import numpy as np
@@ -14,6 +15,11 @@ TITLE_STYLES={"slide","pop","fade","adaptive"}
 
 def transition_frames(previous, current, fps, seconds=.32):
     if previous['type']==current['type']=='visualizer': return 0
+    # Real plugin operation must stay legible, not dissolve into another state.
+    if previous.get('recorded_demo') or current.get('recorded_demo'):return 0
+    if (previous.get('asset') and previous.get('asset')==current.get('asset')
+            and previous.get('camera')==current.get('camera')=='still'
+            and not (previous.get('guided_replay') or current.get('guided_replay'))):return 0
     return min(round(seconds*fps), previous['frames']//5, current['frames']//5)
 
 
@@ -128,7 +134,12 @@ def crossfade_clips(clips, scenes, fps, scratch, encode, check_cancel, duration,
         if n<2:result.append(clips[i]);continue
         d=n/fps;length=scenes[i]['frames']/fps;prev=(scenes[i-1]['frames']-1)/fps
         out=scratch/f'crossfade-{i:04d}.mp4'
-        mode={'dissolve':'fade','slide':'slideleft','wipe':'wipeleft','auto':('fade' if scenes[i]['type'] in ('ui_demo','diagram') else ('fade','slideleft','wipeleft')[i%3])}.get(style,'fade')
+        # Auto uses a restrained editorial dissolve; only explicitly dynamic
+        # B-roll receives a directional transition.
+        current=scenes[i];previous=scenes[i-1]
+        dynamic=(current['type']==previous['type']=='broll' and
+                 float(current.get('features',{}).get('motion',0) or 0)>.12)
+        mode={'dissolve':'fade','slide':'slideleft','wipe':'wipeleft','auto':'slideleft' if dynamic else 'fade'}.get(style,'fade')
         graph=(f'[0:v]trim=end_frame=1,setpts=PTS-STARTPTS,fps={fps},tpad=stop_mode=clone:stop_duration={d+2/fps:.8f},format=yuv444p,setsar=1,fps={fps},settb=1/{fps}[a];'
                f'[1:v]setpts=PTS-STARTPTS,format=yuv444p,setsar=1,fps={fps},settb=1/{fps}[b];'
                f'[a][b]xfade=transition={mode}:duration={d:.8f}:offset=0,format=yuv420p[out]')
@@ -144,7 +155,8 @@ def original_bed(plan, path, *, rate=24000, include_music=True, check_cancel=lam
     external rights dependencies. Optional gentle transition swells."""
     duration=float(plan['duration']);total=max(1,round(duration*rate));rng=np.random.default_rng(1701)
     cut=[(float(s['start']),s.get('type','big_text'),s.get('title_motion',False)) for s in plan['scenes'][1:]]
-    action=[float(s['start'])+replay_hit(float(s['end'])-float(s['start'])) for s in plan['scenes'] if s.get('guided_replay') and s.get('before_asset') and not s.get('replay_fallback')]
+    action=sorted(float(s['start'])+replay_hit(float(s['end'])-float(s['start'])) for s in plan['scenes'] if s.get('guided_replay') and s.get('before_asset') and not s.get('replay_fallback'))
+    cut.sort(key=lambda c:c[0]);cut_times=[c[0] for c in cut]
     # D minor / Bb / F / C; a restrained four-bar cycle, 92 BPM.
     roots=[146.832,116.541,174.614,130.813];beat=60/92;bar=4*beat
     with wave.open(str(path),'wb') as wav:
@@ -160,7 +172,10 @@ def original_bed(plan, path, *, rate=24000, include_music=True, check_cancel=lam
                 tick=t%beat;pluck=.025*np.sin(2*np.pi*(root*2)*t)*np.exp(-tick*8)
                 kick=.032*np.sin(2*np.pi*(49*tick+3*(1-np.exp(-tick*24))))*np.exp(-tick*20)
                 left+=(pad+pluck+kick)*music_gain;right+=(pad+.85*pluck+kick)*music_gain
-            for c,kind,title_motion in cut:
+            # Only cues that can overlap this one-second block. This avoids
+            # rescanning every scene for every block of a long render.
+            lo=bisect_left(cut_times,float(t[0])-.26);hi=bisect_right(cut_times,float(t[-1])+.12)
+            for c,kind,title_motion in cut[lo:hi]:
                 delta=t-c;mask=(delta>=-.12)&(delta<.26)
                 if np.any(mask):
                     z=delta[mask]+.12;envelope=np.sin(np.pi*z/.38)**2
@@ -177,7 +192,7 @@ def original_bed(plan, path, *, rate=24000, include_music=True, check_cancel=lam
                     if np.any(mask):
                         v=z[mask];hit=.011*(np.sin(2*np.pi*510*v)+.3*np.sin(2*np.pi*765*v))*np.exp(-v*23)*np.minimum(1,v/.008)*cue_gain
                         left[mask]+=hit;right[mask]+=.85*hit
-            for c in action:
+            for c in action[bisect_left(action,float(t[0])-.10):bisect_right(action,float(t[-1]))]:
                 z=t-c;mask=(z>=0)&(z<.10)
                 if np.any(mask):
                     tick=.013*np.sin(2*np.pi*860*z[mask])*np.exp(-z[mask]*62)*cue_gain
