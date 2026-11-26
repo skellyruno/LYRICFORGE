@@ -3,6 +3,7 @@ optional operator-installed voice providers. No implicit network or model downlo
 """
 from __future__ import annotations
 import json, os, re, shutil, subprocess, tempfile, time, uuid, wave
+from functools import lru_cache
 from pathlib import Path
 import numpy as np
 import studio_performance as perf
@@ -84,11 +85,26 @@ def run_checked(args, *, input_text=None, check_cancel=lambda:None, timeout=120)
             finally:
                 if proc.poll() is None:proc.kill();proc.wait()
 
+@lru_cache(maxsize=8)
+def piper_length_flag(executable):
+    """Discover duration control without assuming one Piper CLI version."""
+    try:
+        result=subprocess.run([executable,'--help'],capture_output=True,text=True,timeout=5,
+                              **perf.windows_child_options(True))
+        help_text=result.stdout+'\n'+result.stderr
+        for flag in ('--length-scale','--length_scale'):
+            if re.search(r'(?<![\w-])'+re.escape(flag)+r'(?![\w-])',help_text):return flag
+    except (OSError,subprocess.SubprocessError,UnicodeError):pass
+    return None
+
 def synthesize_phrase(text, target, voice, speed, check_cancel, pitch=43):
     if voice=='piper':
         exe=os.environ.get('LYRICFORGE_PIPER_EXE') or shutil.which('piper')
         model=os.environ['LYRICFORGE_PIPER_MODEL']
-        run_checked([exe,'-m',model,'-f',str(target)],input_text=text+'\n',check_cancel=check_cancel)
+        flag=piper_length_flag(exe) if speed!=1. else None
+        pace=[flag,f'{1/speed:.5f}'] if flag else []
+        run_checked([exe,'-m',model,'-f',str(target),*pace],input_text=text+'\n',check_cancel=check_cancel)
+        return bool(flag)
     elif voice=='system':
         # PowerShell script is fixed. The text and output are paths, never interpolated into code.
         script=target.with_suffix('.ps1');txt=target.with_suffix('.txt');txt.write_text(text,encoding='utf-8-sig')
@@ -124,8 +140,11 @@ def narration(chapters, output, voice='auto', speed=1., check_cancel=lambda:None
                 check_cancel();progress(i,len(chapters));phrases=split_phrases(chapter['narration'])
                 for j,phrase in enumerate(phrases):
                     src=root/'phrase.wav';dst=root/'pcm.wav';src.unlink(missing_ok=True);dst.unlink(missing_ok=True)
-                    synthesize_phrase(vs.spoken(phrase,pronunciation),src,voice,speed,check_cancel,pitch)
-                    run_checked(['ffmpeg','-v','error','-nostdin','-y','-i',str(src),'-ac','1','-ar',str(rate),*(['-af',f'atempo={speed:.3f}'] if voice=='piper' and speed!=1. else []),'-c:a','pcm_s16le',str(dst)],check_cancel=check_cancel)
+                    native_pace=synthesize_phrase(vs.spoken(phrase,pronunciation),src,voice,speed,check_cancel,pitch)
+                    # Native neural duration control avoids a second time stretch.
+                    # Older/unknown Piper versions retain the existing atempo fallback.
+                    stretch=voice=='piper' and speed!=1. and not native_pace
+                    run_checked(['ffmpeg','-v','error','-nostdin','-y','-threads','1','-i',str(src),'-ac','1','-ar',str(rate),*(['-af',f'atempo={speed:.3f}'] if stretch else []),'-c:a','pcm_s16le',str(dst)],check_cancel=check_cancel)
                     with wave.open(str(dst),'rb') as reader:
                         n=reader.getnframes()
                         if not 0<n<=rate*100:raise ValueError('Invalid synthesized phrase length')

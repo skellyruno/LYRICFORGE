@@ -1365,6 +1365,26 @@ def render_with_progress(args: list[str], folder: Path, job_id: str, duration: f
     watchdog = threading.Timer(1800, process.kill)
     watchdog.daemon = True
     watchdog.start()
+    # Sample memory independently of FFmpeg progress; short jobs may otherwise
+    # finish between progress updates. Null means no measurement available.
+    memory_stop=threading.Event()
+    memory_peak=[None]
+    def sample_encoder_memory():
+        try:
+            import psutil
+            child=psutil.Process(process.pid)
+            while not memory_stop.is_set():
+                try:
+                    info=child.memory_info()
+                    rss=max(info.rss,getattr(info,'peak_wset',0))/1024**2
+                    memory_peak[0]=max(memory_peak[0] or 0.,rss)
+                except (psutil.NoSuchProcess,psutil.AccessDenied):
+                    break
+                if memory_stop.wait(.1):break
+        except (ImportError,OSError,ValueError):
+            pass
+    memory_worker=threading.Thread(target=sample_encoder_memory,daemon=True)
+    memory_worker.start()
     progress_seconds = 0.0
     error_tail = []
     try:
@@ -1405,6 +1425,15 @@ def render_with_progress(args: list[str], folder: Path, job_id: str, duration: f
                                ": " + " | ".join(error_tail)[-1400:])
     finally:
         watchdog.cancel()
+        memory_stop.set();memory_worker.join(timeout=.3)
+        with job_lock:
+            current=jobs.get(job_id)
+            if current is not None and memory_peak[0] is not None:
+                peak=round(memory_peak[0],1)
+                current['peak_encoder_rss_mib']=max(current.get('peak_encoder_rss_mib') or 0.,peak)
+                parent=jobs.get(current.get('parent') or '')
+                if parent is not None:
+                    parent['peak_encoder_rss_mib']=max(parent.get('peak_encoder_rss_mib') or 0.,peak)
         try:
             if process.poll() is None:
                 process.kill()
@@ -4758,7 +4787,7 @@ def run_director(project_id: str, job_id: str, plan: dict, settings: dict, previ
         finally:caption_tmp.unlink(missing_ok=True)
         with job_lock:
             jobs[job_id].update(status="done", stage="complete", progress=100, outputs={"video": file_url(project_id, filename),
-                                "plan": file_url(project_id, plan_file), "captions":file_url(project_id,caption_file), **stats})
+                                "plan": file_url(project_id, plan_file), "captions":file_url(project_id,caption_file), "peak_encoder_rss_mib":jobs[job_id].get("peak_encoder_rss_mib"), **stats})
     except Exception as exc:
         fail_job(job_id, exc, started)
 

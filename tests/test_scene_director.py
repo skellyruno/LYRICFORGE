@@ -70,6 +70,8 @@ def test_actual_director_render_and_cache(tmp_path,monkeypatch):
     r=c.post(route,json={'preset':'plugin','preview':True});assert r.status_code==200,r.text
     job=server.jobs[r.json()['job_id']]
     assert job['status']=='done',job
+    assert job['outputs']['render_elapsed_seconds']>=0
+    assert 'peak_encoder_rss_mib' in job['outputs']
     out=p/'director_preview.mp4';assert out.stat().st_size>1024
     info=server.clips.probe_media(out);assert info['has_audio'] and info['has_video']
     assert abs(info['duration']-4.2)<.12

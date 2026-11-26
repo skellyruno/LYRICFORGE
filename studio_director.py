@@ -10,6 +10,7 @@ from collections import Counter
 import json
 import math
 import re
+import time
 from pathlib import Path
 from typing import Callable
 from uuid import uuid4
@@ -353,8 +354,10 @@ def render(plan: dict, audio: Path, assets_folder: Path, work: Path, output: Pat
     encode(args, duration, stage, base, span) integrates the app's cancellation
     and progress reporting. All inputs are server-generated paths.
     """
-    w,h = size; fps=plan['fps']; duration=plan['duration']; cinematic=plan.get('cinematic_finish',False); audio_start=float(plan.get('audio_start',0)); work.mkdir(parents=True,exist_ok=True)
+    started=time.monotonic();w,h = size; fps=plan['fps']; duration=plan['duration']; cinematic=plan.get('cinematic_finish',False); audio_start=float(plan.get('audio_start',0)); work.mkdir(parents=True,exist_ok=True)
     cache=work/'scenes'; cache.mkdir(exist_ok=True); made=reused=0; clips=[]
+    mode=settings.get('performanceMode','balanced')
+    scene_threads=1 if mode=='eco' else min(4,perf.profile_config(mode)['threads']) if mode=='turbo' else 2
     scratch=work/('job-'+uuid4().hex); scratch.mkdir()
     import shutil
     try:
@@ -414,19 +417,24 @@ def render(plan: dict, audio: Path, assets_folder: Path, work: Path, output: Pat
                         if scene.get('variation') in ('reverse','mirror_reverse'):
                             vf+=f',trim=end_frame={scene["frames"]},reverse,setpts=PTS-STARTPTS'
                 else:
-                    cmd+=['-loop','1','-framerate',str(fps),'-i',str(base)]
+                    # Decode the still exactly once, instead of re-decoding PNG
+                    # for every output frame. A bounded one-frame loop supplies
+                    # the same input timeline to camera motion and captions.
+                    cmd+=['-threads','1','-framerate',str(fps),'-i',str(base)]
                     # Smooth bounded camera motion derived from the reference
                     # engine's push/pull camera; UI shots remain uncropped.
                     if scene['camera'] in ('push','pull'):
                         expr=f'0.10*on/{max(1,scene["frames"]-1)}'
                         z='1+'+expr if scene['camera']=='push' else '1.10-'+expr
-                        vf=f"scale={w*2}:{h*2},zoompan=z='{z}':x='iw/2-iw/zoom/2':y='ih/2-ih/zoom/2':d=1:s={w}x{h}:fps={fps},setsar=1"
-                    else: vf='setsar=1'
+                        vf=f"scale={w*2}:{h*2},zoompan=z='{z}':x='iw/2-iw/zoom/2':y='ih/2-ih/zoom/2':d={scene['frames']}:s={w}x{h}:fps={fps},setsar=1"
+                    else: vf=f'setsar=1,loop=loop=-1:size=1:start=0,setpts=N/({fps}*TB)'
                 variation=scene.get('variation')
                 if variation in ('mirror','mirror_reverse'): vf+=',hflip'
                 if variation=='grade': vf+=',eq=contrast=1.06:saturation=1.10'
                 if variation=='vignette': vf+=',vignette=PI/6'
-                cmd+=['-loop','1','-framerate',str(fps),'-i',str(overlay)]
+                # overlay repeats its last decoded frame by default, so a
+                # single input image suffices even on moving footage.
+                cmd+=['-threads','1','-framerate',str(fps),'-i',str(overlay)]
                 if scene['type']=='visualizer': cmd+=['-loop','1','-framerate',str(fps),'-i',str(base)]
                 # Relative ASS filename avoids Windows drive/path escaping issues.
                 # The server runs the scene subprocess in scratch.
@@ -434,7 +442,7 @@ def render(plan: dict, audio: Path, assets_folder: Path, work: Path, output: Pat
                 if scene['type']=='diagram' and not live_diagram:
                     graph+='[diagram];'
                     dot=scratch/'dot.png'; ball=Image.new('RGBA',(max(8,h//24),max(8,h//24)),(0,0,0,0));ImageDraw.Draw(ball).ellipse((1,1,ball.width-2,ball.height-2),fill='#94f58c');ball.save(dot)
-                    cmd+=['-loop','1','-framerate',str(fps),'-i',str(dot)]
+                    cmd+=['-threads','1','-framerate',str(fps),'-i',str(dot)]
                     graph+=f"[diagram][2:v]overlay=x='{w*.18}+{w*.64}*min(1,t/{max(.1,seconds)} )-overlay_w/2':y='{h*.765}-overlay_h/2',format=yuv420p"
                 if scene.get('transition')=='dip':
                     graph+=f',fade=t=in:st=0:d={min(.16,seconds*.2):.4f}'
@@ -443,7 +451,7 @@ def render(plan: dict, audio: Path, assets_folder: Path, work: Path, output: Pat
                 if captions: graph+=',ass=captions.ass'
                 graph+='[out]'
                 tmp=scratch/'clip.mp4'
-                cmd+=['-filter_complex',graph,'-map','[out]','-frames:v',str(scene['frames']),'-an','-c:v','libx264','-preset','veryfast','-crf','20','-pix_fmt','yuv420p',str(tmp)]
+                cmd+=['-filter_complex',graph,'-map','[out]','-frames:v',str(scene['frames']),'-an','-c:v','libx264','-threads',str(scene_threads),'-preset','veryfast','-crf','20','-pix_fmt','yuv420p',str(tmp)]
                 encode(cmd,scratch,seconds,f'director_scene_{index+1}',int(5+80*index/len(plan['scenes'])),max(1,int(80/len(plan['scenes']))))
                 check_cancel()
                 if not walk.valid_scene_clip(tmp,seconds,fps,probe_media): raise RuntimeError('Scene encoder produced invalid or mistimed video')
@@ -494,6 +502,6 @@ def render(plan: dict, audio: Path, assets_folder: Path, work: Path, output: Pat
             if not info['has_video'] or bool(info['has_audio'])==bool(plan.get('silent')) or abs(info['duration']-duration)>max(.13,2/fps): raise RuntimeError('Director output failed stream/timing validation')
             perf.publish_staged_file(temporary,output)
         finally: listing.unlink(missing_ok=True)
-        return {'scenes':len(clips),'rendered':made,'cached':reused,'duration':duration,'crossfades':count,'guided_replays':sum(bool(s.get('guided_replay')) and not s.get('replay_fallback') for s in plan['scenes']),'recorded_scenes':sum(bool(s.get('recorded_demo')) for s in plan['scenes'])}
+        return {'scenes':len(clips),'rendered':made,'cached':reused,'duration':duration,'render_elapsed_seconds':round(time.monotonic()-started,3),'crossfades':count,'guided_replays':sum(bool(s.get('guided_replay')) and not s.get('replay_fallback') for s in plan['scenes']),'recorded_scenes':sum(bool(s.get('recorded_demo')) for s in plan['scenes'])}
     finally:
         shutil.rmtree(scratch,ignore_errors=True)

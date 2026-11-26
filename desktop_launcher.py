@@ -608,8 +608,24 @@ def run_desktop(home: Path, safe_mode: bool = False,
                                       + str(size) + ": " + str(layout),
                                       file=sys.stderr, flush=True)
                                 os._exit(7)
+                        editor_check={}
+                        def check_editor():
+                            try:
+                                editor_check['ok']=window.evaluate_js(
+                                    "(function(){document.getElementById('demoBtn').click();"
+                                    "const clips=document.querySelectorAll('#lyricTrack .lyric-clip');"
+                                    "return clips.length===6&&document.getElementById('welcome').classList.contains('hidden')"
+                                    "&&document.querySelectorAll('#lyricTrack .clip-grab-end').length===6"
+                                    "&&getComputedStyle(document.getElementById('timelineScroll')).visibility==='visible'"
+                                    "&&document.getElementById('ruler').children.length>0"
+                                    "&&Boolean(document.getElementById('creatorScriptStats'));})()")
+                            except Exception as exc:editor_check['error']=repr(exc)
+                        editor_probe=threading.Thread(target=check_editor,daemon=True);editor_probe.start();editor_probe.join(timeout=8)
+                        if editor_probe.is_alive() or editor_check.get('ok') is not True:
+                            print("[window-smoke] actual timeline interaction failed: "+str(editor_check),file=sys.stderr,flush=True)
+                            os._exit(8)
                         log_stage("UI message pump, JavaScript and 3 window sizes "
-                                  "passed repeated smoke probes")
+                                  "passed repeated smoke probes; actual demo timeline opened")
                         window.destroy()
                     timer = threading.Timer(2, check_window_and_close)
                     timer.daemon = True

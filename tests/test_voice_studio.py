@@ -89,3 +89,21 @@ def test_voice_trims_only_exterior_silence_and_respects_overrides():
     assert np.count_nonzero(trimmed)==12000
     assert vs.spoken("DSP and VST3",vs.speech_dictionary({"DSP":"digital signal processing"}))=="digital signal processing and V S T three"
     assert vs.pause_after("a clause,",.2,.4,False)<vs.pause_after("a sentence.",.2,.4,False)<vs.pause_after("chapter.",.2,.4,True)
+
+
+def test_piper_uses_native_pace_when_supported(tmp_path,monkeypatch):
+    from types import SimpleNamespace
+    calls=[]
+    monkeypatch.setattr(c.subprocess,'run',lambda *a,**k:SimpleNamespace(stdout='--length-scale FLOAT',stderr=''))
+    monkeypatch.setenv('LYRICFORGE_PIPER_EXE','test-piper')
+    monkeypatch.setenv('LYRICFORGE_PIPER_MODEL','fixture.onnx')
+    monkeypatch.setattr(c,'run_checked',lambda args,**kwargs:calls.append(args))
+    c.piper_length_flag.cache_clear()
+    try:
+        assert c.synthesize_phrase('A test',tmp_path/'voice.wav','piper',.8,lambda:None)
+        assert calls[-1][-2:]==['--length-scale','1.25000']
+        monkeypatch.setattr(c.subprocess,'run',lambda *a,**k:SimpleNamespace(stdout='old CLI',stderr=''))
+        c.piper_length_flag.cache_clear()
+        assert not c.synthesize_phrase('A test',tmp_path/'voice.wav','piper',.8,lambda:None)
+        assert '--length-scale' not in calls[-1]
+    finally:c.piper_length_flag.cache_clear()

@@ -599,3 +599,13 @@ html.desktop-mode .welcome-content{margin:auto 0}
 .app:has(>#welcome:not(.hidden)) > :is(.main-layout,.timeline-pane,#timelineResizer){visibility:hidden}
 .welcome-decor{pointer-events:none}
 @media(max-height:720px){.welcome-decor{display:none}}
+
+/* Timeline trim zones reflect the real clip duration. Keep both ends reachable. */
+.lyric-clip{padding-inline:9px;min-width:3px}
+.lyric-clip .clip-grab{width:min(7px,28%);background:#8be67e55}
+.lyric-clip .clip-grab-start{left:0;right:auto}
+.lyric-clip .clip-grab-end{right:0;left:auto}
+.lyric-clip.selected .clip-grab,.lyric-clip:hover .clip-grab{background:#a6ef9099}
+.ruler{background:none;cursor:crosshair}
+.tick{color:#9bafa1;font-variant-numeric:tabular-nums}
+.tick::before{content:'';position:absolute;left:2px;top:-9px;height:5px;border-left:1px solid #536c59}

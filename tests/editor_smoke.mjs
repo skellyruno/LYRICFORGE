@@ -10,7 +10,7 @@ import vm from 'node:vm';
 const html = fs.readFileSync('static/index.html', 'utf8');
 const script = fs.readFileSync('static/app.js', 'utf8');
 const instrumentedScript = script.replace('function easing(t){',
-  'window.__studioDebug = { state, activeLyric, invalidatePlaybackIndex, previewDimensions, clipLocation, clipMotionMs, activeWordAtTime, quitStudio, applyStudioZoom };\nfunction easing(t){');
+  'window.__studioDebug = { state, activeLyric, invalidatePlaybackIndex, previewDimensions, clipLocation, clipMotionMs, activeWordAtTime, quitStudio, applyStudioZoom, timelineTickInterval, timelineTickLabel };\nfunction easing(t){');
 const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map(m => m[1]);
 assert.equal(new Set(ids).size, ids.length, 'HTML contains duplicate IDs');
 
@@ -288,3 +288,7 @@ doc.documentElement.classList.add('desktop-mode');win.innerWidth=860;win.innerHe
 nodes.studioZoom.value='fit';debug.applyStudioZoom();const fit=Number(nodes.studioShell.style['--studio-scale']);assert.ok(fit>.65&&fit<1);
 nodes.studioZoom.value='1.1';debug.applyStudioZoom();assert.ok(Number(nodes.studioShell.style['--studio-scale'])<=860/980);
 console.log('SkellyMotion editor smoke tests passed: load, edit, undo, redo, split, delete, snap, styles, layout tools, SRT.');
+
+assert.equal(win.__studioDebug.timelineTickInterval(60,600),10);
+assert.equal(win.__studioDebug.timelineTickInterval(60,3000),2);
+assert.equal(win.__studioDebug.timelineTickLabel(.25,.25).endsWith('.25'),true);

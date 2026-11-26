@@ -42,3 +42,14 @@ def test_editor_render_fixture(tmp_path):
     assert report['meta']['frame_count']==24 and report['max_meter_error']<=.0001
     assert (path.parent/'dry_reference.wav').read_bytes()==(root/'dry.wav').read_bytes()
     assert (path.parent/'processed_reference.wav').read_bytes()==(root/'processed.wav').read_bytes()
+
+
+def test_native_double_resolution_capture_contract(tmp_path):
+    root=fixture(tmp_path/'capture');meta=json.loads((root/'capture.json').read_text());meta.update(width=960,height=660)
+    (root/'capture.json').write_text(json.dumps(meta))
+    # Synthetic fixture checks importer bounds only, not native capture fidelity.
+    for path in root.glob('frame_*.png'):
+        with Image.open(path) as image: enlarged=image.resize((960,660))
+        enlarged.save(path)
+    result=demo.seal(root)
+    assert result['meta']['width']==960 and result['distinct_frames']==24
