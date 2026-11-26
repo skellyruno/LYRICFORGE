@@ -170,6 +170,7 @@ def create_from_manifest(manifest: Path, out: Path, draft_only=False):
     if not isinstance(raw,dict):raise ValueError('Manifest must be a JSON object')
     assets=raw.pop('assets',[])
     narration_source=raw.pop('recording',None)
+    proof_sources=raw.pop('audio_proof',None)
     if not isinstance(assets,list) or len(assets)>40:raise ValueError('Manifest supports up to 40 assets')
     if out.exists():raise ValueError('Output folder already exists; choose a fresh output path')
     payload=dict(raw);payload['visual_roles']=[]
@@ -190,7 +191,18 @@ def create_from_manifest(manifest: Path, out: Path, draft_only=False):
             source=(manifest.parent/narration_source).resolve()
             if not source.is_file() or source.stat().st_size>150*1024*1024:raise ValueError('Recording missing or exceeds 150 MiB')
             recording=UploadFile(stack.enter_context(source.open('rb')),filename=source.name,size=source.stat().st_size)
-        try:result=asyncio.run(server.create_video_request(payload=json.dumps(payload),files=files,recording=recording))
+        proof_before=proof_after=None
+        if proof_sources is not None:
+            if not isinstance(proof_sources,dict) or any(not isinstance(proof_sources.get(key),str) for key in ('before','after')):
+                raise ValueError('audio_proof needs local before and after paths')
+            def proof_upload(key):
+                source=(manifest.parent/proof_sources[key]).resolve()
+                if not source.is_file() or source.stat().st_size>150*1024*1024:raise ValueError('Comparison source missing or oversized')
+                return UploadFile(stack.enter_context(source.open('rb')),filename=source.name,size=source.stat().st_size)
+            proof_before,proof_after=proof_upload('before'),proof_upload('after')
+            payload['proof_start']=proof_sources.get('start',0)
+            payload['proof_seconds']=proof_sources.get('seconds',5)
+        try:result=asyncio.run(server.create_video_request(payload=json.dumps(payload),files=files,recording=recording,proof_before=proof_before,proof_after=proof_after))
         except HTTPException as exc:raise ValueError(str(exc.detail)) from exc
     pid=result['project_id'];job_id=result['job_id'];p=server.project_dir(pid);print('PROJECT',pid,'VOICE',result['voice_provider'],flush=True)
     last=None

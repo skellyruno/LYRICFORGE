@@ -17,7 +17,7 @@ TITLE_STYLES={"slide","pop","fade","adaptive"}
 def transition_frames(previous, current, fps, seconds=.32):
     if previous['type']==current['type']=='visualizer': return 0
     # Real plugin operation must stay legible, not dissolve into another state.
-    if previous.get('recorded_demo') or current.get('recorded_demo'):return 0
+    if previous.get('recorded_demo') or current.get('recorded_demo') or previous.get('proof_label') or current.get('proof_label'):return 0
     if (previous.get('asset') and previous.get('asset')==current.get('asset')
             and previous.get('camera')==current.get('camera')=='still'
             and not (previous.get('guided_replay') or current.get('guided_replay'))):return 0

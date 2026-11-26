@@ -4461,6 +4461,8 @@ class CreatorRequest(CreatorBrief):
     sound_design: bool = True
     title_motion: bool = True
     title_style: str = "adaptive"
+    proof_start: float = Field(default=0.,ge=0.,le=1800.)
+    proof_seconds: float = Field(default=5.,ge=2.,le=10.)
 
 
 @app.get("/api/creator/voices")
@@ -4495,12 +4497,20 @@ def creator_script(body: CreatorBrief):
 
 
 @app.post("/api/creator/create")
-async def create_video_request(payload: str = Form(...), files: list[UploadFile] = File(default=[]), recording: UploadFile | None = None):
+async def create_video_request(payload: str = Form(...), files: list[UploadFile] = File(default=[]), recording: UploadFile | None = None, proof_before: UploadFile | None = None, proof_after: UploadFile | None = None):
     # No arbitrary local paths or commands in the HTTP contract. Assets are uploaded.
     try:
         if len(payload)>256*1024: raise ValueError('Creator request exceeds 256 KiB')
         body=CreatorRequest.model_validate_json(payload)
         if body.title_style not in cinema_finish.TITLE_STYLES:raise ValueError("Unknown title style")
+        if bool(proof_before)!=bool(proof_after):raise ValueError('Attach both dry and processed comparison files')
+        if proof_before is not None:
+            if body.production_mode!='plugin':raise ValueError('Listening comparison belongs to plugin production mode')
+            if body.preview or body.format!='youtube':raise ValueError('Use full-length YouTube format for a complete listening comparison')
+            for upload in (proof_before,proof_after):
+                if Path(upload.filename or '').suffix.lower() not in {'.wav','.flac','.aiff','.aif'}:
+                    raise ValueError('Use lossless WAV, FLAC or AIFF comparison files')
+                if (upload.size or 0)>150*1024*1024:raise ValueError('Comparison file exceeds 150 MiB')
         voice_studio.delivery(body.delivery,body.speed)
         voice_studio.dictionary(body.pronunciation)
         if body.voice=='recorded':
@@ -4525,6 +4535,9 @@ async def create_video_request(payload: str = Form(...), files: list[UploadFile]
     try:
         if recording is not None:
             await save_upload(recording,p/'narration_source',150*1024*1024)
+        if proof_before is not None:
+            await save_upload(proof_before,p/'proof_before',150*1024*1024)
+            await save_upload(proof_after,p/'proof_after',150*1024*1024)
         for i,file in enumerate(files):
             meta=body.visual_roles[i] if i<len(body.visual_roles) else {}
             role=str(meta.get('role','auto'));group=str(meta.get('group',''));order=int(meta.get('order',0))
@@ -4548,6 +4561,9 @@ def run_creator(project_id,job_id,body,script,voice):
         else:
             result=creator.narration(script,p/'voice.wav',voice,body.speed,lambda:check_cancel(job_id),progress,delivery=body.delivery,pronunciation=body.pronunciation)
         check_cancel(job_id)
+        if (p/'proof_before').is_file() and (p/'proof_after').is_file():
+            import studio_proof
+            result=studio_proof.append_proof(p/'voice.wav',p/'proof_before',p/'proof_after',result,body.proof_start,body.proof_seconds,creator.run_checked,lambda:check_cancel(job_id))
         lines=validate_lines(result['lines'],result['duration'])
         with project_write_lock:
             data=read_project(project_id)
@@ -4695,6 +4711,15 @@ def prepare_director(project_id: str, body: DirectorRequest):
         cue=creator_cues.get(row['id'],{})
         if cue.get('text')==row['text']:
             row.update(chapter_title=cue.get('chapter_title',''),visual_hint=cue.get('visual_hint',''),source_url=cue.get('source_url',''))
+    audio_proof=data.get('creator_metadata',{}).get('audio_proof')
+    if audio_proof:
+        # Labels must follow the immutable audio proof clock, even after
+        # editing/reordering text clips. Do not label unrelated audio as proof.
+        proof_rows=audio_proof['segments'];proof_start=proof_rows[0]['start']
+        ids={r['id'] for r in proof_rows}
+        lines=[{**r,'end':min(r['end'],proof_start)} for r in lines if r['id'] not in ids and r['start']<proof_start]
+        lines.extend({**r,'chapter_title':r['text'],'words':[]} for r in proof_rows)
+        if body.music:raise HTTPException(400,'Background music would alter the listening comparison')
     lines=[{**row,'start':max(0,row['start']-start),'end':min(duration,row['end']-start),'words':[{**word,'start':word['start']-start,'end':word['end']-start} for word in row.get('words',[])]} for row in lines if row['end']>start and row['start']<start+duration]
     if not lines and body.preset!='music':
         raise HTTPException(400, "Confirm lyrics or finish voiceover transcription first")
@@ -4710,6 +4735,11 @@ def prepare_director(project_id: str, body: DirectorRequest):
         plan['sound_design']=body.sound_design and body.preset!='music'
         plan['local_ai']=body.local_ai
         plan['semantic_vision']=body.semantic_vision
+        if audio_proof:
+            plan.update(sound_design=False,voice_style='off',audio_proof=audio_proof)
+            plan['warnings'].append('Listening comparison: narration processing and background sound design disabled; same playback gain, author-verified alignment required.')
+            if body.preview or start>0 or duration<float(data['duration'])-.1:
+                plan['warnings'].append('A shortened export may not contain both complete listening excerpts.')
         if data.get('creator_production_mode')=='research':
             plan['source_ledger']=[{'claim':row['text'],'url':row['source_url'],'start':row['start'],'end':row['end']} for row in lines if row.get('source_url')]
             plan['warnings'].append('Research source URLs are author-supplied and are not independently verified.')

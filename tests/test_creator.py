@@ -88,3 +88,13 @@ def test_research_source_ledger_contract():
     with pytest.raises(ValueError):c.validate_script([{'narration':'claim'}],production_mode='research')
     plan=director.make_plan([{'text':'An observed finding','start':0,'end':3,'source_url':source}],3,[],'doc')
     assert plan['scenes'][0]['claim_sources']==[source]
+
+
+def test_proof_scene_clock():
+    rows=[{'text':'Speech','start':0,'end':4.2},{'text':'DRY / BEFORE','start':5,'end':11,'proof_label':'DRY / BEFORE'},{'text':'PROCESSED / AFTER','start':11,'end':17,'proof_label':'PROCESSED / AFTER'}]
+    plan=director.make_plan(rows,17,[],'plugin',fps=24,cinematic=True,transitions=True)
+    proof=[s for s in plan['scenes'] if s.get('proof_label')]
+    assert [(s['start'],s['end']) for s in proof]==[(5,11),(11,17)]
+    assert all(not s['captions'] for s in proof)
+    assert cinema.transition_frames(proof[0],proof[1],24)==0
+    assert sum(s['frames'] for s in plan['scenes'])==408

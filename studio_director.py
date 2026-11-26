@@ -101,6 +101,7 @@ def make_plan(lines: list[dict], duration: float, assets: list[dict], preset: st
     asset_terms={a['id']:terms(a['name']+' '+a.get('description','')) for a in assets}
     asset_features={a['id']:a.get('features') or {} for a in assets}
     usage=Counter()
+    proof_intervals=[(max(0,round(row['start']*fps)),min(total,round(row['end']*fps)),row['proof_label']) for row in lines if row.get('proof_label')]
     while cursor < total:
         ideal = cursor + round(look['pace'] * fps)
         maximum = min(total, cursor + round(look['maximum'] * fps))
@@ -115,7 +116,16 @@ def make_plan(lines: list[dict], duration: float, assets: list[dict], preset: st
             end = next((b for b in rhythm if b > cursor), total)
         if not rhythm and total - end < fps:
             end = total
+        current_proof=next((p for p in proof_intervals if p[0]<=cursor<p[1]),None)
+        if current_proof:end=current_proof[1]
+        else:
+            upcoming=[p[0] for p in proof_intervals if cursor<p[0]<end]
+            if upcoming:end=min(upcoming)
         end = max(cursor + 1, min(end, total))
+        if current_proof:
+            scenes.append({'start':cursor/fps,'end':end/fps,'frames':end-cursor,'type':'proof','text':current_proof[2],'proof_label':current_proof[2],'captions':[],'camera':'still'})
+            cursor=end
+            continue
         start_sec, end_sec = cursor / fps, end / fps
         active = [line for line in lines if float(line['end']) > start_sec and float(line['start']) < end_sec]
         # A frame-rounded boundary can overlap a new sentence by a few milliseconds.
@@ -315,6 +325,12 @@ def artwork(scene: dict, preset: str, w: int, h: int, asset: Path | None, base: 
         draw.line((int(w*.08),cy,int(w*.92),cy),fill='#41634a',width=max(1,h//400))
         centered_text(draw,'SKELLYMOTION',w,int(h*.13),max(15,min(w//18,h//30)),'#a0f58c')
         centered_text(draw,'AUDIO REACTIVE',w,int(h*.19),max(10,min(w//30,h//42)),'#91a99b')
+    elif scene['type']=='proof':
+        draw=ImageDraw.Draw(bg)
+        centered_text(draw,'LISTEN TO THE ACTUAL AUDIO',w,int(h*.22),max(16,h//36),look['accent'])
+        centered_text(draw,scene['proof_label'],w,int(h*.46),max(24,h//11),'#f4f8f2')
+        centered_text(draw,'SAME TIMESTAMPS · UNCHANGED PLAYBACK GAIN',w,int(h*.65),max(14,h//42),'#a8b9ad')
+        draw.rectangle((int(w*.13),int(h*.79),int(w*.87),int(h*.797)),fill=look['accent'])
     elif not asset:
         draw = ImageDraw.Draw(bg)
         draw.rounded_rectangle((round(w*.08), round(h*.14), round(w*.92), round(h*.80)), radius=max(8,h//30), outline='#34463d', width=max(1,h//400))
@@ -481,7 +497,7 @@ def render(plan: dict, audio: Path, assets_folder: Path, work: Path, output: Pat
         listing=work/('concat-'+uuid4().hex+'.txt'); listing.write_text(''.join(f"file '{p.relative_to(work).as_posix()}'\n" for p in clips),encoding='utf-8')
         temporary=scratch/'final.mp4'
         try:
-            cmd=['ffmpeg','-hide_banner','-loglevel','error','-nostdin','-y','-progress','pipe:1','-nostats','-f','concat','-safe','1','-i',str(listing),'-ss',f'{audio_start:.6f}','-i',str(audio)]
+            cmd=['ffmpeg','-hide_banner','-loglevel','error','-nostdin','-y','-progress','pipe:1','-nostats','-filter_complex_threads','1','-f','concat','-safe','1','-threads','1','-i',str(listing),'-ss',f'{audio_start:.6f}','-i',str(audio)]
             if cinematic:
                 cinema.write_kinetic_ass(plan,w,h,scratch/'cinematic_captions.ass')
             cues=None
@@ -507,8 +523,9 @@ def render(plan: dict, audio: Path, assets_folder: Path, work: Path, output: Pat
             elif music:
                 cmd+=['-stream_loop','-1','-i',str(music),'-filter_complex','[1:a]aresample=48000,asplit=2[voice][key];[2:a]aresample=48000,volume=0.1[bed];[bed][key]sidechaincompress=threshold=0.03:ratio=8:attack=15:release=450[duck];[voice][duck]amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.95[a]','-map','0:v','-map','[a]']
             else: cmd+=['-map','0:v','-map','1:a:0']
-            if cinematic and (plan.get('caption_style','karaoke')!='off' or plan.get('title_motion')): cmd+=['-vf',f'ass={scratch.name}/cinematic_captions.ass']
-            cmd+=(perf.director_encode_args(mode,18) if cinematic else ['-c:v','copy'])+([] if plan.get('silent') else ['-c:a','aac','-b:a','192k'])+['-t',f'{duration:.6f}','-movflags','+faststart',str(temporary)]
+            visual_finish=cinematic and (plan.get('caption_style','karaoke')!='off' or plan.get('title_motion'))
+            if visual_finish:cmd+=['-filter_threads','1','-vf',f'ass={scratch.name}/cinematic_captions.ass']
+            cmd+=(perf.director_encode_args(mode,18) if visual_finish else ['-c:v','copy'])+([] if plan.get('silent') else ['-c:a','aac','-b:a','192k'])+['-t',f'{duration:.6f}','-movflags','+faststart',str(temporary)]
             encode(cmd,work,duration,'director_mux',85,14)
             check_cancel()
             if not temporary.is_file() or temporary.stat().st_size<1024: raise RuntimeError('Director output missing')
