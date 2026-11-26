@@ -399,6 +399,7 @@ async function openSavedProject(id){
  if(id===state.id){panel('lyrics');return;}
  try{
   const project=await api('/api/projects/'+id);
+  if(project.status==='creator_pending'||project.status==='creator_failed'){toast(project.status==='creator_pending'?'Narration is still being prepared.':'Narration failed. The draft is retained in the workspace; use Creator to try again.',true);return;}
   if(project.kind==='clip_source'&&window.SkellyClips){window.SkellyClips.open(id);return;}
   if(!await mayLeaveProject())return;
   let recovered=null;
@@ -1019,9 +1020,9 @@ async function quitStudio(){
  try{
   if(!await mayLeaveProject('close'))return;
   audio.pause();
-  clearTimeout(state.pendingSave);state.dirty=false;
+  clearTimeout(state.pendingSave);
   if(bridge?.approve_close){await bridge.approve_close();approved=true;}
-  else{state.persisted=true;toast('You can close this browser tab now.');}
+  else{toast('You can close this browser tab now.');}
  }catch(e){toast('Could not close: '+e.message,true);}
  finally{closeBusy=false;if(!approved){try{await bridge?.cancel_close?.();}catch{}}}
 }
@@ -1519,7 +1520,7 @@ let lastSession=null;
 try{lastSession=localStorage.getItem('lyricforge-last')}catch{}
 // Small, read-mostly surface used by static/autoclip.js (Autopilot, Shorts, Clip Studio).
 window.SkellyBridge={
- state:()=>state,toast,api,panel,audio:()=>audio,
+ state:()=>state,toast,api,panel,audio:()=>audio,openSavedProject,
  async reloadProject(id){const project=await api('/api/projects/'+id);loadProjectData(project);$('reviewOverlay').classList.add('hidden');$('welcome').classList.add('hidden');renderTitle();renderLines();renderTimeline();loadWaveform();}
 };
 $('resumeLastBtn').classList.toggle('hidden',!lastSession);

@@ -1,0 +1,15 @@
+# Cinematic Director and Live Visual Engine — 2026-11-26
+
+## Implemented
+- Cinematic finish (optional API flag, default-on in Director UI): enlarged whole editor images, chapter titles, word-timed progressive caption highlight and entrance movement, visual-only scene caching, bounded pairwise FFmpeg crossfades (outgoing final-frame handle; incoming moving scene), and global captions rendered after transitions. Duration preserved; no two simultaneous captions during dissolves.
+- Optional original deterministic synth bed and cut accents, or user Brand Kit music plus cut accents. Narration-only high-pass/low-pass, compressor, loudness normalization, stereo ducking, limiter. Music-only projects are not voice-processed.
+- Existing conceptual compression and pitch model retained; new peaking EQ frequency response, instantaneous peak limiter envelope/release, tanh saturation plus measured FFT harmonic ratio, feedback delay taps, feedback-comb reverb impulse decay. These are simulated instructional examples, not measurements of any commercial plugin or SkellCore. Shared rendering API writes frames at 15 fps and supports cancellation.
+- Real UI/demo source: SkellyTune Mini META Lab Windows test artifact 15109387910, source commit 035f3817508682d51c948bbfbd40f83cd9376751. Actual screenshot assets selected via upload metadata; not the latest seven-engine Playground. Local Quick4 deps acquired from corresponding-source artifact 15108403553, but Linux development dependencies absent. No plugin project changes.
+
+## Verified
+- 37.33 s, 1920x1080 24 fps, 896 decoded video frames; 37.331 s AAC stereo 48 kHz audio. Seven scenes (five genuine UI images, two pitch illustrations), six dissolves, zero scene timing errors. -16.94 LUFS integrated / -2.44 dBTP (FFmpeg loudnorm measurement).
+- 83 targeted Director / beat / storage / music regressions, then 22 focused visual/diagram/cinematic tests (overlapping suites; not additive), 3 JS smoke suites. Exact red/blue overlap/frame-count regression, synthetic audio export, model numerical checks. Source remains separate from previously verified Windows release branch. Native UI, full CI, live model inference, and subjective narration acceptance remain unverified.
+- Voice is local eSpeak with exact synthesizer word events, not a high-quality neural voice. Narration polish cannot make a basic TTS voice sound human.
+
+## Future measured SkellCore adapter
+Use a versioned recorded trace exported off the real-time thread, with time origin, sample rate, channel count, units, engine/version and parameter snapshots; bounded timestamps and per-frame numeric values. For compressor/limiter include input/output dBFS and gain reduction, EQ include actual frequency/magnitude response, pitch include detected/target/output cents and confidence, saturation include input/output sample blocks, delay/reverb impulse response and decay. Reject invalid/nonfinite/out-of-range frames; retain simulation label until authenticated real measurements are imported. No live telemetry integration is claimed here.

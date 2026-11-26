@@ -314,6 +314,7 @@ def render_scene(kind: str, output: Path, *, width: int, height: int, brand: dic
     cmd += [*perf.encode_args("libx264", "fast", width, height, 2), "-pix_fmt", "yuv420p", "-t", f"{plan['seconds']:.3f}",
             "-movflags", "+faststart", str(output)]
     proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE, **perf.windows_child_options(low_priority=True))
+    finished = False
     try:
         for n in range(frames):
             t = n / fps
@@ -325,9 +326,18 @@ def render_scene(kind: str, output: Path, *, width: int, height: int, brand: dic
         err = proc.stderr.read().decode("utf-8", "replace")
         if proc.wait() != 0:
             raise RuntimeError(err[-400:] or "FFmpeg failed")
+        finished = True
     except BrokenPipeError:
         raise RuntimeError(proc.stderr.read().decode("utf-8", "replace")[-400:] or "FFmpeg stopped early")
     finally:
         if proc.poll() is None:
             proc.kill()
+            proc.wait()
+        for pipe in (proc.stdin, proc.stderr):  # a cancelled or failed run would otherwise leave both pipes open
+            try:
+                pipe.close()
+            except (OSError, ValueError):
+                pass
+        if not finished:  # a cancelled or failed scene never leaves a half-written video behind
+            Path(output).unlink(missing_ok=True)
     return {"seconds": plan["seconds"], "frames": frames, "loop": plan["loop"]}

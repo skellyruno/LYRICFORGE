@@ -1,15 +1,16 @@
-"""Local Director and unsaved-project regression coverage."""
 import io
-import math
 import json
+import math
 import shutil
 import subprocess
 import wave
+from pathlib import Path
 from array import array
 
 import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
+
 import server
 import studio_director as director
 
@@ -26,7 +27,7 @@ def project(tmp, monkeypatch, *, status='editor', duration=4.2):
     return p,TestClient(server.app)
 
 
-def test_plan_contiguous():
+def test_plan_is_contiguous_and_uses_real_assets():
     lines=[{'text':'depth knob','start':i,'end':i+1} for i in range(0,28,2)]
     assets=[{'id':'a'*32+'.png','name':'Depth knob.png','kind':'image','description':'depth knob'},
             {'id':'b'*32+'.mp4','name':'Screen recording.mp4','kind':'video','description':''}]
@@ -36,11 +37,14 @@ def test_plan_contiguous():
         assert sum(s['frames'] for s in plan['scenes'])==round(28.17*24)
         assert all(a['end']==b['start'] for a,b in zip(plan['scenes'],plan['scenes'][1:]))
         assert all(s.get('asset') in {None,*[a['id'] for a in assets]} for s in plan['scenes'])
+        assert all(s['frames']>0 for s in plan['scenes'])
         assert plan==director.make_plan(lines,28.17,assets,style,fps=24)
-    assert director.make_plan(lines,28.17,[],'doc',preview=True)['duration']==15
+    preview=director.make_plan(lines,28.17,[], 'doc', preview=True)
+    assert preview['duration']==15 and preview['warnings']
+    assert all(s['type'] in ('big_text','outro') for s in preview['scenes'])
 
 
-def test_director_import_validates(tmp_path,monkeypatch):
+def test_director_import_validates_and_stays_read_only(tmp_path,monkeypatch):
     p,c=project(tmp_path,monkeypatch)
     route=f'/api/projects/{p.name}/director/assets'
     assert c.get(route).json()=={'assets':[]}
@@ -75,6 +79,12 @@ def test_actual_director_render_and_cache(tmp_path,monkeypatch):
     job=server.jobs[r.json()['job_id']];assert job['status']=='done',job
     assert job['outputs']['cached']==job['outputs']['scenes']
     assert server.read_project(p.name)['save_state']=='draft'
+    # Retain evidence generated using synthetic audio and a simple test asset.
+    import os
+    dest=os.getenv('LF_EVIDENCE')
+    if dest:
+        shutil.copyfile(out,Path(dest)/'director_preview.mp4')
+        shutil.copyfile(p/'director_preview_plan.json',Path(dest)/'director_preview_plan.json')
 
 
 def test_unsaved_review_can_recover_and_save_empty_timeline(tmp_path,monkeypatch):
@@ -89,18 +99,19 @@ def test_unsaved_review_can_recover_and_save_empty_timeline(tmp_path,monkeypatch
     assert server.read_project(p.name)['draft_lyrics']==payload['draft_lyrics']
     assert server.read_project(p.name)['save_state']=='saved'
     assert not (p/'recovery.json').exists()
-    assert c.post(f'/api/projects/{p.name}/render',json=payload).status_code==400
+    # Empty lyrics must not weaken render validation.
+    r=c.post(f'/api/projects/{p.name}/render',json=payload)
+    assert r.status_code==400
 
 
 def test_transcribing_draft_can_preserve_recovery_without_deletion(tmp_path,monkeypatch):
     p,c=project(tmp_path,monkeypatch,status='transcribing')
     r=c.put(f'/api/projects/{p.name}/recovery',json={'lines':[],'settings':{}})
     assert r.status_code==200,r.text
-    assert c.post(f'/api/projects/{p.name}/discard').status_code==409
+    r=c.post(f'/api/projects/{p.name}/discard');assert r.status_code==409
     assert (p/'voice.wav').is_file() and (p/'recovery.json').is_file()
 
-
-@pytest.mark.skipif(not shutil.which('ffmpeg'),reason='FFmpeg required')
+@pytest.mark.skipif(not shutil.which('ffmpeg'), reason='FFmpeg required')
 def test_director_video_asset_and_music_bed(tmp_path,monkeypatch):
     p,c=project(tmp_path,monkeypatch,duration=4.2)
     footage=tmp_path/'test.mp4'
@@ -119,4 +130,4 @@ def test_document_selection_is_grounded_in_asset_description():
     a={'id':'a'*32+'.png','name':'source article.png','description':'depth explanation','kind':'image'}
     plan=director.make_plan([{'text':'source article','start':0,'end':4}],4,[a],'doc')
     assert plan['scenes'][0]['type']=='document'
-    assert 'redact' not in plan['scenes'][0]
+    assert 'redact' not in plan['scenes'][0]  # no fabricated coordinates

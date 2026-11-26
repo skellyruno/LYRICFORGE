@@ -1,7 +1,8 @@
-"""Fixture-backed image search tests (no external calls in CI)."""
+"""Fixture-backed network tests; no external requests in CI."""
 import io
 import json
 import shutil
+from pathlib import Path
 import pytest
 from PIL import Image
 import studio_visual_sources as vs
@@ -104,3 +105,7 @@ def test_actual_auto_picture_render(tmp_path,monkeypatch):
     r=c.post(route,json={'preset':'doc','preview':True});assert r.status_code==200,r.text
     assert len(calls)==2
     assert server.jobs[r.json()['job_id']]['outputs']['cached']>=1
+    import os
+    if os.getenv('LF_EVIDENCE'):
+        shutil.copyfile(p/'director_preview.mp4',Path(os.environ['LF_EVIDENCE'])/'auto_picture_test.mp4')
+        shutil.copyfile(p/'director_preview_plan.json',Path(os.environ['LF_EVIDENCE'])/'auto_picture_test_plan.json')

@@ -49,9 +49,9 @@ def test_portable_build_excludes_ffprobe_but_retains_ffmpeg_and_av():
     assert 'server.media_duration(root / "check.mp4")' in launcher
     assert 'server.video_stream_width(root / "check.mp4")' in launcher
 
-    
+
 def test_source_install_can_probe_with_ffmpeg_only(tmp_path, monkeypatch):
-    """The source editor can read media metadata without the AI stack."""
+    """Source builds need import/preview without installing the entire ASR engine."""
     import builtins
     original_import = builtins.__import__
 
@@ -61,16 +61,16 @@ def test_source_install_can_probe_with_ffmpeg_only(tmp_path, monkeypatch):
         return original_import(name, *args, **kwargs)
 
     monkeypatch.setattr(builtins, "__import__", missing_av)
-    song = tmp_path / "song.wav"
-    with wave.open(str(song), "wb") as writer:
+    sample = tmp_path / "song.wav"
+    with wave.open(str(sample), "wb") as writer:
         writer.setnchannels(1)
         writer.setsampwidth(2)
         writer.setframerate(16000)
         writer.writeframes(b"\x00\x00" * 16000)
-    assert server.media_duration(song) == pytest.approx(1.0, abs=.02)
-    bg = tmp_path / "bg.png"
-    Image.new("RGB", (320, 180)).save(bg)
-    assert server.video_stream_width(bg) == 320
+    assert server.media_duration(sample) == pytest.approx(1.0, abs=.02)
+    image = tmp_path / "bg.png"
+    Image.new("RGB", (320, 180)).save(image)
+    assert server.video_stream_width(image) == 320
     bad = tmp_path / "corrupt.mp4"
     bad.write_bytes(b"not a media stream")
     with pytest.raises(ValueError):
@@ -80,7 +80,7 @@ def test_source_install_can_probe_with_ffmpeg_only(tmp_path, monkeypatch):
 
 
 def test_invalid_audio_upload_is_400_and_cleans_partial_project(tmp_path, monkeypatch):
-    """Corrupt uploads cannot create half-finished projects."""
+    """Corrupted/renamed media must not create a phantom song in the library."""
     from fastapi.testclient import TestClient
     monkeypatch.setattr(server, "DATA", tmp_path)
     response = TestClient(server.app).post(

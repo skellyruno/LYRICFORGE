@@ -55,6 +55,28 @@ def estimate_tempo(env: list[float], fps: float, low: float = 70, high: float = 
     return 60 * fps / (best + max(-.5, min(.5, shift)))
 
 
+def tempo_confidence(env: list[float], fps: float, bpm: float) -> float:
+    """0..1: how strongly the onset envelope repeats at the detected beat period. Steady clicks score 0.8+, noise, a drifting
+    tempo or random hits score under 0.1, and a track with no onsets at all (a drone) scores 0."""
+    if bpm <= 0 or not env or max(env) < .15:
+        return 0.0
+    lag, n = fps * 60 / bpm, len(env)
+    mean = sum(env) / n
+    centered = [x - mean for x in env]
+    base = sum(x * x for x in centered)
+    if base <= 0:
+        return 0.0
+
+    def corr(shift: int) -> float:
+        return sum(centered[i] * centered[i - shift] for i in range(shift, n)) / base * (n / max(1, n - shift))
+
+    r = max(corr(max(1, int(round(lag)) + d)) for d in (-1, 0, 1))
+    return round(max(0.0, min(1.0, r / .45)), 2)
+
+
+LOW_CONFIDENCE = .5
+
+
 def beat_grid(env: list[float], fps: float, bpm: float, duration: float) -> tuple[list[float], int]:
     """Beat times (seconds) aligned to the strongest onsets, and which of the four beats in a bar is the downbeat."""
     if bpm <= 0:
@@ -101,7 +123,8 @@ def analyze(samples: array, duration: float) -> dict:
     fps = RATE / HOP
     bpm = estimate_tempo(env, fps)
     beats, down = beat_grid(env, fps, bpm, duration)
-    return {"bpm": round(bpm, 1), "beats": beats, "downbeat": down, "bars": bar_energy(samples, beats, down)}
+    return {"bpm": round(bpm, 1), "beats": beats, "downbeat": down, "bars": bar_energy(samples, beats, down),
+            "confidence": tempo_confidence(env, fps, bpm)}
 
 
 INTENSITY = {"calm": (4, 8), "medium": (2, 4), "hype": (1, 2)}  # beats per cut: (loud sections, quiet sections)

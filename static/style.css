@@ -11,7 +11,7 @@
 @media(max-width:760px){.rail-item{width:16.66%;font-size:9px}}
 
 
-/* One shared virtual viewport for editor and overlays. */
+/* One shared virtual viewport for the editor, dialogs and Make tools. */
 html.desktop-mode,html.desktop-mode body{width:100%;height:100%;margin:0;overflow:hidden}
 html.desktop-mode #studioShell{position:absolute;inset:0 auto auto 0;width:var(--studio-width,153.846154vw);height:var(--studio-height,153.846154vh);transform:scale(var(--studio-scale,.65));transform-origin:top left;overflow:hidden}
 html.desktop-mode .app{position:absolute;inset:0;width:100%;height:100%;min-width:0;min-height:0;max-height:none;display:flex;flex-direction:column;overflow:hidden}
@@ -551,13 +551,7 @@ html.desktop-mode .welcome-overlay{scrollbar-width:thin;scrollbar-color:#4b704e 
  .word-timing-editor{padding-inline:8px}
 }
 
-
-/* Keep the primary export action reachable on narrow phone headers. */
-@media(max-width:760px){
- #topExport{width:38px;min-width:38px;padding:0;font-size:0}
- #topExport span{font-size:17px}
-}
-
+/* Native branding and consistent zoom. Existing lyric-editing layout stays intact. */
 .brand-symbol{background:none;clip-path:none;flex-shrink:0;width:36px;height:36px}
 .brand-symbol img{width:100%;height:100%;display:block}
 .studio-zoom{display:none}
@@ -576,6 +570,7 @@ html.desktop-mode .brand-pill{display:none}
 .decision-actions .hidden{display:none!important}
 html.desktop-mode .rail{overflow-y:auto;scrollbar-width:thin}
 html.desktop-mode .rail-bottom{margin-top:auto}
+
 .director-section{margin:20px 0;padding:12px;border:1px solid #31473a;border-radius:11px;background:#121b16}
 .director-local{float:right;color:#9bf08e;font-size:9px;letter-spacing:1px}
 .director-upload{display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative}
@@ -586,3 +581,5 @@ html.desktop-mode .rail-bottom{margin-top:auto}
 .director-section .wide-ghost,.director-section .render-btn{width:100%;margin-top:7px}
 
 .director-thumb,.director-proof{width:100%;max-height:180px;object-fit:contain;border:1px solid #34483a;border-radius:7px;background:#0b100c}
+
+.creator-panel textarea{box-sizing:border-box;width:100%;resize:vertical;min-height:54px;color:inherit;background:#0d1612;border:1px solid #30473b;padding:8px;border-radius:7px;font:inherit;line-height:1.4}.creator-panel{margin-bottom:16px}.creator-panel .control-group{min-width:0}.creator-panel .wide-ghost{white-space:normal}

@@ -8,14 +8,17 @@ const bridge = () => window.SkellyBridge || null;
 const toast = (message, error = false) => { const b = bridge(); if (b && b.toast) b.toast(message, error); };
 
 async function api(path, options = {}) {
-  const response = await fetch(path, options);
+  let mode = 'balanced';
+  try { mode = localStorage.getItem('skellymotion-perf-mode') || 'balanced'; } catch { /* storage can be blocked */ }
+  const response = await fetch(path, { ...options, headers: { 'X-Perf-Mode': mode, ...(options && options.headers) } });
   if (!response.ok) {
     let reason; try { reason = (await response.json()).detail; } catch (e) { /* not JSON */ }
     throw new Error(typeof reason === 'string' ? reason : 'Request failed (' + response.status + ')');
   }
   return response.json();
 }
-const post = (path, body) => api(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+const send = (method, path, body) => api(path, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });
+const post = (path, body) => send('POST', path, body);
 
 function el(tag, props, ...kids) {
   const node = document.createElement(tag);
@@ -28,12 +31,18 @@ function el(tag, props, ...kids) {
   for (const kid of kids.flat()) if (kid !== null && kid !== undefined) node.append(kid);
   return node;
 }
-const clock = (s) => { s = Math.max(0, Number(s) || 0); return Math.floor(s / 60) + ':' + (s % 60).toFixed(1).padStart(4, '0'); };
+const clock = (s) => { s = Math.round(Math.max(0, Number(s) || 0)*10)/10; return Math.floor(s / 60) + ':' + (s % 60).toFixed(1).padStart(4, '0'); };
 const STAGES = {
-  preparing: 'Getting ready', autopilot_prepare: 'Preparing lyrics', autopilot_full_render: 'Rendering the full video',
+  preparing: 'Getting ready', finding_visuals: 'Finding pictures', autopilot_prepare: 'Preparing lyrics', autopilot_full_render: 'Rendering the full video',
   autopilot_shorts: 'Picking and rendering Shorts', encoding: 'Encoding', checking_encoder: 'Checking encoder',
   cpu_fallback: 'Switching to CPU encoder', cached: 'Reusing an identical earlier render', analyzing_video: 'Analyzing video',
-  complete: 'Done', error: 'Failed'
+  complete: 'Done', error: 'Failed', mv_analyze: 'Finding the beat', mv_footage: 'Scanning your footage', mv_render: 'Cutting to the beat',
+  anim_render: 'Rendering the animation', viz_render: 'Rendering the visualizer', viz_lyrics: 'Adding the lyrics', ab_analyze: 'Matching loudness',
+  stream_intro: 'Rendering the intro', stream_starting: 'Rendering Starting Soon', stream_brb: 'Rendering Be Right Back', stream_ending: 'Rendering the ending',
+  speed_render: 'Changing the speed', trim_render: 'Cutting the video', shrink_render: 'Shrinking the video', sheet_frames: 'Grabbing frames',
+  gif_render: 'Making the GIF', enhance_render: 'Cleaning up the audio', lower_render: 'Adding the lower third',
+  repurpose_portrait: 'Making the vertical version', repurpose_square: 'Making the square version',
+  thumbs_pick: 'Finding the best frame', thumbs_render: 'Designing thumbnails'
 };
 const stageText = (job) => STAGES[job.stage] || String(job.stage || '').replace(/_/g, ' ').replace(/^short (\d+) of (\d+)$/, 'Short $1 of $2')
   .replace(/^clip (\d+) of (\d+)$/, 'Clip $1 of $2');
@@ -42,15 +51,32 @@ async function runJob(jobId, onUpdate) {
   for (let i = 0; i < 7200; i++) {
     const job = await api('/api/jobs/' + encodeURIComponent(jobId));
     onUpdate(job);
-    if (job.status === 'done') return job;
-    if (job.status === 'error') throw new Error(job.error || 'The job failed');
+    if (job.status === 'done' || job.status === 'error' || job.status==='cancelled'){cancelling.delete(jobId);etaClock.delete(jobId);if(job.status==='done')return job;throw new Error(job.error || (job.status==='cancelled'?'Job cancelled':'The job failed'));}
     await new Promise((r) => setTimeout(r, 1000));
   }
   throw new Error('Timed out waiting for the job');
 }
+const cancelling = new Set();
+/* "about 2 min left", from how fast this job has moved so far. Only shown once there is enough to go on. */
+const etaClock = new Map();
+function etaText(job) {
+  const now = Date.now(), p = job.progress || 0;
+  if (!job.id || job.status !== 'rendering') { if (job.id) etaClock.delete(job.id); return ''; }
+  if (!etaClock.has(job.id)) etaClock.set(job.id, { t0: now, p0: p });
+  const { t0, p0 } = etaClock.get(job.id), seconds = (now - t0) / 1000;
+  if (p - p0 < 8 || p >= 97 || seconds < 5) return '';
+  const left = Math.round(seconds * (100 - p) / (p - p0));
+  return ' · about ' + (left < 90 ? Math.max(5, Math.round(left / 5) * 5) + ' s' : Math.round(left / 60) + ' min') + ' left';
+}
 function showStatus(node, job) {
   node.classList.remove('hidden');
-  node.textContent = stageText(job) + ' · ' + (job.progress || 0) + '%' + (job.encoder_used ? ' · ' + job.encoder_used : '');
+  node.textContent = stageText(job) + ' · ' + (job.progress || 0) + '%' + etaText(job) + (job.encoder_used ? ' · ' + job.encoder_used : '');
+  if (!job.id || job.status !== 'rendering') return;
+  const asked = cancelling.has(job.id);
+  node.append(' ', el('button', { type: 'button', class: 'tiny-btn cancel-job', text: asked ? 'Cancelling…' : 'Cancel', disabled: asked, onclick: async () => {
+    cancelling.add(job.id);
+    try { await post('/api/jobs/' + encodeURIComponent(job.id) + '/cancel', {}); } catch (e) { cancelling.delete(job.id); toast(e.message, true); }
+  } }));
 }
 function copyButton(label, getText) {
   return el('button', { type: 'button', class: 'tiny-btn', text: label, onclick: async (e) => {
@@ -74,7 +100,10 @@ function renderOutputs(container, items, kind, projectId, full) {
       el('div', { class: 'auto-actions' },
         el('a', { class: 'tiny-btn', href: item.url, download: '', text: 'Download' }),
         copyButton('Copy title', () => item.title || ''),
-        copyButton('Copy description + tags', () => (item.description || '') + '\n\n' + tags))));
+        copyButton('Copy description + tags', () => (item.description || '') + '\n\n' + tags)),
+      (item.translations || []).length || (item.translation_errors || []).length ? el('div', { class: 'auto-actions' },
+        ...(item.translations || []).map((t) => el('a', { class: 'tiny-btn', href: t.url, download: '', text: t.language })),
+        ...(item.translation_errors || []).map((t) => el('small', { class: 'auto-reasons', text: t.lang + ' failed: ' + t.error }))) : null));
   }
   container.append(el('a', { class: 'download-btn', href: '/api/projects/' + projectId + '/bundle.zip', text: 'Download everything (.zip)' }));
 }
@@ -106,39 +135,73 @@ async function runAutopilot() {
   finally { song.busy = false; buttons.forEach((x) => { x.disabled = false; }); }
 }
 
-// Local Director: transcript cuts, semantic filename matching, cached scene renders.
-let directorBusy=false;
-function directorPayload(){const b=bridge();return {preset:$('directorPreset').value,brand:$('directorBrand').value,preview:$('directorPreview').checked,music:$('directorMusic').checked,auto_pictures:$('directorAutoPictures').checked,lines:projectLines(),settings:b.state().settings};}
+// Offline Director: semantic asset matching, transcript cuts, scene cache and final mux.
+let directorBusy=false, directorProject=null, directorRecording=null;
+const currentDirector=id=>bridge()?.state().id===id;
+const numberSetting=(id,fallback)=>{const v=$(id)?.value;return v!==''&&v!=null&&Number.isFinite(Number(v))?Number(v):fallback;};
+function compressorDemoSettings(){try{return $('directorCompressorLab')?.contentWindow?.demoSettings?.()||{};}catch{return {};}}
+function directorPayload(){const b=bridge();return {title_motion:!!$('directorTitleMotion')?.checked,guided_replay:!!$('directorGuidedReplay')?.checked,transition_style:$('directorTransitionStyle')?.value||'dissolve',transition_seconds:numberSetting('directorTransitionSeconds',.32),caption_style:$('directorCaptionStyle')?.value||'karaoke',caption_scale:numberSetting('directorCaptionScale',1),voice_style:$('directorVoiceStyle')?.value||'natural',music_gain:numberSetting('directorMusicGain',1),cue_gain:numberSetting('directorCueGain',1),compressor_demo:compressorDemoSettings(),cinematic_finish:$('directorCinematic').checked,sound_design:$('directorSoundDesign').checked,preset:$('directorPreset').value,brand:$('directorBrand').value,preview:$('directorPreview').checked,music:$('directorMusic').checked,auto_pictures:$('directorAutoPictures').checked,output_format:$('directorFormat').value,start_seconds:Number($('directorStart').value)||0,intensity:$('directorIntensity').value,motion:$('directorMotion').value,transitions:$('directorTransitions').checked,diagrams:$('directorDiagrams').checked,local_ai:$('directorLocalAI').checked,semantic_vision:$('directorSemantic').checked,lines:projectLines(),settings:b.state().settings};}
 function directorStatus(message,error=false){const node=$('directorStatus');node.classList.remove('hidden');node.textContent=message;if(error)toast(message,true);}
-function directorSceneList(plan){const node=$('directorScenes');node.replaceChildren(...(plan.scenes||[]).map((s,i)=>el('div',{class:'director-scene'},el('span',{text:clock(s.start)+'–'+clock(s.end)}),el('b',{text:(i+1)+'. '+s.type.replace('_',' ')}),el('small',{text:s.asset_name||s.text||''}),s.source?el('small',{text:'Illustrative · '+s.source.license+' · '+s.source.creator}):null,s.source&&s.asset?el('img',{class:'director-thumb',src:'/api/projects/'+bridge().state().id+'/director/assets/'+encodeURIComponent(s.asset),alt:s.asset_name||'Illustrative image',loading:'lazy'}):null)));}
-async function refreshDirectorAssets(id){const data=await api('/api/projects/'+id+'/director/assets');if(bridge()?.state().id!==id)return;$('directorAssetsList').replaceChildren(...data.assets.map(a=>el('div',{class:'director-scene'},el('b',{text:a.name}),el('small',{text:a.kind}))));}
-async function uploadDirectorAssets(){const id=bridge()?.state().id;if(!id){toast('Open a song or voiceover first.',true);$('directorAssets').value='';return;}if(directorBusy)return;directorBusy=true;try{const files=Array.from($('directorAssets').files||[]);for(let i=0;i<files.length;i++){directorStatus('Importing visual '+(i+1)+' / '+files.length);const form=new FormData();form.append('file',files[i]);form.append('description',$('directorAssetDescription').value||'');await api('/api/projects/'+id+'/director/assets',{method:'POST',body:form});}await refreshDirectorAssets(id);directorStatus('Assets ready.');}catch(e){directorStatus(e.message,true);}finally{directorBusy=false;$('directorAssets').value='';}}
-async function runDirector(render){
- const id=bridge()?.state().id;if(!id){toast('Open a song or voiceover first.',true);return;}if(directorBusy||song.busy)return;
- const payload=directorPayload();directorBusy=true;
- for(const k of ['directorPlan','directorRun'])$(k).disabled=true;
- const current=()=>bridge()?.state().id===id;
- try{
-  await refreshDirectorAssets(id);if(!current())return;
-  directorStatus('Planning with the local director…');
-  const result=await post('/api/projects/'+id+'/director/'+(render?'render':'plan'),payload);
-  if(!current())return;
-  directorSceneList(result.plan||result);
-  if(!render){directorStatus(result.scenes.length+' scenes planned. '+(result.warnings||[]).join(' '));return;}
-  const job=await runJob(result.job_id,j=>{
-   if(!current())return;
-   showStatus($('directorStatus'),j);
-   if(j.status==='rendering')$('directorStatus').append(' ',el('button',{type:'button',class:'tiny-btn',text:'Cancel',onclick:async()=>{try{await post('/api/jobs/'+encodeURIComponent(result.job_id)+'/cancel',{});directorStatus('Cancellation requested…');}catch(e){directorStatus(e.message,true);}}}));
-  });
-  if(!current())return;
-  const out=job.outputs, finalPlan=await api(out.plan);if(!current())return;
-  directorSceneList(finalPlan);await refreshDirectorAssets(id);if(!current())return;
-  const sources=finalPlan.visual_sources||{};
-  directorStatus('Done · '+out.scenes+' scenes · '+out.cached+' reused · '+(sources.downloaded||0)+' pictures found. '+(finalPlan.warnings||[]).join(' '));
-  $('directorResult').replaceChildren(el('video',{controls:true,preload:'metadata',src:out.video,class:'director-proof'}),el('a',{class:'download-btn',href:out.video,download:'',text:'Download directed MP4'}),el('a',{class:'wide-ghost',href:out.plan,download:'',text:'Download scene plan JSON'}));
- }catch(e){if(current())directorStatus('Director stopped: '+e.message,true);}
- finally{directorBusy=false;for(const k of ['directorPlan','directorRun'])$(k).disabled=false;}
+function directorSceneList(plan){const review=plan.review||{}; $('directorReview').replaceChildren(el('div',{class:'director-scene'},el('b',{text:'Review · '+(review.errors||0)+' errors · '+(review.warnings||0)+' warnings'}),el('small',{text:plan.beat_aligned?'Beat grid · '+plan.bpm+' BPM':'Phrase / timed cuts'}),...(review.issues||[]).slice(0,8).map(i=>el('small',{text:i.message}))));const node=$('directorScenes');node.replaceChildren(...(plan.scenes||[]).map((s,i)=>el('div',{class:'director-scene'},el('span',{text:clock(s.start)+'–'+clock(s.end)}),el('b',{text:(i+1)+'. '+s.type.replace('_',' ')}),el('small',{text:s.asset_name||s.text||''}),s.recorded_demo?el('small',{text:'Actual recording · '+clock(s.asset_start||0)}):s.guided_replay?el('small',{text:'Guided captured-state replay'}):null,s.source?el('small',{text:(s.source.provider==='Local AI'?'AI illustration · ':'Illustrative · ')+s.source.license+' · '+s.source.creator}):null,s.asset&&!s.recorded_demo&&(/\.(png|jpg|jpeg|webp)$/i.test(s.asset))?el('img',{class:'director-thumb',src:'/api/projects/'+bridge().state().id+'/director/assets/'+encodeURIComponent(s.asset),alt:s.asset_name||'Illustrative image',loading:'lazy'}):null)));}
+function directorAssetCard(a,id){
+ const route='/api/projects/'+id+'/director/assets/'+encodeURIComponent(a.id);let point=[...(a.focus_point||[null,null])];
+ const desc=el('input',{type:'text',maxlength:300,value:a.description||'', 'aria-label':'Asset description'});
+ const role=el('select',{'aria-label':'Asset role'},...['auto','plugin_recording','plugin_state','broll','document'].map(r=>el('option',{value:r,text:r.replaceAll('_',' '),selected:r===(a.role||'auto')})));
+ const group=el('input',{maxlength:64,value:a.group||'',placeholder:'State group','aria-label':'State group'}),order=el('input',{type:'number',min:0,max:999,value:a.order||0,'aria-label':'State number'});
+ const start=el('input',{type:'number',min:0,step:.1,value:a.trim_start||0,'aria-label':'Trim start seconds'}),end=el('input',{type:'number',min:0,step:.1,value:a.trim_end||0,'aria-label':'Trim end seconds (0 = end)'});
+ const focusText=el('small',{text:point[0]==null?'Focus: auto':'Focus: '+point.map(x=>Number(x).toFixed(2)).join(', ')});
+ const thumb=a.kind==='image'?el('img',{class:'director-edit-thumb',src:route,alt:a.name,loading:'lazy',onclick:e=>{const rect=e.target.getBoundingClientRect();if(rect.width&&rect.height){point=[Math.max(0,Math.min(1,(e.clientX-rect.left)/rect.width)),Math.max(0,Math.min(1,(e.clientY-rect.top)/rect.height))];focusText.textContent='Focus: '+point.map(x=>x.toFixed(2)).join(', ');}}}):el('video',{class:'director-proof',src:route,controls:true,preload:'none'});
+ const update=async disabled=>{if(directorBusy||!currentDirector(id))return;directorBusy=true;try{await send('PUT',route,{description:desc.value,role:role.value||a.role||'auto',group:group.value,order:Number(order.value)||0,focus_x:point[0],focus_y:point[1],trim_start:Number(start.value)||0,trim_end:Number(end.value)||0,disabled});await refreshDirectorAssets(id);if(currentDirector(id))directorStatus('Visual library updated.');}catch(e){if(currentDirector(id))directorStatus(e.message,true);}finally{directorBusy=false;}};
+ return el('details',{class:'director-asset-card'},el('summary',{text:(a.disabled?'Disabled · ':'')+a.name}),thumb,el('small',{text:(a.source?'Illustration · ':'')+a.kind+(a.features?.duration?' · '+clock(a.features.duration):'')}),desc,role,el('div',{class:'director-asset-pair'},group,order),a.kind==='video'?el('div',{class:'director-asset-pair'},start,end):null,a.kind==='image'?el('div',{class:'director-asset-pair'},focusText,el('button',{type:'button',class:'tiny-btn',text:'Auto focus',onclick:()=>{point=[null,null];focusText.textContent='Focus: auto';}})):null,el('div',{class:'director-asset-pair'},el('button',{type:'button',class:'tiny-btn',text:'Save metadata',onclick:()=>update(!!a.disabled)}),el('button',{type:'button',class:'tiny-btn',text:a.disabled?'Restore':'Disable (keep file)',onclick:()=>update(!a.disabled)})));
 }
+async function refreshDirectorAssets(id){const data=await api('/api/projects/'+id+'/director/assets');if(!currentDirector(id))return;directorProject=id;$('directorAssetsList').replaceChildren(...data.assets.map(a=>directorAssetCard(a,id)));}
+async function refreshCurrentDirector(){const id=bridge()?.state().id;if(!id){toast('Open a project first.',true);return;}try{await refreshDirectorAssets(id);}catch(e){directorStatus(e.message,true);}}
+async function sendDirectorFile(id,file,role,group,order,description){const form=new FormData();form.append('file',file);form.append('description',description);form.append('role',role);form.append('group',group);form.append('order',String(order));return api('/api/projects/'+id+'/director/assets',{method:'POST',body:form});}
+async function uploadDirectorAssets(){const id=bridge()?.state().id;if(!id){toast('Open a song or voiceover first.',true);$('directorAssets').value='';return;}if(directorBusy)return;directorBusy=true;try{const files=Array.from($('directorAssets').files||[]),role=$('directorAssetRole').value||'auto',group=$('directorStateGroup').value||'',order=numberSetting('directorStateOrder',0),description=$('directorAssetDescription').value||'';for(let i=0;i<files.length;i++){if(!currentDirector(id))break;directorStatus('Importing visual '+(i+1)+' / '+files.length);await sendDirectorFile(id,files[i],role,group,Math.min(999,order+i),description);}await refreshDirectorAssets(id);if(currentDirector(id))directorStatus('Assets ready.');}catch(e){if(currentDirector(id))directorStatus(e.message,true);}finally{directorBusy=false;$('directorAssets').value='';}}
+async function captureDirector(){
+ const id=bridge()?.state().id;if(!id||directorBusy||directorRecording){toast('Open an idle project first.',true);return;}
+ if(!navigator.mediaDevices?.getDisplayMedia||typeof MediaRecorder==='undefined'){directorStatus('Screen capture is unavailable here. Import a recording from your DAW or OBS.',true);return;}
+ const description=$('directorAssetDescription').value||'Plugin control demonstration';directorBusy=true;let stream;
+ try{
+  stream=await navigator.mediaDevices.getDisplayMedia({video:{frameRate:{ideal:30,max:30}},audio:false});
+  if(!currentDirector(id)){stream.getTracks().forEach(t=>t.stop());directorBusy=false;return;}
+  const type=['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'].find(t=>MediaRecorder.isTypeSupported(t));
+  if(!type)throw new Error('WebM screen recording is unavailable. Import an external recording.');
+  const recorder=new MediaRecorder(stream,{mimeType:type,videoBitsPerSecond:2500000});let chunks=[],bytes=0,failed=false,timer;
+  const stop=()=>{if(recorder.state!=='inactive')recorder.stop();};
+  directorRecording={stop};$('directorCapture').disabled=true;$('directorCaptureStop').classList.remove('hidden');
+  recorder.addEventListener('dataavailable',e=>{if(e.data.size){bytes+=e.data.size;if(bytes<=70*1024*1024)chunks.push(e.data);else{failed=true;stop();}}});
+  recorder.addEventListener('error',()=>{failed=true;stop();});
+  recorder.addEventListener('stop',async()=>{clearTimeout(timer);stream.getTracks().forEach(t=>t.stop());directorRecording=null;$('directorCapture').disabled=false;$('directorCaptureStop').classList.add('hidden');try{if(failed||!chunks.length)throw new Error('Recording was empty or exceeded the size limit.');if(!currentDirector(id)){toast('Recording not imported because the project changed.',true);return;}const file=new File(chunks,'plugin-recording-'+Date.now()+'.webm',{type:'video/webm'});await sendDirectorFile(id,file,'plugin_recording','',0,description);await refreshDirectorAssets(id);if(currentDirector(id))directorStatus('Actual plugin recording imported.');}catch(e){if(currentDirector(id))directorStatus(e.message,true);}finally{directorBusy=false;chunks=[];}});
+  stream.getVideoTracks().forEach(t=>t.addEventListener('ended',stop,{once:true}));recorder.start(1000);timer=setTimeout(stop,60000);directorStatus('Recording selected window · stop when finished.');
+ }catch(e){stream?.getTracks().forEach(t=>t.stop());directorRecording=null;directorBusy=false;$('directorCapture').disabled=false;$('directorCaptureStop').classList.add('hidden');if(currentDirector(id))directorStatus('Capture unavailable: '+e.message,true);}
+}
+async function runDirector(render){const id=bridge()?.state().id;if(!id){toast('Open a song or voiceover first.',true);return;}if(directorBusy||song.busy)return;const payload=directorPayload();directorBusy=true;for(const k of ['directorPlan','directorRun'])$(k).disabled=true;try{await refreshDirectorAssets(id);if(bridge()?.state().id!==id)return;directorStatus('Planning with the local director…');const result=await post('/api/projects/'+id+'/director/'+(render?'render':'plan'),payload);if(bridge()?.state().id!==id)return;directorSceneList(result.plan||result);if(!render){directorStatus(result.scenes.length+' scenes planned. '+(result.warnings||[]).join(' '));return;}const job=await runJob(result.job_id,j=>{if(bridge()?.state().id===id)showStatus($('directorStatus'),j);});if(bridge()?.state().id!==id)return;const out=job.outputs;const finalPlan=await api(out.plan);if(bridge()?.state().id!==id)return;directorSceneList(finalPlan);await refreshDirectorAssets(id);if(!currentDirector(id))return;const sources=finalPlan.visual_sources||{};directorStatus('Done · '+out.scenes+' scenes · '+out.cached+' reused · '+(sources.downloaded||0)+' pictures found · '+(out.recorded_scenes||0)+' recordings · '+(out.guided_replays||0)+' guided shots. '+(finalPlan.warnings||[]).join(' '));$('directorResult').replaceChildren(el('video',{controls:true,preload:'metadata',src:out.video,class:'director-proof'}),el('a',{class:'download-btn',href:out.video,download:'',text:'Download directed MP4'}),el('a',{class:'wide-ghost',href:out.plan,download:'',text:'Download scene plan JSON'}),out.captions?el('a',{class:'wide-ghost',href:out.captions,download:'',text:'Download WebVTT captions'}):null);}catch(e){if(currentDirector(id))directorStatus('Director stopped: '+e.message,true);}finally{directorBusy=false;for(const k of ['directorPlan','directorRun'])$(k).disabled=false;}}
+
+let creatorBusy=false,creatorDraftRows=[],creatorSampleURL=null;
+function creatorBrief(){return {product:$('creatorProduct').value.trim(),brief:$('creatorBrief').value,facts:$('creatorFacts').value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean),target_seconds:Number($('creatorSeconds').value)||90};}
+function creatorMessage(message,error=false){const node=$('creatorStatus');node.classList.remove('hidden');node.textContent=message;if(error)toast(message,true);}
+function creatorButtons(disabled){for(const id of ['creatorDraft','creatorPrepare','creatorRender'])$(id).disabled=disabled;}
+async function draftCreator(){if(creatorBusy)return;creatorBusy=true;creatorButtons(true);try{const result=await post('/api/creator/script',creatorBrief());creatorDraftRows=result.chapters;$('creatorScript').value=result.chapters.map(c=>c.narration).join('\n');creatorMessage('Estimated '+result.estimated_seconds+' seconds · '+(result.warnings||[]).join(' '));}catch(e){creatorMessage(e.message,true);}finally{creatorBusy=false;creatorButtons(false);}}
+async function auditionCreator(){if(creatorBusy)return;creatorBusy=true;creatorButtons(true);$('creatorAudition').disabled=true;try{
+ const text=($('creatorScript').value.trim().split(/\r?\n/)[0]||'Here is a closer look at '+($('creatorProduct').value.trim()||'your plugin')+'.').slice(0,200);
+ const response=await fetch('/api/creator/voice-preview',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,voice:$('creatorVoice').value,speed:Number($('creatorSpeed').value)||1})});
+ if(!response.ok){let d;try{d=(await response.json()).detail;}catch{}throw new Error(typeof d==='string'?d:'Voice preview failed');}
+ const audio=$('creatorVoiceAudio');audio.pause();if(creatorSampleURL)URL.revokeObjectURL(creatorSampleURL);creatorSampleURL=URL.createObjectURL(await response.blob());audio.src=creatorSampleURL;audio.classList.remove('hidden');creatorMessage('Voice sample · '+(response.headers.get('X-Skelly-Voice')||'local'));await audio.play().catch(()=>{});
+ }catch(e){creatorMessage(e.message,true);}finally{creatorBusy=false;creatorButtons(false);$('creatorAudition').disabled=false;}}
+async function createVideo(render){if(creatorBusy||directorBusy||song.busy)return;creatorBusy=true;creatorButtons(true);try{
+ const text=$('creatorScript').value.trim();const chapters=text?text.split(/\r?\n/).map(s=>s.trim()).filter(Boolean).map(n=>creatorDraftRows.find(c=>c.narration===n)||{title:n.split(/\s+/).slice(0,5).join(' '),narration:n,visual_hint:n.slice(0,200)}):[];
+ const files=Array.from($('creatorFiles').files||[]);if(files.length>40)throw new Error('Use up to 40 visuals.');
+ const caps=await api('/api/creator/voices');const requested=$('creatorVoice').value;const selected=requested==='auto'?['piper','system','draft'].find(x=>caps[x]):requested;
+ if(!selected||!caps[selected])throw new Error('That voice is not installed. Choose an available local narrator.');
+ const payload={...creatorBrief(),chapters,voice:selected,speed:Number($('creatorSpeed').value)||1,auto_render:render,preview:false,format:$('creatorFormat').value,visual_roles:files.map(f=>({description:f.name,role:$('creatorRecording').checked&&/\.(mp4|mov|mkv|webm|m4v)$/i.test(f.name)?'plugin_recording':'auto'})),sound_design:true,title_motion:true};
+ const form=new FormData();form.append('payload',JSON.stringify(payload));for(const f of files)form.append('files',f);
+ creatorMessage('Preparing project with '+selected+' narration…');const result=await api('/api/creator/create',{method:'POST',body:form});
+ $('creatorResult').replaceChildren();
+ const job=await runJob(result.job_id,j=>showStatus($('creatorStatus'),j));const out=job.outputs||{};
+ creatorMessage('Ready · '+selected+' voice'+(selected==='draft'?' (basic synthetic draft)':'')+'. Edit narration and timing before publishing.');
+ $('creatorResult').replaceChildren(el('button',{type:'button',class:'wide-ghost',text:'Open editable project',onclick:()=>bridge()?.openSavedProject(result.project_id)}),out.video?el('video',{class:'director-proof',controls:true,src:out.video,preload:'metadata'}):null,out.video?el('a',{class:'download-btn',href:out.video,download:'',text:'Download video'}):null,out.plan?el('a',{class:'wide-ghost',href:out.plan,download:'',text:'Download scene plan'}):null);
+ }catch(e){creatorMessage(e.message,true);}finally{creatorBusy=false;creatorButtons(false);}}
 
 function stopPreview() { if (song.stop) { song.stop(); song.stop = null; } }
 function previewSegment(start, end) {
@@ -205,13 +268,28 @@ async function loadCaps() {
   const ai = $('clipUseAi'); ai.disabled = !studio.caps.ai_rerank;
   if (!studio.caps.ai_rerank) ai.checked = false;
   const watchBox = $('watchBox'); if (watchBox) watchBox.classList.toggle('hidden', !studio.caps.watch);
+  paintClipLangs();
   if (studio.caps.max_source_mb) $('clipLimitNote').textContent = 'MP4, MOV, MKV, WebM · up to ' + studio.caps.max_source_mb + ' MB / ' + studio.caps.max_source_minutes + ' min';
   return studio.caps;
+}
+const clipLangInputs = [];
+function paintClipLangs() {
+  const box = $('clipLangs'); if (!box) return;
+  clipLangInputs.length = 0;
+  const on = !!(studio.caps && studio.caps.ai_text);
+  box.classList.toggle('hidden', !on);
+  if (!on) { box.replaceChildren(); return; }
+  box.replaceChildren(el('b', { text: 'Also make translated copies (up to 3)' }), el('div', { class: 'lang-grid' },
+    ...Object.entries(studio.caps.languages || {}).map(([code, name]) => {
+      const input = el('input', { type: 'checkbox', value: code }); clipLangInputs.push(input);
+      return el('label', { class: 'lang-chip' }, input, name);
+    })));
 }
 async function openStudio(id) {
   $('clipStudio').classList.remove('hidden');
   await loadCaps();
   if (studio.caps.watch) refreshWatch();
+  refreshPresets();
   if (id) { studio.id = id; attach(); } else { studio.id = null; setStep('clipUploadStep'); }
 }
 async function uploadSource(file) {
@@ -219,6 +297,7 @@ async function uploadSource(file) {
   setStep('clipProgressStep'); $('clipProgressTitle').textContent = 'Uploading ' + file.name; $('clipMeter').style.width = '4%';
   const form = new FormData();
   form.append('file', file); form.append('language', $('clipLanguage').value);
+  form.append('keep_fillers', $('clipKeepFillers') && $('clipKeepFillers').checked ? 'true' : 'false');
   form.append('recognition', $('clipRecognition').value); form.append('use_ai', $('clipUseAi').checked ? 'true' : 'false');
   try { const made = await api('/api/clip-sources', { method: 'POST', body: form }); studio.id = made.id; attach(); }
   catch (e) { toast(e.message, true); setStep('clipUploadStep'); }
@@ -293,7 +372,8 @@ async function renderClips() {
   const status = $('clipStatus');
   try {
     const { job_id } = await post('/api/projects/' + studio.id + '/clips/render', { clips: chosen, reframe: $('clipReframe').value,
-      polish: { loudness: $('clipLoud').checked, trim_silence: $('clipTrim').checked, watermark: $('clipWatermark').checked } });
+      polish: { loudness: $('clipLoud').checked, trim_silence: $('clipTrim').checked, watermark: $('clipWatermark').checked },
+      languages: clipLangInputs.filter((i) => i.checked).map((i) => i.value).slice(0, 3) });
     const job = await runJob(job_id, (j) => showStatus(status, j));
     status.textContent = 'Done. ' + job.outputs.clips.length + ' clip(s) rendered.';
     renderOutputs($('clipResults'), job.outputs.clips, 'Clip', studio.id, null);
@@ -345,7 +425,7 @@ function readBrand() {
     endcard: { enabled: $('brEcOn').checked, seconds: Number($('brEcSecs').value), title: $('brEcTitle').value, subtitle: $('brEcSub').value, url: $('brEcUrl').value } };
 }
 async function openBrand() {
-  try { const { brand } = await api('/api/brand'); fillBrand(brand); $('brandModal').classList.remove('hidden'); }
+  try { const { brand } = await api('/api/brand'); fillBrand(brand); $('brandModal').classList.remove('hidden'); refreshBroll(); }
   catch (e) { toast(e.message, true); }
 }
 async function saveBrand() {
@@ -423,6 +503,84 @@ function extrasLine(x) {
   return el('div', { class: 'auto-result' }, el('strong', { text: 'Added automatically' }),
     el('small', { class: 'auto-reasons', text: bits.length ? bits.join(' · ') : 'Nothing extra was needed for this video.' }));
 }
+const AE_FIELDS = [ // [option name, element id, kind]
+  ['trim_silence', 'aeTrim', 'check'], ['loudness', 'aeLoud', 'check'], ['watermark', 'aeWatermark', 'check'], ['endcard', 'aeEndcard', 'check'],
+  ['captions', 'aeCaptions', 'check'], ['zoom', 'aeZoom', 'text'], ['resolution', 'aeRes', 'text'], ['shorts', 'aeShorts', 'number'],
+  ['sfx', 'aeSfx', 'check'], ['callouts', 'aeCallouts', 'check'], ['chapter_titles', 'aeTitles', 'check'], ['music', 'aeMusic', 'check'],
+  ['intro_outro', 'aeIntroOutro', 'check'], ['intro_card', 'aeIntroCard', 'check'], ['voice_cleanup', 'aeVoice', 'text'],
+  ['fillers', 'aeFillers', 'text'], ['zoom_mode', 'aeZoomMode', 'text'], ['broll', 'aeBroll', 'check']];
+function readAutoEdit() {
+  const out = {};
+  for (const [key, id, kind] of AE_FIELDS) { const n = $(id); out[key] = kind === 'check' ? !!n.checked : kind === 'number' ? Number(n.value) : n.value; }
+  return out;
+}
+function applyAutoEdit(options) {
+  for (const [key, id, kind] of AE_FIELDS) {
+    if (!(key in options)) continue;
+    const n = $(id); if (kind === 'check') n.checked = !!options[key]; else n.value = String(options[key]);
+  }
+}
+
+/* ---------- Presets: one-click bundles of the auto-edit options ---------- */
+const presets = { list: [] };
+async function refreshPresets(select) {
+  const box = $('aePreset'); if (!box) return;
+  try { presets.list = (await api('/api/presets')).presets || []; } catch (e) { return; }
+  box.replaceChildren(el('option', { value: '', text: 'Custom (my own settings)' }),
+    ...presets.list.map((p) => el('option', { value: p.name, text: p.name + (p.builtin ? '' : ' (mine)') })));
+  box.value = select || '';
+  $('aePresetDelete').classList.toggle('hidden', !presets.list.some((p) => p.name === box.value && !p.builtin));
+}
+function pickPreset() {
+  const name = $('aePreset').value; const found = presets.list.find((p) => p.name === name);
+  if (found) applyAutoEdit(found.options);
+  $('aePresetDelete').classList.toggle('hidden', !found || found.builtin);
+}
+async function savePreset() {
+  const name = $('aePresetName').value.trim();
+  if (!name) { toast('Type a name for this preset first.', true); return; }
+  try {
+    await send('PUT', '/api/presets/' + encodeURIComponent(name), { options: readAutoEdit() });
+    $('aePresetName').value = ''; await refreshPresets(name); toast('Preset saved');
+  } catch (e) { toast(e.message, true); }
+}
+async function deletePreset() {
+  const name = $('aePreset').value; if (!name) return;
+  try { await send('DELETE', '/api/presets/' + encodeURIComponent(name)); await refreshPresets(''); toast('Preset removed'); }
+  catch (e) { toast(e.message, true); }
+}
+
+/* ---------- Post text for every platform ---------- */
+const PLATFORMS = { youtube_shorts: 'YouTube Shorts', tiktok: 'TikTok', instagram: 'Instagram', x: 'X' };
+function postsBox(posts, yt, id) {
+  const box = el('div', { class: 'auto-result posts-box' }, el('strong', { text: 'Post text for each platform' }));
+  const tabs = el('div', { class: 'make-tabs' }); let buttons = []; const area = el('textarea', { rows: '7', readonly: true }); const count = el('small', { class: 'auto-reasons' });
+  let current = posts; let activeKey = null;
+  const show = (key) => {
+    const p = current[key]; area.value = p.text; count.textContent = p.chars !== undefined ? p.chars + ' of ' + p.limit + ' characters' : '';
+    for (const b of buttons) b.node.classList.toggle('active', b.key === key);
+    activeKey = key;
+  };
+  const paint = () => {
+    buttons = Object.keys(current).map((key) => ({ key, node: el('button', { type: 'button', class: 'make-tab',
+      text: PLATFORMS[key] || key, onclick: () => show(key) }) }));
+    tabs.replaceChildren(...buttons.map((b) => b.node));
+    show(activeKey && current[activeKey] ? activeKey : Object.keys(current)[0]);
+  };
+  const actions = el('div', { class: 'auto-actions' }, copyButton('Copy', () => area.value));
+  box.append(tabs, area, count, actions);
+  if (studio.caps && studio.caps.ai_text) {
+    const ai = el('button', { type: 'button', class: 'tiny-btn', text: 'Rewrite with AI', onclick: async () => {
+      ai.disabled = true;
+      try { current = (await post('/api/projects/' + id + '/posts', { title: yt.title, text: yt.description, tags: yt.tags || [], use_ai: true })).posts; paint(); }
+      catch (e) { toast(e.message, true); } finally { ai.disabled = false; }
+    } });
+    actions.append(ai);
+  }
+  paint();
+  return box;
+}
+
 function renderAutoEdit(out, id) {
   const yt = out.youtube; const box = $('autoEditResults');
   const chapters = (yt.chapters || []).length ? yt.chapters.map((c) => Math.floor(c.start / 60) + ':' + String(Math.round(c.start % 60)).padStart(2, '0') + ' ' + c.title).join('\n') : '';
@@ -440,9 +598,11 @@ function renderAutoEdit(out, id) {
       labeledText('Tags', (yt.tags || []).join(', '), false),
       chapters ? el('small', { class: 'auto-reasons', text: (yt.chapters.length) + ' chapters found.' }) : el('small', { class: 'auto-reasons', text: 'No chapters: the video is too short or has no clear topic changes.' }),
       el('div', { class: 'auto-actions' }, el('a', { class: 'tiny-btn', href: yt.file, download: '', text: 'Download as .txt' }))),
+    out.posts && Object.keys(out.posts).length ? postsBox(out.posts, yt, id) : null,
     el('div', { class: 'auto-result' }, el('strong', { text: 'Captions (' + out.cues + ')' }),
       el('div', { class: 'auto-actions' }, el('a', { class: 'tiny-btn', href: out.captions.srt, download: '', text: 'SRT' }), el('a', { class: 'tiny-btn', href: out.captions.vtt, download: '', text: 'VTT' })),
       translateBox(id)));
+  if (window.SkellyMake && window.SkellyMake.extras) for (const node of window.SkellyMake.extras(out, id)) box.append(node);
   if (out.shorts && out.shorts.length) {
     const wrap = el('div', { class: 'auto-results' }); box.append(el('strong', { class: 'ae-shorts-title', text: 'Shorts' }), wrap);
     renderOutputs(wrap, out.shorts, 'Short', id, null);
@@ -455,17 +615,89 @@ async function runAutoEdit() {
   studio.busy = true; const button = $('autoEditRun'); button.disabled = true;
   const status = $('autoEditStatus');
   try {
-    const { job_id } = await post('/api/projects/' + studio.id + '/autoedit', {
-      trim_silence: $('aeTrim').checked, loudness: $('aeLoud').checked, watermark: $('aeWatermark').checked,
-      endcard: $('aeEndcard').checked, captions: $('aeCaptions').checked, zoom: $('aeZoom').value,
-      resolution: $('aeRes').value, shorts: Number($('aeShorts').value),
-      sfx: $('aeSfx').checked, callouts: $('aeCallouts').checked, chapter_titles: $('aeTitles').checked,
-      music: $('aeMusic').checked, intro_outro: $('aeIntroOutro').checked, intro_card: $('aeIntroCard').checked });
+    const { job_id } = await post('/api/projects/' + studio.id + '/autoedit', readAutoEdit());
     const job = await runJob(job_id, (j) => showStatus(status, j));
     status.textContent = 'Done. Your video, thumbnail and upload text are ready.';
     renderAutoEdit(job.outputs, studio.id);
   } catch (e) { status.classList.remove('hidden'); status.textContent = 'Auto-edit stopped: ' + e.message; toast(e.message, true); }
   finally { studio.busy = false; button.disabled = false; }
+}
+
+/* ---------- Transcript proofreading ---------- */
+const proof = { rows: [], words: 0 };
+async function openProof() {
+  if (!studio.id) return;
+  try {
+    const data = await api('/api/projects/' + studio.id + '/transcript');
+    paintProof(data); $('proofModal').classList.remove('hidden');
+  } catch (e) { toast(e.message, true); }
+}
+function paintProof(data) {
+  proof.words = data.words;
+  $('proofSummary').textContent = data.uncertain.length
+    ? data.uncertain.length + ' word(s) the speech recognizer was unsure about. Fix any that are wrong; leave the rest.'
+    : 'Nothing looks uncertain. Use find and replace below for names the recognizer keeps getting wrong.';
+  proof.rows = data.uncertain.map((u) => {
+    const input = el('input', { type: 'text', maxlength: '80', value: u.text, 'aria-label': 'Correction for ' + u.text });
+    return { i: u.i, original: u.text, input, node: el('div', { class: 'proof-row' },
+      el('small', { class: 'auto-reasons', text: '…' + [u.before, '[' + u.text + ']', u.after].filter(Boolean).join(' ') + '… · ' + clock(u.start) }), input) };
+  });
+  $('proofList').replaceChildren(...proof.rows.map((r) => r.node));
+}
+async function applyProof() {
+  const edits = proof.rows.filter((r) => r.input.value.trim() !== r.original).map((r) => ({ i: r.i, text: r.input.value.trim() }));
+  const find = $('proofFind').value.trim(); const replace = [];
+  if (find) replace.push({ find, with: $('proofWith').value.trim(), case: false });
+  if (!edits.length && !replace.length) { toast('Nothing to change yet.', true); return; }
+  const button = $('proofApply'); button.disabled = true;
+  try {
+    const res = await post('/api/projects/' + studio.id + '/transcript', { edits, replace });
+    paintProof({ words: proof.words, uncertain: res.uncertain });
+    $('proofFind').value = ''; $('proofWith').value = '';
+    if (res.suggestions) showCards(res.suggestions);
+    toast(res.changed ? res.changed + ' word(s) corrected. Clip picks were refreshed.' : 'No matching words were found.');
+  } catch (e) { toast(e.message, true); } finally { button.disabled = false; }
+}
+
+/* ---------- B-roll library (inside the brand kit) ---------- */
+async function refreshBroll() {
+  const list = $('brBrollList'); if (!list) return;
+  try {
+    const { clips: items, max } = await api('/api/brand/broll');
+    $('brBrollCount').textContent = items.length + ' of ' + max;
+    list.replaceChildren(...items.map((c) => {
+      const kw = el('input', { type: 'text', value: c.keywords.join(', '), maxlength: '200', 'aria-label': 'Keywords for ' + c.name });
+      return el('div', { class: 'broll-row' }, el('b', { text: c.name }), el('small', { text: c.duration + ' s' }), kw,
+        el('button', { type: 'button', class: 'tiny-btn', text: 'Save', onclick: async () => {
+          try { await send('PUT', '/api/brand/broll/' + encodeURIComponent(c.name), { keywords: kw.value.split(',').map((x) => x.trim()).filter(Boolean) }); toast('Keywords saved'); }
+          catch (e) { toast(e.message, true); } } }),
+        el('button', { type: 'button', class: 'tiny-btn', text: 'Remove', onclick: async () => {
+          try { await api('/api/brand/broll/' + encodeURIComponent(c.name), { method: 'DELETE' }); refreshBroll(); } catch (e) { toast(e.message, true); } } }));
+    }));
+  } catch (e) { /* the library is optional */ }
+}
+async function uploadBroll(file) {
+  if (!file) return;
+  const form = new FormData(); form.append('file', file); form.append('keywords', $('brBrollKeywords').value);
+  try { await api('/api/brand/broll', { method: 'POST', body: form }); $('brBrollKeywords').value = ''; await refreshBroll(); toast('Clip added'); }
+  catch (e) { toast(e.message, true); }
+}
+
+/* ---------- Audio-reactive lyric video ---------- */
+async function runSongVisualizer() {
+  const b = bridge(); const id = b && b.state().id;
+  if (!id) { toast('Open or upload a song first.', true); return; }
+  if (song.busy) return;
+  song.busy = true; const button = $('autoVizBtn'); button.disabled = true; const status = $('autoStatus');
+  try {
+    const { job_id } = await post('/api/projects/' + id + '/visualizer', { style: $('autoVizStyle').value, lyrics: true });
+    const job = await runJob(job_id, (j) => showStatus(status, j));
+    status.textContent = 'Done. Your audio-reactive video is ready.';
+    $('autoResults').replaceChildren(el('div', { class: 'auto-result' }, el('strong', { text: job.outputs.lyrics ? 'Audio-reactive lyric video' : 'Music visualizer' }),
+      el('video', { controls: true, preload: 'metadata', src: job.outputs.video }),
+      el('a', { class: 'download-btn', href: job.outputs.video, download: '', text: 'Download video' })));
+  } catch (e) { status.classList.remove('hidden'); status.textContent = 'Visualizer stopped: ' + e.message; toast(e.message, true); }
+  finally { song.busy = false; button.disabled = false; }
 }
 
 /* ---------- Watch folder (desktop app only) ---------- */
@@ -491,18 +723,34 @@ async function stopWatch() { try { paintWatch(await post('/api/watch/stop', {}))
 const on = (id, type, fn) => { const node = $(id); if (node) node.addEventListener(type, fn); };
 on('autoRunBtn', 'click', runAutopilot);
 on('directorAssets','change',uploadDirectorAssets);
+on('directorRefreshAssets','click',refreshCurrentDirector);
+on('directorCapture','click',captureDirector);
+on('creatorDraft','click',draftCreator);
+on('creatorAudition','click',auditionCreator);
+on('creatorPrepare','click',()=>createVideo(false));
+on('creatorRender','click',()=>createVideo(true));
+on('directorCaptureStop','click',()=>directorRecording?.stop());
 on('directorPlan','click',()=>runDirector(false));
 on('directorRun','click',()=>runDirector(true));
 on('autopilotFromReview', 'click', runAutopilot);
 on('autoFindShorts', 'click', findShorts);
 on('autoRenderShorts', 'click', renderPickedShorts);
 on('openClipStudio', 'click', () => openStudio(null));
-on('openClipStudioPanel', 'click', () => openStudio(null));
 on('clipStudioClose', 'click', closeStudio);
 on('clipPick', 'click', () => $('clipFile').click());
 on('clipFile', 'change', (e) => { const f = e.target.files && e.target.files[0]; if (f) uploadSource(f); e.target.value = ''; });
 on('clipRegen', 'click', regenerate);
 on('autoEditRun', 'click', runAutoEdit);
+on('aePreset', 'change', pickPreset);
+on('aePresetSave', 'click', savePreset);
+on('aePresetDelete', 'click', deletePreset);
+on('proofOpen', 'click', openProof);
+on('proofApply', 'click', applyProof);
+on('proofClose', 'click', () => $('proofModal').classList.add('hidden'));
+on('autoVizBtn', 'click', runSongVisualizer);
+on('makeBrand', 'click', openBrand);
+on('brBrollPick', 'click', () => $('brBrollFile').click());
+on('brBrollFile', 'change', (e) => { const f = e.target.files && e.target.files[0]; if (f) uploadBroll(f); e.target.value = ''; });
 on('brandOpen', 'click', openBrand);
 on('brandSave', 'click', saveBrand);
 on('brandCancel', 'click', () => $('brandModal').classList.add('hidden'));
@@ -521,4 +769,5 @@ on('clipRender', 'click', renderClips);
 document.addEventListener('keydown', (e) => { const s = $('clipStudio'); if (e.key === 'Escape' && s && !s.classList.contains('hidden')) closeStudio(); });
 
 window.SkellyClips = { open: openStudio, close: closeStudio };
+window.SkellyUI = { api, send, post, el, runJob, showStatus, copyButton, toast, clock, stageText };
 })();

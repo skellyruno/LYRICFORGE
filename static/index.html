@@ -22,7 +22,7 @@
         <button id="saveBtn" class="ghost-btn" title="Save this project permanently" disabled>Save</button>
         <select id="studioZoom" class="studio-zoom" title="Whole studio zoom" aria-label="Whole studio zoom"><option value="fit">Fit</option><option value="0.75">75%</option><option value="0.9">90%</option><option value="1">100%</option><option value="1.1">110%</option></select>
         <button id="exitBtn" class="ghost-btn" title="Close the project with Save / Don't Save / Cancel">Exit</button>
-        <button id="topExport" class="primary-btn" title="Export video" aria-label="Export video" disabled><span>↗</span> Export video</button>
+        <button id="topExport" class="primary-btn" disabled><span>↗</span> Export video</button>
       </div>
     </header>
 
@@ -191,8 +191,7 @@
         <div class="panel hidden" id="panel-auto">
           <div class="section-top"><div class="eyebrow">AUTONOMOUS</div><h2>Autopilot.</h2><p>Full video plus Shorts, hands-free.</p></div>
           <div class="panel-content form-fields">
-            <button id="openClipStudioPanel" class="wide-ghost" type="button">✂ Open Clip Studio · long videos to Shorts</button>
-            <div class="control-head after-gap">AUTOPILOT</div>
+            <div class="control-head">AUTOPILOT</div>
             <div class="control-group"><label for="autoPreset">Caption style</label>
               <select id="autoPreset"><option value="classic">Classic lines</option><option value="bold">Bold words</option><option value="karaoke">Karaoke highlight</option><option value="project">Keep my current style</option></select></div>
             <div class="control-group"><label for="autoAspect">Full video shape</label>
@@ -203,15 +202,62 @@
             <button id="autoRunBtn" class="primary-btn render-btn" type="button">✦ Run autopilot</button>
             <div id="autoStatus" class="render-status hidden" role="status" aria-live="polite"></div>
             <section class="director-section" aria-label="Autonomous scene director">
+              <details class="director-finish-settings creator-panel" open><summary>CREATE A VIDEO FROM A BRIEF</summary>
+              <p class="motion-hint">Draft a script from confirmed product facts, add actual visuals, choose a narrator and render. An AI agent can also supply an approved script through the Creator job interface.</p>
+              <div class="control-group"><label for="creatorProduct">Plugin / subject</label><input id="creatorProduct" maxlength="80" placeholder="SkellyTune" /></div>
+              <div class="control-group"><label for="creatorBrief">Creative brief</label><textarea id="creatorBrief" rows="2" maxlength="1000" placeholder="A cinematic walkthrough for producers"></textarea></div>
+              <div class="control-group"><label for="creatorFacts">Confirmed facts (one per line)</label><textarea id="creatorFacts" rows="4" maxlength="28000" placeholder="Retune Speed changes correction smoothing.&#10;The piano selects allowed notes."></textarea></div>
+              <div class="control-group"><label for="creatorSeconds">Target length (seconds)</label><input id="creatorSeconds" type="number" value="90" min="15" max="1200" /></div>
+              <button id="creatorDraft" type="button" class="wide-ghost">Draft script from facts</button>
+              <div class="control-group"><label for="creatorScript">Editable narration · one chapter per line</label><textarea id="creatorScript" rows="7" maxlength="60000" placeholder="Draft or paste your narration here."></textarea></div>
+              <label class="wide-ghost director-upload">＋ Attach actual plugin captures / footage<input id="creatorFiles" type="file" multiple accept="image/png,image/jpeg,image/webp,video/mp4,video/quicktime,video/webm,.mkv,.m4v" /></label>
+              <label class="toggle-line"><span>Videos are actual plugin recordings<small>Enable only for real captured plugin operation.</small></span><input id="creatorRecording" type="checkbox" /><i class="switch"></i></label>
+              <div class="control-group"><label for="creatorVoice">Narrator</label><select id="creatorVoice"><option value="auto">Best available local voice</option><option value="piper">Piper neural (installed model)</option><option value="system">Windows system speech</option><option value="draft">Basic draft voice</option></select></div>
+              <div class="control-group"><label for="creatorSpeed">Narration speed</label><input id="creatorSpeed" type="number" min="0.8" max="1.2" step="0.05" value="1" /></div>
+              <button id="creatorAudition" type="button" class="wide-ghost">Audition narrator (short sample)</button><audio id="creatorVoiceAudio" controls preload="none" class="hidden" style="width:100%" aria-label="Narrator preview"></audio>
+              <div class="control-group"><label for="creatorFormat">Output</label><select id="creatorFormat"><option value="youtube">YouTube · full length</option><option value="square">Square · full length</option><option value="reel30">Reel · 30 seconds</option><option value="reel15">Reel · 15 seconds</option></select></div>
+              <button id="creatorPrepare" class="wide-ghost" type="button">Create editable narration project</button>
+              <button id="creatorRender" class="primary-btn render-btn" type="button">Create &amp; render full video</button>
+              <div id="creatorStatus" class="render-status hidden" role="status" aria-live="polite"></div><div id="creatorResult" class="auto-results"></div>
+              </details>
               <div class="control-head after-gap">SCENE DIRECTOR <span class="director-local">AUTO</span></div>
               <p class="motion-hint">Turn voiceovers or songs into edited videos with matching visuals and timed captions.</p>
-              <div class="control-group"><label for="directorPreset">Visual direction</label><select id="directorPreset"><option value="plugin">Plugin walkthrough</option><option value="doc">Documentary / explainer</option></select></div>
+              <div class="control-group"><label for="directorPreset">Visual direction</label><select id="directorPreset"><option value="plugin">Plugin walkthrough</option><option value="doc">Documentary / explainer</option><option value="music">Beat-cut music video</option></select></div>
               <div class="control-group"><label for="directorBrand">Brand / closing card</label><input id="directorBrand" type="text" value="SKELLYMOTION" maxlength="80" /></div>
               <label class="wide-ghost director-upload">＋ Add screenshots / video footage<input id="directorAssets" type="file" multiple accept="image/png,image/jpeg,image/webp,video/mp4,video/quicktime,video/webm,.mkv,.m4v" /></label>
               <div class="control-group"><label for="directorAssetDescription">Asset description (optional)</label><input id="directorAssetDescription" type="text" maxlength="300" placeholder="e.g. EQ depth control, main plugin window" /></div>
-              <div id="directorAssetsList" class="director-list" aria-live="polite"></div>
+              <div class="control-group"><label for="directorAssetRole">Visual type</label><select id="directorAssetRole"><option value="auto">Automatic</option><option value="plugin_recording">Actual plugin recording</option><option value="plugin_state">Captured plugin state</option><option value="broll">B-roll only</option><option value="document">Document</option></select></div>
+              <div class="control-group"><label for="directorStateGroup">State group (optional)</label><input id="directorStateGroup" maxlength="64" placeholder="e.g. Retune speed" /></div>
+              <div class="control-group"><label for="directorStateOrder">First state number</label><input id="directorStateOrder" type="number" min="0" max="999" value="0" /></div>
+              <button id="directorCapture" class="wide-ghost" type="button">Record plugin window (60s max)</button><button id="directorCaptureStop" class="wide-ghost hidden" type="button">Stop recording</button>
+              <p class="motion-hint">Choose a plugin window yourself. Only video is recorded; import DAW audio separately. If capture is unavailable, import a recording instead.</p>
+              <button id="directorRefreshAssets" class="wide-ghost" type="button">Refresh / edit visual library</button>
+              <div id="directorAssetsList" class="director-list director-asset-library" aria-live="polite"></div>
               <label class="toggle-line"><span>Find pictures automatically<small>Optional: send short transcript keywords to Wikimedia Commons. Public-domain / CC0 images only.</small></span><input id="directorAutoPictures" type="checkbox" /><i class="switch"></i></label>
               <p class="motion-hint">Your screenshots take priority. Online pictures are labelled illustrative and credited in the scene plan. Review before publishing.</p>
+              <div class="control-group"><label for="directorFormat">Platform</label><select id="directorFormat"><option value="youtube">YouTube · 16:9</option><option value="reel15">Reel · 15s</option><option value="reel30">Reel · 30s</option><option value="square">Square · 1:1</option><option value="canvas">Canvas · 7.5s muted</option></select></div>
+              <div class="control-group"><label for="directorStart">Start (seconds)</label><input id="directorStart" type="number" min="0" max="900" step="0.1" value="0" /></div>
+              <div class="control-group"><label for="directorIntensity">Beat intensity</label><select id="directorIntensity"><option value="calm">Calm</option><option value="medium" selected>Balanced</option><option value="hype">Hype</option></select></div>
+              <div class="control-group"><label for="directorMotion">Loop variation</label><select id="directorMotion"><option value="dynamic">Dynamic</option><option value="clean">Clean</option><option value="pingpong">Ping-pong</option></select></div>
+              <label class="toggle-line"><span>Guided captured-state replay<small>Animate a guide over genuine before/after states, never invented plugin values.</small></span><input id="directorGuidedReplay" type="checkbox" checked /><i class="switch"></i></label>
+              <details class="director-finish-settings"><summary>Finishing controls</summary>
+              <div class="control-group"><label for="directorTransitionStyle">Transition style</label><select id="directorTransitionStyle"><option value="auto">Adaptive</option><option value="dissolve" selected>Dissolve</option><option value="slide">Slide</option><option value="wipe">Wipe</option><option value="cut">Hard cut</option></select></div>
+              <div class="control-group"><label for="directorTransitionSeconds">Transition duration (s)</label><input id="directorTransitionSeconds" type="number" min="0.12" max="0.8" step="0.04" value="0.32" /></div>
+              <div class="control-group"><label for="directorCaptionStyle">Caption motion</label><select id="directorCaptionStyle"><option value="karaoke">Kinetic phrase</option><option value="word">One word at a time</option><option value="clean">Clean phrase</option><option value="off">No burned captions</option></select></div>
+              <div class="control-group"><label for="directorCaptionScale">Caption size</label><input id="directorCaptionScale" type="range" min="0.75" max="1.25" step="0.05" value="1" /></div>
+              <div class="control-group"><label for="directorVoiceStyle">Narration treatment</label><select id="directorVoiceStyle"><option value="natural">Natural</option><option value="present">Present / crisp</option><option value="off">Original</option></select></div>
+              <div class="control-group"><label for="directorMusicGain">Music level</label><input id="directorMusicGain" type="range" min="0" max="1.5" step="0.05" value="1" /></div>
+              <div class="control-group"><label for="directorCueGain">Sound cue level</label><input id="directorCueGain" type="range" min="0" max="1.5" step="0.05" value="1" /></div>
+              </details>
+              <label class="toggle-line"><span>Animated titles<small>Independent title entrance and exit, separate from picture transitions.</small></span><input id="directorTitleMotion" type="checkbox" checked /><i class="switch"></i></label>
+              <label class="toggle-line"><span>Transitions</span><input id="directorTransitions" type="checkbox" checked /><i class="switch"></i></label>
+              <label class="toggle-line"><span>Cinematic finish<small>Overlapping dissolves, animated word highlights and narration polish.</small></span><input id="directorCinematic" type="checkbox" checked /><i class="switch"></i></label>
+              <label class="toggle-line"><span>Original music + sound cues<small>Optional generated bed for explainers.</small></span><input id="directorSoundDesign" type="checkbox" /><i class="switch"></i></label>
+              <label class="toggle-line"><span>Animated DSP diagrams</span><input id="directorDiagrams" type="checkbox" checked /><i class="switch"></i></label>
+              <details class="director-live-lab"><summary>Interactive compressor lab</summary><p class="motion-hint">Adjust the model, watch the response, then export the same parameters into compression scenes.</p><iframe id="directorCompressorLab" title="Live compressor demonstration" src="/static/compressor_lab.html" loading="lazy" style="width:100%;height:550px;border:1px solid #34483a;border-radius:8px"></iframe></details>
+              <label class="toggle-line"><span>Semantic visual matching<small>Optional local CLIP model compares footage with your lyrics.</small></span><input id="directorSemantic" type="checkbox" /><i class="switch"></i></label>
+              <label class="toggle-line"><span>Local AI illustrations<small>Requires separately installed trusted diffusion model; no cloud upload.</small></span><input id="directorLocalAI" type="checkbox" /><i class="switch"></i></label>
+              <div id="directorReview" class="director-list" role="status" aria-live="polite"></div>
               <label class="toggle-line"><span>15-second proof<small>Fast preview before the full export</small></span><input id="directorPreview" type="checkbox" checked /><i class="switch"></i></label>
               <label class="toggle-line"><span>Brand Kit music<small>Duck the bed under your voice</small></span><input id="directorMusic" type="checkbox" /><i class="switch"></i></label>
               <button id="directorPlan" class="wide-ghost" type="button">Preview scene plan</button>
@@ -219,6 +265,10 @@
               <div id="directorStatus" class="render-status hidden" role="status" aria-live="polite"></div>
               <div id="directorScenes" class="director-list"></div><div id="directorResult" class="auto-results"></div>
             </section>
+            <div class="control-head after-gap">AUDIO-REACTIVE</div>
+            <div class="control-group"><label for="autoVizStyle">Visualizer style</label>
+              <select id="autoVizStyle"><option value="bars">Bars</option><option value="wave">Waveform</option><option value="both">Bars and waveform</option></select></div>
+            <button id="autoVizBtn" class="wide-ghost" type="button">Make an audio-reactive lyric video</button>
             <div class="control-head after-gap">SHORTS ONLY</div>
             <button id="autoFindShorts" class="wide-ghost" type="button">Find the best Shorts in this song</button>
             <div id="autoShortList" class="auto-cards"></div>
@@ -357,7 +407,7 @@
         </label>
         <small>Vocabulary is a hint—not a guaranteed transcription. It does not change the model.</small>
       </details>
-    </div><div class="welcome-features"><span>✳ AI lyric detection</span><span>✳ Word-level sync</span><span>✳ MP4 export</span></div><div class="welcome-secondary-actions"><button id="resumeLastBtn" class="demo-btn hidden" type="button">↻ Resume last project <span>→</span></button><button id="openProjectsWelcome" class="demo-btn" type="button">▦ Open a saved project <span>→</span></button><button id="openClipStudio" class="demo-btn" type="button">✂ Clip a long video into Shorts <span>→</span></button><button id="demoBtn" class="demo-btn">Or explore the demo editor <span>→</span></button></div></div><div class="welcome-decor">SM / CREATIVE TOOLS — 001</div></div>
+    </div><div class="welcome-features"><span>✳ AI lyric detection</span><span>✳ Word-level sync</span><span>✳ MP4 export</span></div><div class="welcome-secondary-actions"><button id="resumeLastBtn" class="demo-btn hidden" type="button">↻ Resume last project <span>→</span></button><button id="openProjectsWelcome" class="demo-btn" type="button">▦ Open a saved project <span>→</span></button><button id="openClipStudio" class="demo-btn" type="button">✂ Clip a long video into Shorts <span>→</span></button><button id="openMake" class="demo-btn" type="button">✦ Make a music video, animation or stream pack <span>→</span></button><button id="demoBtn" class="demo-btn">Or explore the demo editor <span>→</span></button></div></div><div class="welcome-decor">SM / CREATIVE TOOLS — 001</div></div>
 
     <div id="reviewOverlay" class="modal-overlay hidden"><div class="review-modal"><div class="modal-top"><span class="eyebrow">STEP 01 OF 02</span><button id="closeReview" title="Close" class="modal-close">×</button></div><div class="modal-visual"><span class="modal-icon">♪</span><span class="step-chain"><b>UPLOAD</b><i></i><b>REVIEW</b><i></i><span>CREATE</span></span></div><h2 id="reviewTitle">Review your lyrics.</h2><p id="reviewDescription">We picked up the lyrics in your song. Fix anything we missed before we sync them to the timeline.</p><div id="transcribeProgress" class="transcribe-progress hidden" aria-live="polite"><div class="loading-orbit"></div><strong>Preparing your song…</strong><span>Using your existing Whisper AI model.</span><div class="transcribe-meter" id="transcribeMeterTrack" role="progressbar" aria-label="Audio analyzed" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="transcribeMeter"></div></div><small class="transcribe-note">Progress measures analyzed audio, not time remaining.</small></div><textarea id="lyricsText" spellcheck="false" placeholder="Your lyrics will appear here. You can also type or paste lyrics manually."></textarea><div id="reviewWarning" class="review-warning hidden"></div>
           <div id="uncertainReview" class="uncertain-review hidden">
@@ -409,7 +459,7 @@
   <div id="clipStudio" class="clip-studio hidden" role="dialog" aria-modal="true" aria-labelledby="clipStudioTitle">
     <header class="clip-studio-bar">
       <div><span class="eyebrow">CLIP STUDIO</span><h2 id="clipStudioTitle">Long video to Shorts</h2></div>
-      <div class="clip-studio-actions"><button id="brandOpen" class="ghost-btn" type="button">Brand kit</button><button id="clipStudioClose" class="ghost-btn" type="button">Close</button></div>
+      <div class="clip-studio-actions"><button id="makeFromStudio" class="ghost-btn" type="button">Make</button><button id="brandOpen" class="ghost-btn" type="button">Brand kit</button><button id="clipStudioClose" class="ghost-btn" type="button">Close</button></div>
     </header>
     <div class="clip-studio-body">
       <section id="clipUploadStep" class="clip-step">
@@ -418,6 +468,7 @@
         <div class="clip-options">
           <label>Spoken language<select id="clipLanguage"><option value="auto">Auto-detect</option><option value="en">English</option><option value="es">Spanish</option><option value="fr">French</option><option value="pt">Portuguese</option><option value="de">German</option><option value="it">Italian</option><option value="ja">Japanese</option><option value="ko">Korean</option></select></label>
           <label>Recognition<select id="clipRecognition"><option value="fast">Fast</option><option value="balanced" selected>Balanced</option><option value="accurate">Accurate (slower)</option></select></label>
+          <label class="clip-check"><input id="clipKeepFillers" type="checkbox" checked /> Listen for ums and uhs <small>Lets Auto-edit cut filler words. Turn off if the recognizer starts inventing them.</small></label>
           <label class="clip-check"><input id="clipUseAi" type="checkbox" disabled /> Rank picks with Claude <small id="clipAiNote">Needs ANTHROPIC_API_KEY on this computer. Sends transcript text only.</small></label>
         </div>
         <details id="watchBox" class="watch-box hidden"><summary>Hands-off: auto-process a folder</summary>
@@ -435,6 +486,9 @@
         <div id="autoEditCard" class="auto-edit-card">
           <div class="auto-edit-head"><div><strong>Auto-edit the whole video</strong><small>One click trims dead air, evens out the volume, adds your logo and end card, then writes the thumbnail, title, chapters and captions.</small></div>
             <button id="autoEditRun" class="primary-btn" type="button">✦ Auto-edit this video</button></div>
+          <div class="preset-bar"><label>Preset<select id="aePreset"><option value="">Custom (my own settings)</option></select></label>
+            <input id="aePresetName" type="text" maxlength="30" placeholder="Name this setup" aria-label="Preset name" />
+            <button id="aePresetSave" class="ghost-btn" type="button">Save as preset</button><button id="aePresetDelete" class="ghost-btn hidden" type="button">Delete</button></div>
           <div class="auto-edit-opts">
             <label class="clip-check"><input id="aeTrim" type="checkbox" checked /> Trim dead air</label>
             <label class="clip-check"><input id="aeLoud" type="checkbox" checked /> Even out loudness</label>
@@ -443,6 +497,9 @@
             <label class="clip-check"><input id="aeCaptions" type="checkbox" /> Burn in captions</label>
             <label>Auto-zoom<select id="aeZoom"><option value="off">Off</option><option value="subtle">Subtle</option><option value="medium">Medium</option><option value="strong">Strong</option></select></label>
             <label>Size<select id="aeRes"><option value="1080p">1080p</option><option value="720p">720p</option></select></label>
+            <label>Voice cleanup<select id="aeVoice"><option value="off">Off</option><option value="light">Light</option><option value="medium">Medium</option><option value="strong">Strong</option></select></label>
+            <label>Filler words<select id="aeFillers"><option value="off">Keep</option><option value="basic">Cut um / uh</option><option value="more">Cut um, uh, you know, I mean</option></select></label>
+            <label>Zoom follows<select id="aeZoomMode"><option value="motion">Movement</option><option value="ui">Screen changes (ring)</option></select></label>
             <label>Also make Shorts<select id="aeShorts"><option value="0">None</option><option value="1">1</option><option value="3" selected>3</option><option value="5">5</option></select></label>
           </div>
           <div class="auto-edit-extras"><b>Added automatically</b>
@@ -452,6 +509,7 @@
             <label class="clip-check"><input id="aeMusic" type="checkbox" checked /> Background music</label>
             <label class="clip-check"><input id="aeIntroOutro" type="checkbox" checked /> Intro and outro clips</label>
             <label class="clip-check"><input id="aeIntroCard" type="checkbox" /> Title card intro</label>
+            <label class="clip-check"><input id="aeBroll" type="checkbox" checked /> B-roll from my library</label>
             <small>Sound effects are generated by the app (nothing to license). Music and intro/outro clips come from your Brand kit.</small></div>
           <div id="autoEditStatus" class="render-status hidden" role="status" aria-live="polite"></div>
           <div id="autoEditResults" class="auto-results"></div>
@@ -465,9 +523,11 @@
           <label class="clip-check"><input id="clipTrim" type="checkbox" /> Trim dead air</label>
           <label class="clip-check"><input id="clipWatermark" type="checkbox" checked /> Watermark</label>
           <button id="clipRegen" class="ghost-btn" type="button">↻ Find clips again</button>
+          <button id="proofOpen" class="ghost-btn" type="button">Proofread transcript</button>
           <span class="clip-spacer"></span>
           <button id="clipRender" class="primary-btn" type="button">Render selected (0)</button>
         </div>
+        <div id="clipLangs" class="translate-box hidden"></div>
         <div id="clipStatus" class="render-status hidden" role="status" aria-live="polite"></div>
         <div id="clipCards" class="clip-grid"></div>
         <div id="clipResults" class="auto-results"></div>
@@ -500,6 +560,11 @@
         <div class="brand-asset"><span>Background music</span><span id="brMusicName" class="brand-asset-name">None</span><button id="brMusicPick" class="ghost-btn" type="button">Choose</button><button id="brMusicClear" class="ghost-btn hidden" type="button">Remove</button><input id="brMusicFile" type="file" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.flac" hidden /></div>
         <div class="brand-asset"><span>Intro clip (max 20 s)</span><span id="brIntroName" class="brand-asset-name">None</span><button id="brIntroPick" class="ghost-btn" type="button">Choose</button><button id="brIntroClear" class="ghost-btn hidden" type="button">Remove</button><input id="brIntroFile" type="file" accept="video/*,.mp4,.mov,.mkv,.webm,.m4v" hidden /></div>
         <div class="brand-asset"><span>Outro clip (max 20 s)</span><span id="brOutroName" class="brand-asset-name">None</span><button id="brOutroPick" class="ghost-btn" type="button">Choose</button><button id="brOutroClear" class="ghost-btn hidden" type="button">Remove</button><input id="brOutroFile" type="file" accept="video/*,.mp4,.mov,.mkv,.webm,.m4v" hidden /></div>
+        <div class="brand-broll"><div class="brand-broll-head"><b>B-roll library</b><small id="brBrollCount">0 of 40</small></div>
+          <small class="clip-fine">Short clips cut into Auto-edit videos when you say one of their keywords (picture only; your voice and captions stay).</small>
+          <div id="brBrollList" class="broll-list"></div>
+          <div class="broll-add"><input id="brBrollKeywords" type="text" maxlength="200" placeholder="Keywords for the next clip, e.g. eq, equalizer" aria-label="B-roll keywords" />
+            <button id="brBrollPick" class="ghost-btn" type="button">Add a clip</button><input id="brBrollFile" type="file" accept="video/*,.mp4,.mov,.mkv,.webm,.m4v" hidden /></div></div>
         <div class="brand-grid">
           <label>Music volume<input id="brMusicVol" type="range" min="0.03" max="0.6" step="0.01" /></label>
           <label>Sound effect volume<input id="brSfxVol" type="range" min="0" max="1" step="0.05" /></label>
@@ -508,8 +573,36 @@
       <div class="brand-actions"><button id="brandSave" class="primary-btn" type="button">Save</button><button id="brandCancel" class="ghost-btn" type="button">Close</button></div>
     </div>
   </div>
+  <div id="proofModal" class="brand-modal hidden" role="dialog" aria-modal="true" aria-labelledby="proofTitle">
+    <div class="brand-card">
+      <h3 id="proofTitle">Proofread the transcript</h3>
+      <p id="proofSummary" class="clip-fine"></p>
+      <div id="proofList" class="proof-list"></div>
+      <div class="proof-replace"><b>Find and replace everywhere</b>
+        <div class="proof-replace-row"><input id="proofFind" type="text" maxlength="80" placeholder="Heard as, e.g. scaly tune" aria-label="Find" /><input id="proofWith" type="text" maxlength="80" placeholder="Should be, e.g. SkellyTune" aria-label="Replace with" /></div></div>
+      <div class="brand-actions"><button id="proofApply" class="primary-btn" type="button">Apply corrections</button><button id="proofClose" class="ghost-btn" type="button">Close</button></div>
+    </div>
+  </div>
+  <div id="makeOverlay" class="clip-studio hidden" role="dialog" aria-modal="true" aria-labelledby="makeTitle">
+    <header class="clip-studio-bar">
+      <div><span class="eyebrow">MAKE</span><h2 id="makeTitle">Make something new</h2></div>
+      <div class="clip-studio-actions"><button id="makeBrand" class="ghost-btn" type="button">Brand kit</button><button id="makeClose" class="ghost-btn" type="button">Close</button></div>
+    </header>
+    <div class="clip-studio-body"><div class="clip-step make-step">
+      <input id="makeSearch" class="make-search" type="search" placeholder="Search tools (press / )" maxlength="40" aria-label="Search the tools" autocomplete="off">
+      <div id="makeGroups" class="make-groups" role="group" aria-label="Filter the tools"></div>
+      <div id="makeTabs" class="make-tabs" role="tablist" aria-label="What to make"></div>
+      <h2 id="makeToolTitle" class="make-tool-title"></h2>
+      <p id="makeBlurb" class="clip-fine"></p>
+      <form id="makeForm" class="make-form" onsubmit="return false"></form>
+      <div id="makeStatus" class="render-status hidden" role="status" aria-live="polite"></div>
+      <div id="makeResults" class="auto-results"></div>
+      <div id="makeRecent" class="make-recent"></div>
+    </div></div>
+  </div>
 </div>
   <script src="/static/app.js"></script>
   <script src="/static/autoclip.js"></script>
+  <script src="/static/make.js"></script>
 </body>
 </html>

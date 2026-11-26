@@ -18,14 +18,7 @@ WINDOW_TITLE = "SkellyMotion | Lyric video studio"
 
 
 def initial_window_geometry(usable_width: int, usable_height: int) -> tuple[int, int, tuple[int, int]]:
-    """Keep the complete initial editor inside the usable desktop, including the taskbar.
-
-    Do not change normal 960x623 layouts, but shrink both the requested and
-    minimum sizes on smaller monitors. The user can still maximize or resize.
-    """
-    # On compact Windows sessions, logical work-area metrics can be larger
-    # than the physically visible capture/display area (DPI/remote desktop).
-    # Keep additional headroom instead of relying only on a 24px border.
+    """Fit the native editor inside compact Windows working areas."""
     room_width = max(320, int(usable_width) - 24)
     room_height = max(240, int(usable_height) - 24)
     if 800 <= usable_width < 1200:
@@ -38,17 +31,14 @@ def initial_window_geometry(usable_width: int, usable_height: int) -> tuple[int,
 
 
 def native_work_area() -> tuple[int, int]:
-    """Return the Windows working area without the taskbar, with safe fallback."""
     if sys.platform != "win32":
         return 1920, 1080
     try:
         import ctypes
         from ctypes import wintypes
         bounds = wintypes.RECT()
-        if ctypes.windll.user32.SystemParametersInfoW(
-                0x0030, 0, ctypes.byref(bounds), 0):  # SPI_GETWORKAREA
-            width = int(bounds.right - bounds.left)
-            height = int(bounds.bottom - bounds.top)
+        if ctypes.windll.user32.SystemParametersInfoW(0x0030, 0, ctypes.byref(bounds), 0):
+            width, height = int(bounds.right - bounds.left), int(bounds.bottom - bounds.top)
             if width > 0 and height > 0:
                 return width, height
         width = int(ctypes.windll.user32.GetSystemMetrics(0))
@@ -509,7 +499,6 @@ def run_desktop(home: Path, safe_mode: bool = False,
         log_stage(f"initial editor window {window_width}x{window_height}, minimum {min_window}")
         window = webview.create_window(WINDOW_TITLE,
                               "http://127.0.0.1:" + str(port) + "/?desktop=1",
-                              # Full-size on normal monitors; fit smaller desktops.
                               width=window_width, height=window_height, min_size=min_window,
                               resizable=True, background_color="#090c0c",
                               js_api=picker)
@@ -529,6 +518,8 @@ def run_desktop(home: Path, safe_mode: bool = False,
                             raise RuntimeError("Editor close bridge is not ready")
                     except Exception as exc:
                         log_stage("Could not show Save / Don't Save / Cancel: " + str(exc))
+                        # Never silently discard the current project if the JS
+                        # bridge is unavailable. Explicitly offer recovery-only exit.
                         try:
                             import ctypes
                             answer = ctypes.windll.user32.MessageBoxW(
@@ -685,9 +676,10 @@ def run_desktop(home: Path, safe_mode: bool = False,
                 name="SkellyMotionUIHangMonitor", daemon=True)
             monitor_worker.start()
         log_stage("native window created; initializing WebView2")
+        # pywebview versions differ in support for native icon overrides.
+        # The packaged EXE always embeds the skull icon.
         from inspect import signature
-        icon = runtime_dir() / "static" / "skull.ico"
-        options = {"icon": str(icon)} if icon.is_file() and "icon" in signature(webview.start).parameters else {}
+        options = {"icon": str(runtime_dir() / "static" / "skull.ico")} if "icon" in signature(webview.start).parameters else {}
         webview.start(gui="edgechromium", debug=False, private_mode=False,
                       storage_path=str(profile), **options)
     finally:

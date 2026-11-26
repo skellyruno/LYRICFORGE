@@ -58,9 +58,12 @@ jobs:
         run: |
           node --check static/app.js
           node --check static/autoclip.js
+          node --check static/make.js
           node tests/editor_smoke.mjs
           if ($LASTEXITCODE -ne 0) { throw 'Editor JavaScript smoke test failed' }
           node tests/autoclip_smoke.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Autonomous UI smoke test failed' }
+          node tests/compressor_lab_smoke.mjs
           if ($LASTEXITCODE -ne 0) { throw 'Autonomous UI smoke test failed' }
       - name: Download verified FFmpeg with libass
         shell: pwsh
@@ -125,6 +128,7 @@ jobs:
         run: |
           node --check static/app.js
           node --check static/autoclip.js
+          node --check static/make.js
       - name: Test original editor on Windows
         run: python -m pytest tests -q
       - name: Build self-contained Windows folder
@@ -138,6 +142,7 @@ jobs:
           pyinstaller --noconfirm --clean --onedir --windowed --name SkellyMotion `
             --icon "static/skull.ico" `
             --add-data "static;static" `
+            --add-data "studio_ai_worker.py;." `
             --add-binary "vendor/ffmpeg/ffmpeg.exe;tools" `
             --hidden-import clr `
             --hidden-import webview `
@@ -324,7 +329,7 @@ jobs:
       # Only release-gate-labeled PRs capture visual evidence. The dedicated
       # native window smoke above remains the blocking functional check.
       - name: Capture actual Windows WebView2 image
-        if: github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'release-gate')
+        if: github.event_name == 'pull_request' && (contains(github.event.pull_request.labels.*.name, 'release-gate') || github.head_ref == 'feature/creator-consolidated-20261126')
         continue-on-error: true
         shell: pwsh
         run: |
@@ -396,7 +401,7 @@ jobs:
             }
           }
       - uses: actions/upload-artifact@v6
-        if: always() && github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'release-gate')
+        if: always() && github.event_name == 'pull_request' && (contains(github.event.pull_request.labels.*.name, 'release-gate') || github.head_ref == 'feature/creator-consolidated-20261126')
         with:
           name: SkellyMotion-Windows-UI-Evidence
           path: release-gate-evidence/SkellyMotion-WebView2.png
@@ -415,7 +420,7 @@ jobs:
       # Tagged versions publish their ZIP through GitHub Releases instead.
       # Main/manual builds and explicitly release-gate-labeled PRs keep a portable artifact for seven days.
       - uses: actions/upload-artifact@v6
-        if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'release-gate'))
+        if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main' || (github.event_name == 'pull_request' && (contains(github.event.pull_request.labels.*.name, 'release-gate') || github.head_ref == 'feature/creator-consolidated-20261126'))
         with:
           name: SkellyMotion-Windows-x64
           path: dist/SkellyMotion/

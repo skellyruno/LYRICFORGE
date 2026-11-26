@@ -56,6 +56,10 @@ def build_parser() -> argparse.ArgumentParser:
         cmd.add_argument("--recognition", choices=["fast", "balanced", "accurate"], default="balanced")
         if name == "edit":
             cmd.add_argument("--keep-project", action="store_true", help="keep the working copy so it opens in Clip Studio")
+    create=sub.add_parser('create',help='create a narrated video from an agent/owner JSON job')
+    create.add_argument('manifest',help='JSON brief, approved script and local assets')
+    create.add_argument('--out',required=True,help='new output folder (never overwrite existing output)')
+    create.add_argument('--draft-only',action='store_true',help='synthesize and save an editable project without rendering')
     return parser
 
 
@@ -83,6 +87,10 @@ def build_options(args: argparse.Namespace, preset: dict | None = None) -> dict:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.command=='create':
+        try:return create_from_manifest(Path(args.manifest).expanduser(),Path(args.out).expanduser(),args.draft_only)
+        except (ValueError,RuntimeError,OSError) as exc:
+            print(f'Error: {exc}',file=sys.stderr);return 1
     import server  # imported late so --help is instant
 
     preset = None
@@ -124,6 +132,52 @@ def main(argv: list[str] | None = None) -> int:
         server.watch_stop()
         print("Stopped.")
         return 0
+
+
+def create_from_manifest(manifest: Path, out: Path, draft_only=False):
+    """Trusted local CLI: reads explicit paths from the agent's manifest. The HTTP API never does."""
+    import asyncio,json,shutil
+    from contextlib import ExitStack
+    from fastapi import UploadFile,HTTPException
+    import server
+    if manifest.stat().st_size>256*1024:raise ValueError('Job manifest exceeds 256 KiB')
+    raw=json.loads(manifest.read_text(encoding='utf-8'))
+    if not isinstance(raw,dict):raise ValueError('Manifest must be a JSON object')
+    assets=raw.pop('assets',[])
+    if not isinstance(assets,list) or len(assets)>40:raise ValueError('Manifest supports up to 40 assets')
+    if out.exists():raise ValueError('Output folder already exists; choose a fresh output path')
+    payload=dict(raw);payload['visual_roles']=[]
+    if draft_only:payload['auto_render']=False
+    with ExitStack() as stack:
+        files=[]
+        for item in assets:
+            if not isinstance(item,dict) or not isinstance(item.get('path'),str):raise ValueError('Each asset needs a local path')
+            source=(manifest.parent/item['path']).resolve()
+            if not source.is_file():raise ValueError('Asset file not found: '+str(source))
+            size=source.stat().st_size
+            if size>80*1024*1024:raise ValueError('Asset exceeds 80 MiB: '+source.name)
+            files.append(UploadFile(stack.enter_context(source.open('rb')),filename=source.name,size=size))
+            payload['visual_roles'].append({k:v for k,v in item.items() if k in ('role','group','order','description','focus_x','focus_y','trim_start','trim_end')})
+        try:result=asyncio.run(server.create_video_request(payload=json.dumps(payload),files=files))
+        except HTTPException as exc:raise ValueError(str(exc.detail)) from exc
+    pid=result['project_id'];job_id=result['job_id'];p=server.project_dir(pid);print('PROJECT',pid,'VOICE',result['voice_provider'],flush=True)
+    last=None
+    try:
+        while True:
+            job=server.get_job(job_id);state=(job.get('stage'),job.get('progress'))
+            if state!=last:print(*state,flush=True);last=state
+            if job['status']!='rendering':break
+            time.sleep(.5)
+    except KeyboardInterrupt:
+        server.cancel_job(job_id);print('Cancellation requested; project retained:',pid,file=sys.stderr);return 130
+    if job['status']!='done':raise RuntimeError(f"{job.get('error',job['status'])}; retained project {pid}")
+    out.mkdir(parents=True,exist_ok=False)
+    for name in ('voice.wav','project.json','director.mp4','director_plan.json','director.vtt','director_preview.mp4','director_preview_plan.json','director_preview.vtt'):
+        src=p/name
+        if src.is_file():shutil.copy2(src,out/name)
+    (out/'script.json').write_text(json.dumps(server.read_project(pid).get('creator_script',[]),indent=2,ensure_ascii=False),encoding='utf-8')
+    (out/'job-result.json').write_text(json.dumps(job,indent=2,ensure_ascii=False),encoding='utf-8')
+    print('OUTPUT',out,flush=True);return 0
 
 
 if __name__ == "__main__":

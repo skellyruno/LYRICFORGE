@@ -18,7 +18,6 @@ import shutil
 import stat
 import subprocess
 import sys
-import tempfile
 import urllib.error
 import urllib.request
 import zipfile

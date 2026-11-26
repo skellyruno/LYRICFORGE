@@ -1,11 +1,10 @@
-"""Failure injection for shared storage and consolidated render paths."""
+"""Failure-injection regressions for shared persistent storage."""
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import io
 import json
 from pathlib import Path
 import threading
-import time
 
 import pytest
 from fastapi import HTTPException, UploadFile
@@ -23,14 +22,14 @@ def test_atomic_json_writers_use_distinct_staging_files(tmp_path, monkeypatch):
     rendezvous = threading.Barrier(workers)
     observed = []
     original = Path.replace
+
     def synchronized_replace(self, destination):
         if destination == target:
-            # Only synchronize each writer's first attempt. A sharing violation
-            # must be allowed to retry after the other writers have finished.
             if self not in observed:
                 observed.append(self)
                 rendezvous.wait(timeout=5)
         return original(self, destination)
+
     monkeypatch.setattr(Path, "replace", synchronized_replace)
     with ThreadPoolExecutor(max_workers=workers) as pool:
         list(pool.map(lambda i: server.save_project(tmp_path, {"value": i, "text": "lyric é"}), range(workers)))
@@ -43,8 +42,10 @@ def test_atomic_json_failure_preserves_old_data(tmp_path, monkeypatch):
     target = tmp_path / "project.json"
     perf.atomic_write_json(target, {"lyrics": "original"})
     original = target.read_bytes()
+
     def reject(self, destination):
         raise OSError("simulated publication failure")
+
     monkeypatch.setattr(Path, "replace", reject)
     with pytest.raises(OSError, match="publication failure"):
         server.save_project(tmp_path, {"lyrics": "new"})
@@ -66,6 +67,7 @@ def test_rejected_upload_preserves_existing_file(tmp_path, payload, status):
 def test_interrupted_upload_cleans_staging(tmp_path):
     target = tmp_path / "song.wav"
     target.write_bytes(b"original")
+
     class BrokenStream:
         calls = 0
         async def read(self, size):
@@ -73,6 +75,7 @@ def test_interrupted_upload_cleans_staging(tmp_path):
             if self.calls == 1:
                 return b"partial"
             raise OSError("connection interrupted")
+
     with pytest.raises(OSError, match="connection interrupted"):
         asyncio.run(server.save_upload(BrokenStream(), target))
     assert target.read_bytes() == b"original"
@@ -118,9 +121,11 @@ def test_brand_asset_copy_failure_preserves_old_media(tmp_path, monkeypatch):
     new = tmp_path / "replacement.mp3"
     new.write_bytes(b"replacement")
     monkeypatch.setattr(server.clips, "probe_media", lambda _: {"has_audio": True})
+
     def failed_copy(source, target):
         Path(target).write_bytes(b"incomplete copy")
         raise OSError("disk full")
+
     original_copy = server.shutil.copy2
     monkeypatch.setattr(server.shutil, "copy2", failed_copy)
     with pytest.raises(OSError, match="disk full"):
@@ -163,10 +168,12 @@ def test_locked_old_background_does_not_break_published_replacement(tmp_path, mo
     new = tmp_path / "replacement.png"
     Image.new("RGB", (128, 72), "blue").save(new)
     original_unlink = Path.unlink
+
     def locked(self, *args, **kwargs):
         if self == old:
             raise PermissionError("in use")
         return original_unlink(self, *args, **kwargs)
+
     monkeypatch.setattr(Path, "unlink", locked)
     result = server.import_desktop_background_file(pid, new)
     assert old.is_file()
@@ -211,6 +218,7 @@ def test_malformed_broll_index_cannot_delete_unrelated_file(tmp_path, monkeypatc
 
 
 def test_failed_parent_releases_child_job(monkeypatch):
+    import time
     work = {"parent": {"status": "rendering"},
             "child": {"parent": "parent", "status": "rendering"},
             "unrelated": {"status": "rendering"}}
@@ -218,6 +226,14 @@ def test_failed_parent_releases_child_job(monkeypatch):
     server.fail_job("parent", RuntimeError("encoder failed"), time.monotonic())
     assert work["parent"]["status"] == work["child"]["status"] == "error"
     assert work["unrelated"]["status"] == "rendering"
+
+
+def test_retire_background_never_unlinks_unrelated_project_files(tmp_path):
+    for filename in ("project.json", "song.mp4", "notes.txt"):
+        asset = tmp_path / filename
+        asset.write_bytes(b"preserve me")
+        server.retire_background(tmp_path, filename)
+        assert asset.read_bytes() == b"preserve me"
 
 
 @pytest.mark.parametrize("winerror", [5, 32, 33])

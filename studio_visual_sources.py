@@ -1,5 +1,7 @@
-"""Optional public-domain / CC0 illustrative visuals for the local director.
-Only short keyword queries are sent, never audio, files or full transcripts.
+"""Optional public-domain / CC0 illustrative visuals for the local scene director.
+
+Only short text queries are sent, never audio, files or full transcripts. Unknown
+licenses, redirects, oversized media and arbitrary hosts are rejected.
 """
 from __future__ import annotations
 
@@ -73,6 +75,7 @@ def keywords(text):
 def query_for(scene):
     text = ' '.join(str(c.get('text', '')) for c in scene.get('captions', []))
     words = keywords(text)
+    # A few keywords, not a complete line/verse or any media payload.
     return ' '.join(words[:3])[:80] if len(words) >= 2 else ''
 
 
@@ -169,7 +172,7 @@ def fill_missing(plan, folder: Path, allow_network=False, check_cancel=lambda:No
     """Fill missing shots, preferring exact query cache. Network failures fall back to cards."""
     if folder.is_symlink():
         raise ValueError('Linked asset folder')
-    pending=[s for s in plan['scenes'] if s['type']=='big_text' and not s.get('asset')]
+    pending=[s for s in plan['scenes'] if s['type'] in ('big_text','visualizer') and not s.get('asset')]
     searched={}; used=set(); fetched=0; reused=0; failed=0; count=0
     for i,scene in enumerate(pending):
         check_cancel()
@@ -182,6 +185,7 @@ def fill_missing(plan, folder: Path, allow_network=False, check_cancel=lambda:No
         for key,meta in index.items():
             if not re.fullmatch(r'[a-f0-9]{32}\.jpg',key) or not isinstance(meta,dict):
                 continue
+            if meta.get('disabled'): continue
             source=meta.get('source')
             if (isinstance(source,dict) and source.get('query')==query and source.get('provider')=='Wikimedia Commons' and
                     str(source.get('license','')).casefold() in LICENSES and trusted_url(source.get('page',''),'commons.wikimedia.org') and
