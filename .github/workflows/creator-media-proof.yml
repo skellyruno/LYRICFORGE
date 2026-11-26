@@ -1,0 +1,60 @@
+name: Creator / explicit neural narration audition
+on:
+  pull_request:
+    paths:
+      - 'studio_voice_audition.py'
+      - '.github/workflows/creator-media-proof.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: creator-voice-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  audition:
+    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'feature/creator-consolidated-20261126'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Install optional audition runtime
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y ffmpeg libespeak-ng1
+          python -m pip install 'kokoro-onnx==0.4.9'
+      - uses: actions/cache@v4
+        with:
+          path: .voice-model-cache
+          key: kokoro-v1.0-fp32-beb0d184-voices-bca610b8
+      - name: Fetch pinned full-precision model and voice bundle once
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .voice-model-cache
+          cd .voice-model-cache
+          base=https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1
+          printf '%s  %s\n' beb0d1848dee9a49da392cc3df26958d46cfa35d321edf434f52949153f0df3a kokoro-v1.0.onnx bca610b8308e8d99f32e6fe4197e7ec01679264efed0cac9140fe9c29f1fbf7d voices-v1.0.bin > SHA256SUMS
+          for file in kokoro-v1.0.onnx voices-v1.0.bin; do
+            if ! grep "  $file$" SHA256SUMS | sha256sum -c -; then
+              curl --fail --location --retry 2 --max-time 180 "$base/$file" -o "$file.tmp"
+              mv "$file.tmp" "$file"
+            fi
+          done
+          sha256sum -c SHA256SUMS
+      - name: Synthesize actual three-voice listening proof
+        env:
+          OMP_NUM_THREADS: '2'
+          OPENBLAS_NUM_THREADS: '1'
+          MKL_NUM_THREADS: '1'
+        run: |
+          python studio_voice_audition.py .voice-model-cache/kokoro-v1.0.onnx .voice-model-cache/voices-v1.0.bin voice-audition
+          git rev-parse HEAD > voice-audition/producer-revision.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SkellyMotion-Neural-Voice-Audition
+          path: voice-audition/
+          retention-days: 14
+          if-no-files-found: error

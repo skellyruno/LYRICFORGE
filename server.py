@@ -4599,7 +4599,7 @@ def run_creator(project_id,job_id,body,script,voice):
             data.update(status='editor',duration=result['duration'],lines=lines,original_words=[w for line in lines for w in line['words']],creator_metadata={k:v for k,v in result.items() if k!='lines'},creator_cues=[{'id':r['id'],'text':r['text'],'chapter_title':r['chapter_title'],'visual_hint':r['visual_hint'],**({'source_url':r['source_url']} if r.get('source_url') else {})} for r in result['lines']])
             save_project(p,data)
         if body.auto_render:
-            _,settings,plan=prepare_director(project_id,DirectorRequest(preset='doc' if body.production_mode=='research' else 'plugin',brand=body.product,preview=body.preview,output_format=body.format,cinematic_finish=True,guided_replay=True,editorial_style='reference',visual_theme=body.visual_theme,skell_terminology=body.skell_terminology,caption_style='clean',caption_scale=.85,transition_style='cut',transition_seconds=.24,sound_design=body.sound_design,title_motion=body.title_motion,title_style=body.title_style))
+            _,settings,plan=prepare_director(project_id,DirectorRequest(preset='doc' if body.production_mode=='research' else 'plugin',brand=body.product,preview=body.preview,output_format=body.format,cinematic_finish=True,guided_replay=True,editorial_style='reference',visual_theme=body.visual_theme,skell_terminology=body.skell_terminology,caption_style='clean',caption_scale=.85,transition_style='auto',transition_seconds=.28,sound_design=body.sound_design,title_motion=body.title_motion,title_style=body.title_style))
             run_director(project_id,job_id,plan,settings,body.preview)
             with job_lock: jobs[job_id]['project_id']=project_id
         else:

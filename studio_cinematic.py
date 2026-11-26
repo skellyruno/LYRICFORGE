@@ -142,13 +142,12 @@ def crossfade_clips(clips, scenes, fps, scratch, encode, check_cancel, duration,
         # Auto uses a restrained editorial dissolve; only explicitly dynamic
         # B-roll receives a directional transition.
         current=scenes[i];previous=scenes[i-1]
-        dynamic=(current['type']==previous['type']=='broll' and
-                 float(current.get('features',{}).get('motion',0) or 0)>.12)
-        mode={'dissolve':'fade','slide':'slideleft','wipe':'wipeleft','auto':'slideleft' if dynamic else 'fade'}.get(style,'fade')
-        graph=(f'[0:v]trim=end_frame=1,setpts=PTS-STARTPTS,fps={fps},tpad=stop_mode=clone:stop_duration={d+2/fps:.8f},format=yuv444p,setsar=1,fps={fps},settb=1/{fps}[a];'
+        from studio_shot_motion import transition_mode
+        mode=transition_mode(previous,current,style)
+        graph=(f'[0:v]trim=end_frame=1,setpts=PTS-STARTPTS,fps={fps},tpad=stop_mode=clone:stop={n+2},format=yuv444p,setsar=1,fps={fps},settb=1/{fps}[a];'
                f'[1:v]setpts=PTS-STARTPTS,format=yuv444p,setsar=1,fps={fps},settb=1/{fps}[b];'
                f'[a][b]xfade=transition={mode}:duration={d:.8f}:offset=0,format=yuv420p[out]')
-        args=['ffmpeg','-hide_banner','-loglevel','error','-nostdin','-y','-progress','pipe:1','-nostats','-filter_complex_threads','1','-ss',f'{prev:.8f}','-i',str(clips[i-1]),'-i',str(clips[i]),'-filter_complex',graph,'-map','[out]','-frames:v',str(scenes[i]['frames']),'-an',*perf.director_encode_args(performance_mode,18),str(out)]
+        args=['ffmpeg','-hide_banner','-loglevel','error','-nostdin','-y','-progress','pipe:1','-nostats','-filter_complex_threads','1','-threads','1','-ss',f'{prev:.8f}','-i',str(clips[i-1]),'-threads','1','-i',str(clips[i]),'-filter_complex',graph,'-map','[out]','-frames:v',str(scenes[i]['frames']),'-an',*perf.director_encode_args(performance_mode,18),str(out)]
         encode(args,scratch,length,f'director_crossfade_{i}',80+int(5*i/len(clips)),1)
         if not out.is_file() or out.stat().st_size<1024:raise RuntimeError('Crossfade produced no video')
         result.append(out);count+=1

@@ -9,7 +9,7 @@ def main():
     phrases=request['phrases'];voice=request['voice'];speed=float(request['speed'])
     if not isinstance(phrases,list) or not 1<=len(phrases)<=500 or any(not isinstance(t,str) or not 1<=len(t)<=1800 for t in phrases):
         raise ValueError('Invalid phrase list')
-    if voice not in ('am_michael','am_adam','af_sarah') or not .75<=speed<=1.25:
+    if voice not in ('am_michael','am_adam','af_sarah') or not .70<=speed<=1.30:
         raise ValueError('Invalid local voice or speed')
     root=Path(sys.argv[3])
     if not root.is_dir() or root.is_symlink():raise ValueError('Invalid output directory')

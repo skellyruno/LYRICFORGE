@@ -36,7 +36,9 @@ def validate(root, sealed=True):
             or not 24 <= count <= 720 or samples != count * (rate//fps) or (w,h) not in dimensions):
         raise ValueError('Invalid capture clock or dimensions')
     frame_names=[f'frame_{i:06}.png' for i in range(count)]
-    names=['capture.json','editor.csv','dry.wav','processed.wav']+(['sidechain.wav'] if spacer else [])+frame_names
+    has_controls=spacer and meta.get('control_trace') is True
+    if has_controls and count!=384:raise ValueError('Unexpected Spacer control trace duration')
+    names=['capture.json','editor.csv','dry.wav','processed.wav']+(['sidechain.wav'] if spacer else [])+(['controls.csv'] if has_controls else [])+frame_names
     files = {name: safe(root,name,4*1024*1024 if name.endswith('.png') else 32*1024*1024) for name in names}
     if sum(p.stat().st_size for p in files.values()) > (400 if w>=960 else 200)*1024*1024:
         raise ValueError('Editor capture too large')
@@ -59,6 +61,14 @@ def validate(root, sealed=True):
         side=pcm(files['sidechain.wav'],rate,samples)
         if float(np.max(np.abs(side)))<.001 or np.array_equal(dry,wet):
             raise ValueError('Spacer capture needs active sidechain and distinct processed audio')
+    controls=[]
+    if has_controls:
+        controls=table(files['controls.csv'],('frame','sample','control','value'),4)
+        expected=[(192,'power',0.),(240,'power',1.),(288,'listen',1.),(336,'listen',0.)]
+        if len(controls)!=len(expected):raise ValueError('Incomplete Spacer control trace')
+        for row,(frame,control,value) in zip(controls,expected):
+            if int(row['frame'])!=frame or int(row['sample'])!=frame*(rate//fps) or row['control']!=control or float(row['value'])!=value:
+                raise ValueError('Spacer control trace clock or readback mismatch')
     rows=table(files['editor.csv'],FIELDS,count)
     if len(rows)!=count: raise ValueError('Incomplete editor trace')
     n=rate//fps;values=[];max_meter_error=0.
@@ -77,7 +87,7 @@ def validate(root, sealed=True):
     bounds=[min(values),max(values)]
     return {'meta':meta,'hashes':hashes,'distinct_frames':len(pixels),'parameter_range':bounds,
             ('amount_range' if spacer else 'gain_range'):bounds,
-            'max_meter_error':max_meter_error,'duration_seconds':samples/rate}
+            'max_meter_error':max_meter_error,'duration_seconds':samples/rate,'controls':controls}
 
 
 def seal(root):
@@ -103,6 +113,7 @@ def render(root,out):
     references={}
     pairs=[('dry.wav','dry_reference.wav'),('processed.wav','processed_reference.wav')]
     if meta['product']=='Skell Spacer':pairs.append(('sidechain.wav','sidechain_reference.wav'))
+    if meta.get('control_trace') is True:pairs.append(('controls.csv','controls.csv'))
     for source,name in pairs:
         target=out/name
         shutil.copyfile(root/source,target)

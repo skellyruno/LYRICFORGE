@@ -19,6 +19,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 import studio_performance as perf
 import studio_theme as theme
+import studio_shot_motion as shot_motion
 import studio_director_intelligence as intel
 import studio_live_diagrams as live
 from studio_effect_visuals import KINDS as EFFECT_VISUALS
@@ -26,7 +27,7 @@ import studio_cinematic as cinema
 import studio_walkthrough as walk
 from studio_clips import probe_media
 
-VERSION = 18
+VERSION = 19
 IMAGE_EXT = {'.png', '.jpg', '.jpeg', '.webp'}
 VIDEO_EXT = {'.mp4', '.mov', '.mkv', '.m4v', '.webm'}
 PRESETS = {
@@ -181,6 +182,8 @@ def make_plan(lines: list[dict], duration: float, assets: list[dict], preset: st
             if score(chosen)[0] == 0 and (preset == "doc" or (preset == "plugin" and diagrams and intel.diagram_kind(text))):
                 pool = []
             if cinematic and preset=='plugin' and diagrams and re.search(r'\b(?:conceptually|illustration|conceptual|simulation)\b',(text+' '+hint).lower()) and intel.diagram_kind(text+' '+hint): pool=[]
+            if reference and preset=='plugin' and diagrams and chosen.get('role')!='plugin_recording' and shot_motion.prefer_diagram(text,hint,intel.diagram_kind(text+' '+hint)):
+                pool=[]
             if pool:
                 kind = 'ui_demo' if preset == 'plugin' else 'document' if chosen['kind'] == 'image' and terms(chosen['name']+' '+chosen.get('description','')) & {'article','document','source','comment','forum'} else 'broll'
                 scene.update(type=kind, asset=chosen['id'], asset_name=chosen['name'],
@@ -226,6 +229,8 @@ def make_plan(lines: list[dict], duration: float, assets: list[dict], preset: st
         cursor = end
     for scene in scenes:
         scene.update(visual_theme=visual_theme,skell_terminology=bool(skell_terminology))
+        if reference and scene.get('camera') in ('push','pull') and scene['type']=='broll':
+            scene['motion_curve']='eased'
     plan={'version': VERSION, 'preset': preset, 'visual_theme':visual_theme,'skell_terminology':bool(skell_terminology),'fps': fps, 'duration': duration, 'frames': total,
             'scenes': scenes, 'director': 'local', 'editorial_style':editorial_style, 'audio_start':audio_start, 'silent':silent,
             'cinematic_finish':cinematic,'title_motion':bool(cinematic and title_motion),'crossfades':bool(cinematic and transitions),'caption_repairs':repairs, 'warnings': ([] if assets or preset=='music' else ['No visual assets supplied: transcript-based text cards will be used.'])}
@@ -489,9 +494,12 @@ def render(plan: dict, audio: Path, assets_folder: Path, work: Path, output: Pat
                     # Smooth bounded camera motion derived from the reference
                     # engine's push/pull camera; UI shots remain uncropped.
                     if scene['camera'] in ('push','pull'):
-                        expr=f'0.10*on/{max(1,scene["frames"]-1)}'
-                        z='1+'+expr if scene['camera']=='push' else '1.10-'+expr
-                        vf=f"scale={w*2}:{h*2},zoompan=z='{z}':x='iw/2-iw/zoom/2':y='ih/2-ih/zoom/2':d={scene['frames']}:s={w}x{h}:fps={fps},setsar=1"
+                        if scene.get('motion_curve')=='eased':
+                            vf=shot_motion.camera_filter(w,h,fps,scene['frames'],scene['camera'],scene.get('features',{}).get('focus',[.5,.5]))
+                        else:
+                            expr=f'0.10*on/{max(1,scene["frames"]-1)}'
+                            z='1+'+expr if scene['camera']=='push' else '1.10-'+expr
+                            vf=f"scale={w*2}:{h*2},zoompan=z='{z}':x='iw/2-iw/zoom/2':y='ih/2-ih/zoom/2':d={scene['frames']}:s={w}x{h}:fps={fps},setsar=1"
                     else:
                         # Blend a static image/overlay once, then repeat that
                         # composite. Time-dependent captions and fades follow.
