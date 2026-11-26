@@ -49,6 +49,8 @@ import studio_director_intelligence as director_intel
 import studio_visual_sources as visual_sources
 import studio_walkthrough as walk
 import studio_creator as creator
+import studio_voice as voice_studio
+import studio_cinematic as cinema_finish
 
 QUICK_TOOLS = {**quick_lib.QUICK, **quick2_lib.MORE, **music_lib.TOOLS}  # every one-command tool, by id
 DEMO_KINDS = ("ab", "viz", "mv", "anim", "stream", "gif", "enhance", "lower", "speed", "trim", "shrink", "sheet", "quote", "fade", "extract", "loop", "frame", "swap") + tuple(QUICK_TOOLS)  # one-off videos: stored, but not part of the song library
@@ -3955,9 +3957,9 @@ _filter_cache: dict[str, set[str] | None] = {}
 
 
 def parse_ffmpeg_filters(listing: str) -> set[str]:
-    """Accept both legacy flags and FFmpeg 9's flagless filter rows, not the legend."""
+    """Accept legacy three-flag, FFmpeg 9 two-flag and flagless filter rows."""
     return {match.group(1) for line in listing.splitlines()
-            if (match := re.match(r"^\s*(?:[A-Z.]{3}\s+)?([A-Za-z0-9_]+)\s+[AVN|]+->[AVN|]+(?:\s|$)", line))}
+            if (match := re.match(r"^\s*(?:[A-Z.]{2,3}\s+)?([A-Za-z0-9_]+)\s+[AVN|]+->[AVN|]+(?:\s|$)", line))}
 
 
 def available_filters() -> set[str] | None:
@@ -4378,6 +4380,7 @@ class DirectorAssetEdit(BaseModel):
 
 class DirectorRequest(BaseModel):
     title_motion: bool = False
+    title_style: str = "slide"
     guided_replay: bool = False
     transition_style: str = "dissolve"
     transition_seconds: float = Field(default=.32, ge=.12, le=.8)
@@ -4411,18 +4414,23 @@ class CreatorBrief(BaseModel):
     brief: str = Field(default="",max_length=1000)
     facts: list[str] = Field(default_factory=list,max_length=100)
     target_seconds: int = Field(default=90,ge=15,le=1200)
+    story: str = "tutorial"
 
 
 class CreatorRequest(CreatorBrief):
     chapters: list[dict] = Field(default_factory=list,max_length=120)
     voice: str = "auto"
     speed: float = Field(default=1.,ge=.8,le=1.2)
+    delivery: str = "neutral"
+    pronunciation: dict[str,str] = Field(default_factory=dict,max_length=40)
+    chapter_starts: list[float] = Field(default_factory=list,max_length=120)
     auto_render: bool = True
     preview: bool = False
     format: str = "youtube"
     visual_roles: list[dict] = Field(default_factory=list,max_length=40)
     sound_design: bool = True
     title_motion: bool = True
+    title_style: str = "adaptive"
 
 
 @app.get("/api/creator/voices")
@@ -4434,6 +4442,8 @@ class CreatorVoicePreview(BaseModel):
     text: str = Field(min_length=1,max_length=200)
     voice: str = "auto"
     speed: float = Field(default=1.,ge=.8,le=1.2)
+    delivery: str = "neutral"
+    pronunciation: dict[str,str] = Field(default_factory=dict,max_length=40)
 
 
 @app.post("/api/creator/voice-preview")
@@ -4442,7 +4452,7 @@ def creator_voice_preview(body: CreatorVoicePreview):
         voice=creator.resolve_voice(body.voice)
         with tempfile.TemporaryDirectory(prefix='skelly-voice-') as tmp:
             path=Path(tmp)/'sample.wav'
-            creator.narration([{'title':'Voice preview','narration':body.text}],path,voice,body.speed)
+            creator.narration([{'title':'Voice preview','narration':body.text}],path,voice,body.speed,delivery=body.delivery,pronunciation=body.pronunciation)
             if path.stat().st_size>8*1024*1024:raise ValueError('Voice preview too long')
             return Response(path.read_bytes(),media_type='audio/wav',headers={'X-Skelly-Voice':voice,'Cache-Control':'no-store'})
     except (ValueError,RuntimeError,OSError,TimeoutError) as exc: raise HTTPException(400,str(exc)[:300]) from exc
@@ -4450,18 +4460,28 @@ def creator_voice_preview(body: CreatorVoicePreview):
 
 @app.post("/api/creator/script")
 def creator_script(body: CreatorBrief):
-    try: return creator.draft_script(body.product,body.brief,body.facts,body.target_seconds)
+    try: return creator.draft_script(body.product,body.brief,body.facts,body.target_seconds,body.story)
     except ValueError as exc: raise HTTPException(400,str(exc)) from exc
 
 
 @app.post("/api/creator/create")
-async def create_video_request(payload: str = Form(...), files: list[UploadFile] = File(default=[])):
+async def create_video_request(payload: str = Form(...), files: list[UploadFile] = File(default=[]), recording: UploadFile | None = None):
     # No arbitrary local paths or commands in the HTTP contract. Assets are uploaded.
     try:
         if len(payload)>256*1024: raise ValueError('Creator request exceeds 256 KiB')
         body=CreatorRequest.model_validate_json(payload)
-        voice=creator.resolve_voice(body.voice)
-        script=creator.validate_script(body.chapters) if body.chapters else creator.draft_script(body.product,body.brief,body.facts,body.target_seconds)['chapters']
+        if body.title_style not in cinema_finish.TITLE_STYLES:raise ValueError("Unknown title style")
+        voice_studio.delivery(body.delivery,body.speed)
+        voice_studio.dictionary(body.pronunciation)
+        if body.voice=='recorded':
+            if recording is None:raise ValueError('Choose or record your narration first')
+            if not body.chapters:raise ValueError('Provide the script you actually recorded')
+            if Path(recording.filename or '').suffix.lower() not in {'.wav','.mp3','.m4a','.aac','.flac','.ogg','.opus','.webm','.mp4'}:raise ValueError('Unsupported recording format')
+            voice='recorded'
+        else:
+            if recording is not None:raise ValueError('Select recorded narration to use the uploaded voice')
+            voice=creator.resolve_voice(body.voice)
+        script=creator.validate_script(body.chapters) if body.chapters else creator.draft_script(body.product,body.brief,body.facts,body.target_seconds,body.story)['chapters']
         if body.format not in director_intel.FORMATS or body.format=='canvas': raise ValueError('Select a narrated video format')
         if len(files)>40 or len(body.visual_roles)>len(files): raise ValueError('At most 40 visual uploads; metadata must match files')
         for meta in body.visual_roles:
@@ -4473,6 +4493,8 @@ async def create_video_request(payload: str = Form(...), files: list[UploadFile]
     data={'id':project_id,'title':body.product.strip(),'duration':0.,'status':'creator_pending','save_state':'draft','settings':settings,'lines':[],'audio_file':'voice.wav','creator_script':script,'creator_brief':body.brief}
     save_project(p,data)
     try:
+        if recording is not None:
+            await save_upload(recording,p/'narration_source',150*1024*1024)
         for i,file in enumerate(files):
             meta=body.visual_roles[i] if i<len(body.visual_roles) else {}
             role=str(meta.get('role','auto'));group=str(meta.get('group',''));order=int(meta.get('order',0))
@@ -4491,7 +4513,10 @@ def run_creator(project_id,job_id,body,script,voice):
     try:
         def progress(i,n):
             with job_lock: jobs[job_id].update(stage='narration',progress=int((4 if body.auto_render else 100)*i/max(n,1)))
-        result=creator.narration(script,p/'voice.wav',voice,body.speed,lambda:check_cancel(job_id),progress)
+        if voice=='recorded':
+            result=voice_studio.prepare_recording(p/'narration_source',p/'voice.wav',script,body.chapter_starts,creator.run_checked,creator.split_phrases,lambda:check_cancel(job_id))
+        else:
+            result=creator.narration(script,p/'voice.wav',voice,body.speed,lambda:check_cancel(job_id),progress,delivery=body.delivery,pronunciation=body.pronunciation)
         check_cancel(job_id)
         lines=validate_lines(result['lines'],result['duration'])
         with project_write_lock:
@@ -4499,7 +4524,7 @@ def run_creator(project_id,job_id,body,script,voice):
             data.update(status='editor',duration=result['duration'],lines=lines,original_words=[w for line in lines for w in line['words']],creator_metadata={k:v for k,v in result.items() if k!='lines'},creator_cues=[{'id':r['id'],'text':r['text'],'chapter_title':r['chapter_title'],'visual_hint':r['visual_hint']} for r in result['lines']])
             save_project(p,data)
         if body.auto_render:
-            _,settings,plan=prepare_director(project_id,DirectorRequest(preset='plugin',brand=body.product,preview=body.preview,output_format=body.format,cinematic_finish=True,guided_replay=True,transition_style='auto',transition_seconds=.44,sound_design=body.sound_design,title_motion=body.title_motion))
+            _,settings,plan=prepare_director(project_id,DirectorRequest(preset='plugin',brand=body.product,preview=body.preview,output_format=body.format,cinematic_finish=True,guided_replay=True,transition_style='auto',transition_seconds=.44,sound_design=body.sound_design,title_motion=body.title_motion,title_style=body.title_style))
             run_director(project_id,job_id,plan,settings,body.preview)
             with job_lock: jobs[job_id]['project_id']=project_id
         else:
@@ -4618,6 +4643,7 @@ def prepare_director(project_id: str, body: DirectorRequest):
         raise HTTPException(409, "Finish narration or transcription before planning scenes")
     if data.get("kind") == "clip_source":
         raise HTTPException(400, "Open a voiceover or song project in the lyric editor")
+    if body.title_style not in cinema_finish.TITLE_STYLES:raise HTTPException(400,"Unknown title style")
     if body.transition_style not in walk.TRANSITIONS or body.caption_style not in walk.CAPTIONS or body.voice_style not in walk.VOICE:
         raise HTTPException(400,'Unknown Director finishing option')
     if body.output_format not in director_intel.FORMATS:
@@ -4650,7 +4676,7 @@ def prepare_director(project_id: str, body: DirectorRequest):
         for scene in plan['scenes']:
             if scene['type']=='diagram' and scene['text']=='Compression':
                 scene['compressor_demo']=body.compressor_demo.model_dump()
-        plan.update(transition_style=body.transition_style,transition_seconds=body.transition_seconds,caption_style=body.caption_style,caption_scale=body.caption_scale,voice_style=body.voice_style,music_gain=body.music_gain,cue_gain=body.cue_gain)
+        plan.update(title_style=body.title_style,transition_style=body.transition_style,transition_seconds=body.transition_seconds,caption_style=body.caption_style,caption_scale=body.caption_scale,voice_style=body.voice_style,music_gain=body.music_gain,cue_gain=body.cue_gain)
         plan['sound_design']=body.sound_design and body.preset!='music'
         plan['local_ai']=body.local_ai
         plan['semantic_vision']=body.semantic_vision

@@ -60,6 +60,15 @@ def build_parser() -> argparse.ArgumentParser:
     create.add_argument('manifest',help='JSON brief, approved script and local assets')
     create.add_argument('--out',required=True,help='new output folder (never overwrite existing output)')
     create.add_argument('--draft-only',action='store_true',help='synthesize and save an editable project without rendering')
+    compare=sub.add_parser('compare',help='render a real before/after audio demonstration')
+    compare.add_argument('before');compare.add_argument('after');compare.add_argument('--out',required=True)
+    compare.add_argument('--title',default='Before and after');compare.add_argument('--label-before',default='DRY');compare.add_argument('--label-after',default='PROCESSED')
+    compare.add_argument('--step',type=float,default=4);compare.add_argument('--rounds',type=int,default=1);compare.add_argument('--start',type=float,default=0.)
+    compare.add_argument('--mode',choices=['repeat','toggle'],default='repeat');compare.add_argument('--no-match',action='store_true')
+    compare.add_argument('--resolution',choices=['720p','1080p'],default='1080p');compare.add_argument('--aspect',choices=['landscape','portrait','square'],default='landscape')
+    demo=sub.add_parser('demo',help='validate and render a measured SkellCore capture')
+    demo.add_argument('action',choices=['seal','verify','render'])
+    demo.add_argument('capture',type=Path);demo.add_argument('--out',type=Path)
     return parser
 
 
@@ -87,6 +96,15 @@ def build_options(args: argparse.Namespace, preset: dict | None = None) -> dict:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.command=='demo':
+        import studio_demo
+        cmd=[args.action,str(args.capture)]
+        if args.out is not None:cmd+=['--out',str(args.out)]
+        return studio_demo.main(cmd)
+    if args.command=='compare':
+        try:return compare_from_files(args)
+        except (ValueError,RuntimeError,OSError) as exc:
+            print(f'Error: {exc}',file=sys.stderr);return 1
     if args.command=='create':
         try:return create_from_manifest(Path(args.manifest).expanduser(),Path(args.out).expanduser(),args.draft_only)
         except (ValueError,RuntimeError,OSError) as exc:
@@ -144,6 +162,7 @@ def create_from_manifest(manifest: Path, out: Path, draft_only=False):
     raw=json.loads(manifest.read_text(encoding='utf-8'))
     if not isinstance(raw,dict):raise ValueError('Manifest must be a JSON object')
     assets=raw.pop('assets',[])
+    narration_source=raw.pop('recording',None)
     if not isinstance(assets,list) or len(assets)>40:raise ValueError('Manifest supports up to 40 assets')
     if out.exists():raise ValueError('Output folder already exists; choose a fresh output path')
     payload=dict(raw);payload['visual_roles']=[]
@@ -158,7 +177,13 @@ def create_from_manifest(manifest: Path, out: Path, draft_only=False):
             if size>80*1024*1024:raise ValueError('Asset exceeds 80 MiB: '+source.name)
             files.append(UploadFile(stack.enter_context(source.open('rb')),filename=source.name,size=size))
             payload['visual_roles'].append({k:v for k,v in item.items() if k in ('role','group','order','description','focus_x','focus_y','trim_start','trim_end')})
-        try:result=asyncio.run(server.create_video_request(payload=json.dumps(payload),files=files))
+        recording=None
+        if narration_source is not None:
+            if not isinstance(narration_source,str):raise ValueError('Recording must be a local audio path')
+            source=(manifest.parent/narration_source).resolve()
+            if not source.is_file() or source.stat().st_size>150*1024*1024:raise ValueError('Recording missing or exceeds 150 MiB')
+            recording=UploadFile(stack.enter_context(source.open('rb')),filename=source.name,size=source.stat().st_size)
+        try:result=asyncio.run(server.create_video_request(payload=json.dumps(payload),files=files,recording=recording))
         except HTTPException as exc:raise ValueError(str(exc.detail)) from exc
     pid=result['project_id'];job_id=result['job_id'];p=server.project_dir(pid);print('PROJECT',pid,'VOICE',result['voice_provider'],flush=True)
     last=None
@@ -178,6 +203,43 @@ def create_from_manifest(manifest: Path, out: Path, draft_only=False):
     (out/'script.json').write_text(json.dumps(server.read_project(pid).get('creator_script',[]),indent=2,ensure_ascii=False),encoding='utf-8')
     (out/'job-result.json').write_text(json.dumps(job,indent=2,ensure_ascii=False),encoding='utf-8')
     print('OUTPUT',out,flush=True);return 0
+
+
+def compare_from_files(args):
+    """Agent-safe explicit local audio comparison, no generated or inferred plugin state."""
+    import asyncio,hashlib,json,math,shutil
+    from fastapi import UploadFile,HTTPException
+    import server
+    from contextlib import ExitStack
+    paths=[Path(args.before).expanduser().resolve(),Path(args.after).expanduser().resolve()]
+    out=Path(args.out).expanduser().resolve()
+    if out.exists():raise ValueError('Output folder already exists; choose a fresh output path')
+    if not 2<=args.step<=10 or not 1<=args.rounds<=4 or not math.isfinite(args.start) or args.start<0:raise ValueError('Comparison requires 2–10 second excerpts, 1–4 rounds, and a nonnegative start')
+    for p in paths:
+        if not p.is_file() or p.stat().st_size>150*1024*1024:raise ValueError('Comparison file missing or exceeds 150 MiB')
+    if paths[0]==paths[1]:raise ValueError('Select distinct before and after files')
+    infos=[server.clips.probe_media(p) for p in paths]
+    length=server.viz_lib.excerpt_length(args.mode,args.step,args.rounds)
+    if not all(i['has_audio'] and i['duration']>=args.start+length+.2 for i in infos):raise ValueError('Both audio files must cover the requested excerpt')
+    with ExitStack() as stack:
+        uploads=[UploadFile(stack.enter_context(p.open('rb')),filename=p.name,size=p.stat().st_size) for p in paths]
+        try:result=asyncio.run(server.create_before_after(*uploads,mode=args.mode,step=args.step,rounds=args.rounds,aspect=args.aspect,resolution=args.resolution,match_loudness=not args.no_match,title=args.title,label_before=args.label_before,label_after=args.label_after,start=str(args.start),watermark=False,endcard=False))
+        except HTTPException as exc:raise ValueError(str(exc.detail)) from exc
+    pid=result['id'];jid=result['job_id'];last=None
+    try:
+        while True:
+            job=server.get_job(jid);state=job.get('stage'),job.get('progress')
+            if state!=last:print(*state,flush=True);last=state
+            if job['status']!='rendering':break
+            time.sleep(.5)
+    except KeyboardInterrupt:
+        server.cancel_job(jid);print('Cancellation requested; project retained:',pid,file=sys.stderr);return 130
+    if job['status']!='done':raise RuntimeError(f"{job.get('error',job['status'])}; retained project {pid}")
+    out.mkdir(parents=True,exist_ok=False);p=server.project_dir(pid);shutil.copy2(p/'ab.mp4',out/'comparison.mp4')
+    def digest(path):
+        with path.open('rb') as f:return hashlib.file_digest(f,'sha256').hexdigest()
+    report={'sources':[{'name':x.name,'sha256':digest(x),'duration':i['duration']} for x,i in zip(paths,infos)],'settings':{'mode':args.mode,'step':args.step,'rounds':args.rounds,'start':args.start,'match':not args.no_match},'alignment':'Same requested timestamps; source identity, plugin latency and alignment must be verified by the operator.','result':job['outputs']}
+    (out/'comparison.json').write_text(json.dumps(report,indent=2),encoding='utf-8');print('OUTPUT',out,flush=True);return 0
 
 
 if __name__ == "__main__":

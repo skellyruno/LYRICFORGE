@@ -6,6 +6,7 @@ import json, os, re, shutil, subprocess, tempfile, time, uuid, wave
 from pathlib import Path
 import numpy as np
 import studio_performance as perf
+import studio_voice as vs
 
 MAX_CHAPTERS=120
 MAX_SCRIPT_WORDS=3300
@@ -14,7 +15,7 @@ VOICES={'auto','piper','system','draft'}
 def clean(value, limit):
     return ' '.join(str(value or '').split())[:limit]
 
-def draft_script(product, brief, facts, target_seconds=90):
+def draft_script(product, brief, facts, target_seconds=90, story="tutorial"):
     """No claim generation from a product name or filename. Facts are supplied by the owner."""
     product=clean(product,80);brief=clean(brief,1000)
     if not product: raise ValueError('Enter a plugin or subject name')
@@ -22,19 +23,22 @@ def draft_script(product, brief, facts, target_seconds=90):
     rows=[clean(f,280) for f in facts if isinstance(f,str) and clean(f,280)]
     if not rows: raise ValueError('Add at least one confirmed product fact or supply a script. The creator does not invent features from images.')
     target_seconds=max(15,min(1200,int(target_seconds)))
+    if story not in vs.FORMATS: raise ValueError('Unknown story format')
+    openings={'tutorial':f'Here is a closer look at {product}.','review':f'Let us examine {product}, one documented feature at a time.','advertisement':f'Meet {product}. Here is what to explore.','documentary':f'This is the story of how {product} works, starting with its documented features.'}
+    endings={'tutorial':'Try the controls with your own material, and listen to the result in context.','review':'Compare the sound using the same source and level before drawing a conclusion.','advertisement':'Explore the controls with your own material and decide if they fit your workflow.','documentary':'These are the documented features. The next step is to see and hear them in context.'}
     # Allocate the requested length to real facts rather than artificial silence/repetition.
     budget=round(target_seconds*2.35)
-    chapters=[{'title':product,'narration':f'Here is a closer look at {product}.','visual_hint':product}]
+    chapters=[{'title':product,'narration':openings[story],'visual_hint':product}]
     words=len(chapters[0]['narration'].split())
     for fact in rows:
         if words+len(fact.split())>budget and len(chapters)>1: break
         title=' '.join(fact.split()[:5]).rstrip('.,;:')[:52]
         chapters.append({'title':title,'narration':fact.rstrip('.!?')+'.','visual_hint':fact[:180]})
         words+=len(fact.split())
-    chapters.append({'title':'Try it in context','narration':'Try the controls with your own material, and listen to the result in context.','visual_hint':product+' overview'})
+    chapters.append({'title':'Try it in context','narration':endings[story],'visual_hint':product+' overview'})
     result=validate_script(chapters)
     estimate=round(sum(len(r['narration'].split()) for r in result)/2.35+len(result)*.18,1)
-    return {'product':product,'brief':brief,'chapters':result,'target_seconds':target_seconds,'estimated_seconds':estimate,'origin':'local fact-based draft','warnings':(['Not enough confirmed material for the requested length. Add facts or have an agent supply a longer approved script.'] if estimate<target_seconds*.75 else [])}
+    return {'product':product,'brief':brief,'chapters':result,'target_seconds':target_seconds,'estimated_seconds':estimate,'origin':'local fact-based draft','story':story,'warnings':(['Not enough confirmed material for the requested length. Add facts or have an agent supply a longer approved script.'] if estimate<target_seconds*.75 else [])}
 
 def validate_script(chapters):
     if not isinstance(chapters,list) or not 1<=len(chapters)<=MAX_CHAPTERS: raise ValueError('Script needs 1–120 chapters')
@@ -80,11 +84,11 @@ def run_checked(args, *, input_text=None, check_cancel=lambda:None, timeout=120)
             finally:
                 if proc.poll() is None:proc.kill();proc.wait()
 
-def synthesize_phrase(text, target, voice, speed, check_cancel):
+def synthesize_phrase(text, target, voice, speed, check_cancel, pitch=43):
     if voice=='piper':
         exe=os.environ.get('LYRICFORGE_PIPER_EXE') or shutil.which('piper')
         model=os.environ['LYRICFORGE_PIPER_MODEL']
-        run_checked([exe,'-m',model,'-f',str(target),'--',text],check_cancel=check_cancel)
+        run_checked([exe,'-m',model,'-f',str(target)],input_text=text+'\n',check_cancel=check_cancel)
     elif voice=='system':
         # PowerShell script is fixed. The text and output are paths, never interpolated into code.
         script=target.with_suffix('.ps1');txt=target.with_suffix('.txt');txt.write_text(text,encoding='utf-8-sig')
@@ -92,7 +96,7 @@ def synthesize_phrase(text, target, voice, speed, check_cancel):
         run_checked(['powershell.exe','-NoProfile','-NonInteractive','-File',str(script),str(txt),str(target),str(round((speed-1)*10))],check_cancel=check_cancel)
     else:
         exe=shutil.which('espeak-ng') or shutil.which('espeak')
-        run_checked([exe,'-v','en-us+m3','-s',str(round(150*speed)),'-p','43','-a','95','-w',str(target),'--stdin'],input_text=text,check_cancel=check_cancel)
+        run_checked([exe,'-v','en-us+m3','-s',str(round(150*speed)),'-p',str(pitch),'-a','95','-w',str(target),'--stdin'],input_text=text,check_cancel=check_cancel)
 
 def split_phrases(text):
     """Bound clip text below editor's 300-char limit and keep natural pauses."""
@@ -106,9 +110,9 @@ def split_phrases(text):
         if current:result.append(' '.join(current))
     return result
 
-def narration(chapters, output, voice='auto', speed=1., check_cancel=lambda:None, progress=lambda i,n:None):
+def narration(chapters, output, voice='auto', speed=1., check_cancel=lambda:None, progress=lambda i,n:None, *, delivery='neutral', pronunciation=None):
     chapters=validate_script(chapters);voice=resolve_voice(voice)
-    if not .8<=float(speed)<=1.2:raise ValueError('Narration speed must be 0.8–1.2')
+    speed,phrase_gap,chapter_gap,pitch=vs.delivery(delivery,speed);pronunciation=vs.dictionary(pronunciation or {})
     rate=24000;lines=[];cursor=0;output=Path(output).resolve();output.parent.mkdir(parents=True,exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='creator-',dir=output.parent) as root:
         root=Path(root);staged=root/'voice.wav'
@@ -118,7 +122,7 @@ def narration(chapters, output, voice='auto', speed=1., check_cancel=lambda:None
                 check_cancel();progress(i,len(chapters));phrases=split_phrases(chapter['narration'])
                 for j,phrase in enumerate(phrases):
                     src=root/'phrase.wav';dst=root/'pcm.wav';src.unlink(missing_ok=True);dst.unlink(missing_ok=True)
-                    synthesize_phrase(phrase,src,voice,speed,check_cancel)
+                    synthesize_phrase(vs.spoken(phrase,pronunciation),src,voice,speed,check_cancel,pitch)
                     run_checked(['ffmpeg','-v','error','-nostdin','-y','-i',str(src),'-ac','1','-ar',str(rate),*(['-af',f'atempo={speed:.3f}'] if voice=='piper' and speed!=1. else []),'-c:a','pcm_s16le',str(dst)],check_cancel=check_cancel)
                     with wave.open(str(dst),'rb') as reader:
                         n=reader.getnframes()
@@ -137,6 +141,6 @@ def narration(chapters, output, voice='auto', speed=1., check_cancel=lambda:None
                     if len(lines)>=500:raise ValueError('Narration exceeds 500 editor clips')
                     lines.append({'id':uuid.uuid4().hex[:12],'text':phrase,'start':a,'end':b,'words':words,'chapter_title':chapter['title'],'visual_hint':chapter['visual_hint']})
                     wav.writeframes(pcm);cursor+=n
-                    gap=round(rate*(.12 if j+1<len(phrases) else .23));wav.writeframes(b'\0\0'*gap);cursor+=gap
+                    gap=round(rate*(phrase_gap if j+1<len(phrases) else chapter_gap));wav.writeframes(b'\0\0'*gap);cursor+=gap
         check_cancel();perf.publish_staged_file(staged,output)
-    return {'duration':cursor/rate,'lines':lines,'provider':voice,'word_timing':'estimated within measured phrase audio','warnings':(['Draft synthesizer, not neural narration.'] if voice=='draft' else ['System voice quality depends on installed Windows speech voices.'] if voice=='system' else [])}
+    return {'duration':cursor/rate,'lines':lines,'provider':voice,'delivery':delivery,'word_timing':'estimated within measured phrase audio','warnings':(['Draft synthesizer, not neural narration.'] if voice=='draft' else ['System voice quality depends on installed Windows speech voices.'] if voice=='system' else [])}

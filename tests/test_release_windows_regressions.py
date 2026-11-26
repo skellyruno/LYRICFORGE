@@ -8,13 +8,15 @@ def test_filter_listing_legacy_and_flagless():
   T.. = Timeline support
   ... scale V->V Resize
   TSC split V->N Split
-  ass V->V Render subtitles
+  .. ass V->V Render subtitles
+  TS scale2ref VV->VV Resize
+  .S overlay VV->V Overlay
   abuffer |->A Input
   amix AA->A Mix
   buffersink V->| Output
   junk = Not a filter
 """
-    assert server.parse_ffmpeg_filters(listing) == {"scale", "split", "ass", "abuffer", "amix", "buffersink"}
+    assert server.parse_ffmpeg_filters(listing) == {"scale", "split", "ass", "abuffer", "amix", "buffersink", "scale2ref", "overlay"}
 
 
 def test_remove_staging_retries_only_transient_windows_locks(tmp_path, monkeypatch):

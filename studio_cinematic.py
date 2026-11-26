@@ -9,6 +9,9 @@ import numpy as np
 from studio_walkthrough import replay_hit
 
 
+TITLE_STYLES={"slide","pop","fade","adaptive"}
+
+
 def transition_frames(previous, current, fps, seconds=.32):
     if previous['type']==current['type']=='visualizer': return 0
     return min(round(seconds*fps), previous['frames']//5, current['frames']//5)
@@ -32,7 +35,7 @@ def write_kinetic_ass(plan, width, height, target):
     rows=[f'''[Script Info]\nScriptType: v4.00+\nPlayResX: {width}\nPlayResY: {height}\nWrapStyle: 0\nScaledBorderAndShadow: yes\n[V4+ Styles]\nFormat: Name,Fontname,Fontsize,PrimaryColour,SecondaryColour,OutlineColour,BackColour,Bold,Italic,Underline,StrikeOut,ScaleX,ScaleY,Spacing,Angle,BorderStyle,Outline,Shadow,Alignment,MarginL,MarginR,MarginV,Encoding\nStyle: Main,Arial,{size},&H008CF5A0,&H00F0F2EF,&H00101712,&H88000000,-1,0,0,0,100,100,0,0,1,{max(2,size//15)},1,5,{width//12},{width//12},0,1\n[Events]\nFormat: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text\n''']
     # Independent title layer: transitions never blend duplicated titles or captions.
     if plan.get('title_motion'):
-        for scene in plan['scenes']:
+        for index,scene in enumerate(plan['scenes']):
             if scene['type'] not in ('ui_demo','big_text','outro'):continue
             text=str(scene.get('hero_title') or scene.get('text') or '').strip().upper()
             if not text:continue
@@ -74,7 +77,12 @@ def write_kinetic_ass(plan, width, height, target):
                 while fs>16 and width_of(text,fs)>limit:fs-=2
                 title=escape(text)
             enter=min(280,ms//4);exit=min(180,ms//5)
-            tags=rf'{{\an{align}\fs{fs}\bord1\shad0\c&H00E7F0E7&\move({xx-max(10,width//45)},{yy},{xx},{yy},0,{enter})\fad({enter},{exit})}}'
+            motion=plan.get('title_style','slide')
+            if motion=='adaptive':motion=('slide','fade','pop')[index%3]
+            if motion=='pop':entrance=rf'\pos({xx},{yy})\fscx90\fscy90\t(0,{enter},\fscx100\fscy100)'
+            elif motion=='fade':entrance=rf'\pos({xx},{yy})'
+            else:entrance=rf'\move({xx-max(10,width//45)},{yy},{xx},{yy},0,{enter})'
+            tags=rf'{{\an{align}\fs{fs}\bord1\shad0\c&H00E7F0E7&{entrance}\fad({enter},{exit})}}' 
             rows.append(f'Dialogue: 1,{ass_time(a)},{ass_time(b)},Main,,0,0,0,,{tags}{title}\n')
     for scene in ([] if style=='off' else plan['scenes']):
         offset=float(scene['start'])
