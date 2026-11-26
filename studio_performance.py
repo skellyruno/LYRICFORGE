@@ -97,6 +97,14 @@ def choose_encoder(mode: str, installed: tuple[str, ...]) -> str:
     return installed[0] if installed else "libx264"
 
 
+def director_encode_args(mode, crf):
+    """Bound x264 lookahead. Eco is opt-in; Balanced preserves normal CRF and GOP."""
+    threads=1 if mode=='eco' else min(4,profile_config(mode)['threads']) if mode=='turbo' else 2
+    params='sync-lookahead=0:rc-lookahead=2:bframes=1' if mode=='eco' else 'sync-lookahead=0'
+    return ['-c:v','libx264','-threads',str(threads),'-preset','veryfast','-crf',str(crf),
+            '-pix_fmt','yuv420p','-x264-params',params]
+
+
 def encode_args(encoder: str, speed: str, width: int, height: int, threads: int) -> list[str]:
     if encoder == "libx264":
         preset, crf = {"fast": ("superfast", "22"),

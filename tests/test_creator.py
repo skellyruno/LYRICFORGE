@@ -75,3 +75,16 @@ def test_audition_and_agent_focus_metadata(tmp_path,monkeypatch):
     payload={'product':'Test plugin','chapters':script(),'voice':'draft','auto_render':False,'visual_roles':[{'role':'plugin_state','group':'retune','order':1,'description':'retune knob','focus_x':.5,'focus_y':.53}]}
     r=client.post('/api/creator/create',data={'payload':json.dumps(payload)},files={'files':('Retune.png',b.getvalue(),'image/png')});assert r.status_code==200,r.text
     assets=client.get('/api/projects/'+r.json()['project_id']+'/director/assets').json()['assets'];assert assets[0]['focus_point']==[.5,.53]
+
+
+def test_research_source_ledger_contract():
+    source='https://example.org/paper'
+    script=c.draft_script('Research','',['An observed finding | '+source],60,production_mode='research')
+    assert script['chapters'][0]['source_url']==source
+    assert script['chapters'][0]['narration']=='An observed finding'
+    for value in ('file:///tmp/a','https://user:secret@example.org/x','http://example.org'):
+        with pytest.raises(ValueError):
+            c.validate_script([{'narration':'claim','source_url':value}],production_mode='research')
+    with pytest.raises(ValueError):c.validate_script([{'narration':'claim'}],production_mode='research')
+    plan=director.make_plan([{'text':'An observed finding','start':0,'end':3,'source_url':source}],3,[],'doc')
+    assert plan['scenes'][0]['claim_sources']==[source]

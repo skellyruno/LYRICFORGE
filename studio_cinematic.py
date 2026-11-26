@@ -8,6 +8,7 @@ import wave
 from pathlib import Path
 import numpy as np
 from studio_walkthrough import replay_hit
+import studio_performance as perf
 
 
 TITLE_STYLES={"slide","pop","fade","adaptive"}
@@ -122,7 +123,7 @@ def write_kinetic_ass(plan, width, height, target):
     target.write_text(''.join(rows),encoding='utf-8-sig')
 
 
-def crossfade_clips(clips, scenes, fps, scratch, encode, check_cancel, duration, *,style="dissolve",seconds=.32):
+def crossfade_clips(clips, scenes, fps, scratch, encode, check_cancel, duration, *,style="dissolve",seconds=.32,performance_mode="balanced"):
     """Bounded two-input crossfades. An outgoing final-frame handle overlaps
     incoming moving footage, preserving exact soundtrack/scene frame counts.
     Captions are composed AFTER the transitions, never blended twice.
@@ -143,7 +144,7 @@ def crossfade_clips(clips, scenes, fps, scratch, encode, check_cancel, duration,
         graph=(f'[0:v]trim=end_frame=1,setpts=PTS-STARTPTS,fps={fps},tpad=stop_mode=clone:stop_duration={d+2/fps:.8f},format=yuv444p,setsar=1,fps={fps},settb=1/{fps}[a];'
                f'[1:v]setpts=PTS-STARTPTS,format=yuv444p,setsar=1,fps={fps},settb=1/{fps}[b];'
                f'[a][b]xfade=transition={mode}:duration={d:.8f}:offset=0,format=yuv420p[out]')
-        args=['ffmpeg','-hide_banner','-loglevel','error','-nostdin','-y','-progress','pipe:1','-nostats','-filter_complex_threads','1','-ss',f'{prev:.8f}','-i',str(clips[i-1]),'-i',str(clips[i]),'-filter_complex',graph,'-map','[out]','-frames:v',str(scenes[i]['frames']),'-an','-c:v','libx264','-threads','2','-preset','veryfast','-crf','18','-pix_fmt','yuv420p',str(out)]
+        args=['ffmpeg','-hide_banner','-loglevel','error','-nostdin','-y','-progress','pipe:1','-nostats','-filter_complex_threads','1','-ss',f'{prev:.8f}','-i',str(clips[i-1]),'-i',str(clips[i]),'-filter_complex',graph,'-map','[out]','-frames:v',str(scenes[i]['frames']),'-an',*perf.director_encode_args(performance_mode,18),str(out)]
         encode(args,scratch,length,f'director_crossfade_{i}',80+int(5*i/len(clips)),1)
         if not out.is_file() or out.stat().st_size<1024:raise RuntimeError('Crossfade produced no video')
         result.append(out);count+=1

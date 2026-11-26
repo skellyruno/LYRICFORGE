@@ -4444,6 +4444,7 @@ class CreatorBrief(BaseModel):
     facts: list[str] = Field(default_factory=list,max_length=100)
     target_seconds: int = Field(default=90,ge=15,le=1200)
     story: str = "tutorial"
+    production_mode: str = "plugin"
 
 
 class CreatorRequest(CreatorBrief):
@@ -4489,7 +4490,7 @@ def creator_voice_preview(body: CreatorVoicePreview):
 
 @app.post("/api/creator/script")
 def creator_script(body: CreatorBrief):
-    try: return creator.draft_script(body.product,body.brief,body.facts,body.target_seconds,body.story)
+    try: return creator.draft_script(body.product,body.brief,body.facts,body.target_seconds,body.story,body.production_mode)
     except ValueError as exc: raise HTTPException(400,str(exc)) from exc
 
 
@@ -4510,7 +4511,7 @@ async def create_video_request(payload: str = Form(...), files: list[UploadFile]
         else:
             if recording is not None:raise ValueError('Select recorded narration to use the uploaded voice')
             voice=creator.resolve_voice(body.voice)
-        script=creator.validate_script(body.chapters) if body.chapters else creator.draft_script(body.product,body.brief,body.facts,body.target_seconds,body.story)['chapters']
+        script=creator.validate_script(body.chapters,body.production_mode) if body.chapters else creator.draft_script(body.product,body.brief,body.facts,body.target_seconds,body.story,body.production_mode)['chapters']
         if body.format not in director_intel.FORMATS or body.format=='canvas': raise ValueError('Select a narrated video format')
         if len(files)>40 or len(body.visual_roles)>len(files): raise ValueError('At most 40 visual uploads; metadata must match files')
         for meta in body.visual_roles:
@@ -4518,8 +4519,8 @@ async def create_video_request(payload: str = Form(...), files: list[UploadFile]
         if sum(f.size or 0 for f in files)>500*1024*1024: raise ValueError('Combined visuals exceed 500 MiB')
     except (ValueError,TypeError) as exc: raise HTTPException(400,str(exc)[:500]) from exc
     project_id=uuid.uuid4().hex;p=DATA/project_id;p.mkdir()
-    settings=sanitize_settings({'fps':24})
-    data={'id':project_id,'title':body.product.strip(),'duration':0.,'status':'creator_pending','save_state':'draft','settings':settings,'lines':[],'audio_file':'voice.wav','creator_script':script,'creator_brief':body.brief}
+    settings=sanitize_settings({'fps':24,'performanceMode':request_perf_mode.get()})
+    data={'id':project_id,'title':body.product.strip(),'duration':0.,'status':'creator_pending','save_state':'draft','settings':settings,'lines':[],'audio_file':'voice.wav','creator_script':script,'creator_brief':body.brief,'creator_production_mode':body.production_mode}
     save_project(p,data)
     try:
         if recording is not None:
@@ -4550,10 +4551,10 @@ def run_creator(project_id,job_id,body,script,voice):
         lines=validate_lines(result['lines'],result['duration'])
         with project_write_lock:
             data=read_project(project_id)
-            data.update(status='editor',duration=result['duration'],lines=lines,original_words=[w for line in lines for w in line['words']],creator_metadata={k:v for k,v in result.items() if k!='lines'},creator_cues=[{'id':r['id'],'text':r['text'],'chapter_title':r['chapter_title'],'visual_hint':r['visual_hint']} for r in result['lines']])
+            data.update(status='editor',duration=result['duration'],lines=lines,original_words=[w for line in lines for w in line['words']],creator_metadata={k:v for k,v in result.items() if k!='lines'},creator_cues=[{'id':r['id'],'text':r['text'],'chapter_title':r['chapter_title'],'visual_hint':r['visual_hint'],**({'source_url':r['source_url']} if r.get('source_url') else {})} for r in result['lines']])
             save_project(p,data)
         if body.auto_render:
-            _,settings,plan=prepare_director(project_id,DirectorRequest(preset='plugin',brand=body.product,preview=body.preview,output_format=body.format,cinematic_finish=True,guided_replay=True,transition_style='auto',transition_seconds=.44,sound_design=body.sound_design,title_motion=body.title_motion,title_style=body.title_style))
+            _,settings,plan=prepare_director(project_id,DirectorRequest(preset='doc' if body.production_mode=='research' else 'plugin',brand=body.product,preview=body.preview,output_format=body.format,cinematic_finish=True,guided_replay=True,transition_style='auto',transition_seconds=.44,sound_design=body.sound_design,title_motion=body.title_motion,title_style=body.title_style))
             run_director(project_id,job_id,plan,settings,body.preview)
             with job_lock: jobs[job_id]['project_id']=project_id
         else:
@@ -4693,7 +4694,7 @@ def prepare_director(project_id: str, body: DirectorRequest):
     for row in lines:
         cue=creator_cues.get(row['id'],{})
         if cue.get('text')==row['text']:
-            row.update(chapter_title=cue.get('chapter_title',''),visual_hint=cue.get('visual_hint',''))
+            row.update(chapter_title=cue.get('chapter_title',''),visual_hint=cue.get('visual_hint',''),source_url=cue.get('source_url',''))
     lines=[{**row,'start':max(0,row['start']-start),'end':min(duration,row['end']-start),'words':[{**word,'start':word['start']-start,'end':word['end']-start} for word in row.get('words',[])]} for row in lines if row['end']>start and row['start']<start+duration]
     if not lines and body.preset!='music':
         raise HTTPException(400, "Confirm lyrics or finish voiceover transcription first")
@@ -4709,6 +4710,10 @@ def prepare_director(project_id: str, body: DirectorRequest):
         plan['sound_design']=body.sound_design and body.preset!='music'
         plan['local_ai']=body.local_ai
         plan['semantic_vision']=body.semantic_vision
+        if data.get('creator_production_mode')=='research':
+            plan['source_ledger']=[{'claim':row['text'],'url':row['source_url'],'start':row['start'],'end':row['end']} for row in lines if row.get('source_url')]
+            plan['warnings'].append('Research source URLs are author-supplied and are not independently verified.')
+            if any(not row.get('source_url') for row in lines):plan['warnings'].append('Edited or unsourced narration is not covered by the source ledger.')
     except (ValueError,OSError,RuntimeError) as exc:
         raise HTTPException(400, str(exc)) from exc
     return data, settings, plan

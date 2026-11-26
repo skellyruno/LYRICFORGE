@@ -133,3 +133,12 @@ def test_document_selection_is_grounded_in_asset_description():
     plan=director.make_plan([{'text':'source article','start':0,'end':4}],4,[a],'doc')
     assert plan['scenes'][0]['type']=='document'
     assert 'redact' not in plan['scenes'][0]  # no fabricated coordinates
+
+
+def test_director_memory_policy():
+    import studio_performance as perf
+    a=perf.director_encode_args('balanced',20);b=perf.director_encode_args('eco',20)
+    assert a[a.index('-crf')+1]==b[b.index('-crf')+1]=='20'
+    assert 'sync-lookahead=0' in a
+    assert 'sync-lookahead=0:rc-lookahead=2:bframes=1' in b
+    assert b[b.index('-threads')+1]=='1'

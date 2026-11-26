@@ -25,7 +25,7 @@ import studio_cinematic as cinema
 import studio_walkthrough as walk
 from studio_clips import probe_media
 
-VERSION = 15
+VERSION = 16
 IMAGE_EXT = {'.png', '.jpg', '.jpeg', '.webp'}
 VIDEO_EXT = {'.mp4', '.mov', '.mkv', '.m4v', '.webm'}
 PRESETS = {
@@ -131,6 +131,9 @@ def make_plan(lines: list[dict], duration: float, assets: list[dict], preset: st
         repairs += fixed
         scene = {'start': start_sec, 'end': end_sec, 'frames': end-cursor, 'type': 'big_text', 'text': title,
                  'captions': captions, 'camera': 'still'}
+        source_links=list(dict.fromkeys(str(row['source_url']) for row in meaningful if row.get('source_url')))
+        if preset=='doc' and source_links:
+            scene['claim_sources']=source_links
         if cinematic:
             scene.update(cinematic_finish=True,chapter=len(scenes)+1,brand=brand)
             if chapter_title:scene['hero_title']=chapter_title
@@ -338,6 +341,17 @@ def artwork(scene: dict, preset: str, w: int, h: int, asset: Path | None, base: 
         width = min(w-x,int(d.textlength(label,font=f))+2*padding)
         d.rounded_rectangle((x,y,x+width,y+int(h*.06)),radius=max(3,h//100),fill=(10,14,12,220))
         d.text((x+padding,y+int(h*.03)), label, font=f, fill="#e8f5e8",anchor="lm")
+    if scene.get('claim_sources'):
+        from urllib.parse import urlsplit
+        hosts=list(dict.fromkeys(urlsplit(url).hostname or '' for url in scene['claim_sources']))
+        label='SOURCE PROVIDED: '+', '.join(hosts)
+        label=label[:110]
+        f=font(max(12,h//45),True)
+        x,y=int(w*.035),int(h*.68)
+        # Distinct source strip, clear of title and karaoke caption bands.
+        while len(label)>16 and d.textlength(label,font=f)>w*.9:label=label[:-5]+'…'
+        d.rounded_rectangle((x,y,x+int(d.textlength(label,font=f))+20,y+int(h*.05)),radius=5,fill=(10,14,12,225))
+        d.text((x+10,y+int(h*.025)),label,font=f,fill='#d6e2dc',anchor='lm')
     layer.save(overlay)
 
 
@@ -357,7 +371,7 @@ def render(plan: dict, audio: Path, assets_folder: Path, work: Path, output: Pat
     started=time.monotonic();w,h = size; fps=plan['fps']; duration=plan['duration']; cinematic=plan.get('cinematic_finish',False); audio_start=float(plan.get('audio_start',0)); work.mkdir(parents=True,exist_ok=True)
     cache=work/'scenes'; cache.mkdir(exist_ok=True); made=reused=0; clips=[]
     mode=settings.get('performanceMode','balanced')
-    scene_threads=1 if mode=='eco' else min(4,perf.profile_config(mode)['threads']) if mode=='turbo' else 2
+    # All Director encode phases share the selected memory policy.
     scratch=work/('job-'+uuid4().hex); scratch.mkdir()
     import shutil
     try:
@@ -451,7 +465,7 @@ def render(plan: dict, audio: Path, assets_folder: Path, work: Path, output: Pat
                 if captions: graph+=',ass=captions.ass'
                 graph+='[out]'
                 tmp=scratch/'clip.mp4'
-                cmd+=['-filter_complex',graph,'-map','[out]','-frames:v',str(scene['frames']),'-an','-c:v','libx264','-threads',str(scene_threads),'-preset','veryfast','-crf','20','-pix_fmt','yuv420p',str(tmp)]
+                cmd+=['-filter_complex',graph,'-map','[out]','-frames:v',str(scene['frames']),'-an',*perf.director_encode_args(mode,20),str(tmp)]
                 encode(cmd,scratch,seconds,f'director_scene_{index+1}',int(5+80*index/len(plan['scenes'])),max(1,int(80/len(plan['scenes']))))
                 check_cancel()
                 if not walk.valid_scene_clip(tmp,seconds,fps,probe_media): raise RuntimeError('Scene encoder produced invalid or mistimed video')
@@ -462,7 +476,7 @@ def render(plan: dict, audio: Path, assets_folder: Path, work: Path, output: Pat
         # Generated relative cache names avoid concat demuxer quoting and path injection.
         count=0
         if cinematic and plan.get('crossfades'):
-            clips,count=cinema.crossfade_clips(clips,plan['scenes'],fps,scratch,encode,check_cancel,duration,style=plan.get('transition_style','dissolve'),seconds=plan.get('transition_seconds',.32))
+            clips,count=cinema.crossfade_clips(clips,plan['scenes'],fps,scratch,encode,check_cancel,duration,style=plan.get('transition_style','dissolve'),seconds=plan.get('transition_seconds',.32),performance_mode=mode)
         # Both cache and scratch paths are generated under work.
         listing=work/('concat-'+uuid4().hex+'.txt'); listing.write_text(''.join(f"file '{p.relative_to(work).as_posix()}'\n" for p in clips),encoding='utf-8')
         temporary=scratch/'final.mp4'
@@ -494,7 +508,7 @@ def render(plan: dict, audio: Path, assets_folder: Path, work: Path, output: Pat
                 cmd+=['-stream_loop','-1','-i',str(music),'-filter_complex','[1:a]aresample=48000,asplit=2[voice][key];[2:a]aresample=48000,volume=0.1[bed];[bed][key]sidechaincompress=threshold=0.03:ratio=8:attack=15:release=450[duck];[voice][duck]amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.95[a]','-map','0:v','-map','[a]']
             else: cmd+=['-map','0:v','-map','1:a:0']
             if cinematic and (plan.get('caption_style','karaoke')!='off' or plan.get('title_motion')): cmd+=['-vf',f'ass={scratch.name}/cinematic_captions.ass']
-            cmd+=(['-c:v','libx264','-threads','2','-preset','veryfast','-crf','18','-pix_fmt','yuv420p'] if cinematic else ['-c:v','copy'])+([] if plan.get('silent') else ['-c:a','aac','-b:a','192k'])+['-t',f'{duration:.6f}','-movflags','+faststart',str(temporary)]
+            cmd+=(perf.director_encode_args(mode,18) if cinematic else ['-c:v','copy'])+([] if plan.get('silent') else ['-c:a','aac','-b:a','192k'])+['-t',f'{duration:.6f}','-movflags','+faststart',str(temporary)]
             encode(cmd,work,duration,'director_mux',85,14)
             check_cancel()
             if not temporary.is_file() or temporary.stat().st_size<1024: raise RuntimeError('Director output missing')
@@ -502,6 +516,6 @@ def render(plan: dict, audio: Path, assets_folder: Path, work: Path, output: Pat
             if not info['has_video'] or bool(info['has_audio'])==bool(plan.get('silent')) or abs(info['duration']-duration)>max(.13,2/fps): raise RuntimeError('Director output failed stream/timing validation')
             perf.publish_staged_file(temporary,output)
         finally: listing.unlink(missing_ok=True)
-        return {'scenes':len(clips),'rendered':made,'cached':reused,'duration':duration,'render_elapsed_seconds':round(time.monotonic()-started,3),'crossfades':count,'guided_replays':sum(bool(s.get('guided_replay')) and not s.get('replay_fallback') for s in plan['scenes']),'recorded_scenes':sum(bool(s.get('recorded_demo')) for s in plan['scenes'])}
+        return {'scenes':len(clips),'rendered':made,'cached':reused,'duration':duration,'render_elapsed_seconds':round(time.monotonic()-started,3),'performance_mode':mode,'crossfades':count,'guided_replays':sum(bool(s.get('guided_replay')) and not s.get('replay_fallback') for s in plan['scenes']),'recorded_scenes':sum(bool(s.get('recorded_demo')) for s in plan['scenes'])}
     finally:
         shutil.rmtree(scratch,ignore_errors=True)

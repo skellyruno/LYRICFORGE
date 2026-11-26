@@ -99,7 +99,7 @@ def recording_lines(chapters, duration, chapter_starts, split_phrases):
             s=a+(b-a)*offset/weight;offset+=len(words);e=a+(b-a)*offset/weight
             if e-s<.05: raise ValueError('Recording too short for script; shorten the script or add a longer take')
             points=np.linspace(s,e,len(words)+1)
-            rows.append({'id':uuid.uuid4().hex[:12],'text':phrase,'start':s,'end':e,'words':[{'text':w,'start':float(points[i]),'end':float(points[i+1])} for i,w in enumerate(words)],'chapter_title':chapter['title'],'visual_hint':chapter['visual_hint']})
+            rows.append({'id':uuid.uuid4().hex[:12],'text':phrase,'start':s,'end':e,'words':[{'text':w,'start':float(points[i]),'end':float(points[i+1])} for i,w in enumerate(words)],'chapter_title':chapter['title'],'visual_hint':chapter['visual_hint'],**({'source_url':chapter['source_url']} if chapter.get('source_url') else {})})
     if len(rows)>500: raise ValueError('Recording script exceeds 500 clips')
     return rows,origin
 

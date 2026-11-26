@@ -107,3 +107,16 @@ def test_piper_uses_native_pace_when_supported(tmp_path,monkeypatch):
         assert not c.synthesize_phrase('A test',tmp_path/'voice.wav','piper',.8,lambda:None)
         assert '--length-scale' not in calls[-1]
     finally:c.piper_length_flag.cache_clear()
+
+
+def test_kokoro_batch_uses_one_bounded_worker(tmp_path,monkeypatch):
+    calls=[]
+    monkeypatch.setattr(c,'kokoro_config',lambda:('python','worker.py','model.onnx','voices.bin'))
+    monkeypatch.setattr(c,'voice_options',lambda:{'kokoro':True,'draft':True})
+    def fake_run(args,**kwargs):
+        calls.append((args,json.loads(kwargs['input_text'])))
+        for i in range(2):(tmp_path/f'neural-{i:04d}.wav').write_bytes(wav_bytes(.2))
+    monkeypatch.setattr(c,'run_checked',fake_run)
+    assert c.resolve_voice('auto')=='kokoro'
+    paths=c.kokoro_batch(['First','Second'],tmp_path,'kokoro',1.,lambda:None)
+    assert len(paths)==2 and len(calls)==1 and calls[0][1]['voice']=='am_michael'

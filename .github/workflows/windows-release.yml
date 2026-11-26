@@ -145,6 +145,7 @@ jobs:
             --icon "static/skull.ico" `
             --add-data "static;static" `
             --add-data "studio_ai_worker.py;." `
+            --add-data "studio_kokoro_worker.py;." `
             --add-binary "vendor/ffmpeg/ffmpeg.exe;tools" `
             --hidden-import clr `
             --hidden-import webview `
