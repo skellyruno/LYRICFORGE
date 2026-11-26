@@ -103,21 +103,29 @@ def hold_prepare(f, i):
 
 def hold_build(p, o, out, safe):
     fps = o.get("fps", 30.0)
-    # Use the same frame clock for the picture, audio delay and duration.
     first, last = _hold_frames(o["start"], fps), _hold_frames(o["end"], fps)
-    # Avoid tpad's start-mode clone path: Linux FFmpeg can stall before
-    # emitting any video when it is fed by a CFR filter. Shift the frame
-    # clock and let fps backfill with copies of the real first frame.
-    vf = f"setpts=PTS-STARTPTS,fps={fps:g}"
+    base=f"setpts=PTS-STARTPTS,fps={fps:g}"
+    tail=f",tpad=stop_mode=clone:stop={last}" if last else ""
+    src=str(p["video"])
+    # Use separate finite decoders: the start-hold branch must terminate
+    # before the body begins, without a shared split queue or a second fps
+    # filter asked to synthesize frames before the first input timestamp.
     if first:
-        vf += f",setpts=PTS+{first},fps={fps:g}:start_time=0"
-    if last:
-        vf += f",tpad=stop_mode=clone:stop={last}"
-    af = (f"adelay={round(first / fps * 1000)}:all=1," if first else "") + f"apad=whole_dur={o['seconds']},atrim=duration={o['seconds']}"
-    args = _reencode(p["video"], vf, o["has_audio"], out, af=af)
-    # A small explicit thread budget bounds FFmpeg's decoded-frame queues.
-    args[args.index("-i"):args.index("-i")] = ["-filter_threads", "1", "-threads", "2"]
-    return [*args[:-1], "-threads", "2", "-t", str(o["seconds"]), args[-1]]
+        graph=(f"[0:v]{base},trim=end_frame=1,tpad=stop_mode=clone:stop={first-1},"
+               f"setpts=N/({fps:g}*TB)[head];[1:v]{base}{tail}[body];"
+               f"[head][body]concat=n=2:v=1:a=0,settb=1/{fps:g},setpts=N[v]")
+        args=[*QUIET,"-y","-filter_complex_threads","1","-threads","1","-i",src,
+              "-threads","2","-i",src,"-filter_complex",graph,"-map","[v]"]
+        audio_index=1
+    else:
+        args=[*QUIET,"-y","-filter_threads","1","-threads","2","-i",src,
+              "-vf",base+tail,"-map","0:v:0"]
+        audio_index=0
+    if o["has_audio"]:
+        af=(f"adelay={round(first/fps*1000)}:all=1," if first else "")+f"apad=whole_dur={o['seconds']},atrim=duration={o['seconds']}"
+        args+=["-map",f"{audio_index}:a:0","-af",af,"-c:a","aac","-b:a","192k"]
+    else:args+=["-an"]
+    return [*args,"-r",str(fps),"-fps_mode","cfr",*X264,"-threads","2",*FAST,"-t",str(o["seconds"]),str(out)]
 
 
 # ---- cut out a section

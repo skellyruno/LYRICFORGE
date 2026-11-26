@@ -456,3 +456,21 @@ def test_hold_frame_clock_exact(data,start,end):
     out,_,_=run_tool(data,"hold",{"video":[up(source)]},start=start,end=end)
     stream=json.loads(subprocess.check_output(["ffprobe","-v","error","-select_streams","v:0","-count_frames","-show_streams","-of","json",str(out)]))["streams"][0]
     assert int(stream["nb_read_frames"])==15*(3+int(start)+int(end))
+
+
+@needs_ffmpeg
+@pytest.mark.parametrize("rate,start,end,audio",[(1,.25,.25,True),(24,.01,0,False),(60,10,10,True),(15,1,0,False)])
+def test_hold_finite_decoder_matrix(data,rate,start,end,audio):
+    import json
+    source=data/'matrix.mp4'
+    args=['-f','lavfi','-i',f'testsrc=s=320x180:r={rate}:d=3']
+    if audio:args+=['-f','lavfi','-i','sine=f=220:d=3:r=48000']
+    ffmpeg(*args,'-c:v','libx264','-threads','2','-pix_fmt','yuv420p',*(['-c:a','aac'] if audio else []),str(source))
+    opts=quick2.hold_prepare({'start':str(start),'end':str(end)},{'video':clips.probe_media(source)})
+    out,_,_=run_tool(data,'hold',{'video':[up(source)]},start=str(start),end=str(end))
+    streams=json.loads(subprocess.check_output(['ffprobe','-v','error','-show_streams','-of','json',str(out)]))['streams']
+    video=next(s for s in streams if s['codec_type']=='video')
+    assert int(video['nb_frames'])==round(opts['seconds']*opts['fps'])
+    assert float(video['duration'])==pytest.approx(opts['seconds'],abs=.002)
+    assert any(s['codec_type']=='audio' for s in streams)==audio
+    if audio:assert float(next(s for s in streams if s['codec_type']=='audio')['duration'])==pytest.approx(opts['seconds'],abs=.002)
