@@ -108,12 +108,37 @@ async function runAutopilot() {
 
 // Local Director: transcript cuts, semantic filename matching, cached scene renders.
 let directorBusy=false;
-function directorPayload(){const b=bridge();return {preset:$('directorPreset').value,brand:$('directorBrand').value,preview:$('directorPreview').checked,music:$('directorMusic').checked,lines:projectLines(),settings:b.state().settings};}
+function directorPayload(){const b=bridge();return {preset:$('directorPreset').value,brand:$('directorBrand').value,preview:$('directorPreview').checked,music:$('directorMusic').checked,auto_pictures:$('directorAutoPictures').checked,lines:projectLines(),settings:b.state().settings};}
 function directorStatus(message,error=false){const node=$('directorStatus');node.classList.remove('hidden');node.textContent=message;if(error)toast(message,true);}
-function directorSceneList(plan){const node=$('directorScenes');node.replaceChildren(...(plan.scenes||[]).map((s,i)=>el('div',{class:'director-scene'},el('span',{text:clock(s.start)+'–'+clock(s.end)}),el('b',{text:(i+1)+'. '+s.type.replace('_',' ')}),el('small',{text:s.asset_name||s.text||''}))));}
+function directorSceneList(plan){const node=$('directorScenes');node.replaceChildren(...(plan.scenes||[]).map((s,i)=>el('div',{class:'director-scene'},el('span',{text:clock(s.start)+'–'+clock(s.end)}),el('b',{text:(i+1)+'. '+s.type.replace('_',' ')}),el('small',{text:s.asset_name||s.text||''}),s.source?el('small',{text:'Illustrative · '+s.source.license+' · '+s.source.creator}):null,s.source&&s.asset?el('img',{class:'director-thumb',src:'/api/projects/'+bridge().state().id+'/director/assets/'+encodeURIComponent(s.asset),alt:s.asset_name||'Illustrative image',loading:'lazy'}):null)));}
 async function refreshDirectorAssets(id){const data=await api('/api/projects/'+id+'/director/assets');if(bridge()?.state().id!==id)return;$('directorAssetsList').replaceChildren(...data.assets.map(a=>el('div',{class:'director-scene'},el('b',{text:a.name}),el('small',{text:a.kind}))));}
 async function uploadDirectorAssets(){const id=bridge()?.state().id;if(!id){toast('Open a song or voiceover first.',true);$('directorAssets').value='';return;}if(directorBusy)return;directorBusy=true;try{const files=Array.from($('directorAssets').files||[]);for(let i=0;i<files.length;i++){directorStatus('Importing visual '+(i+1)+' / '+files.length);const form=new FormData();form.append('file',files[i]);form.append('description',$('directorAssetDescription').value||'');await api('/api/projects/'+id+'/director/assets',{method:'POST',body:form});}await refreshDirectorAssets(id);directorStatus('Assets ready.');}catch(e){directorStatus(e.message,true);}finally{directorBusy=false;$('directorAssets').value='';}}
-async function runDirector(render){const id=bridge()?.state().id;if(!id){toast('Open a song or voiceover first.',true);return;}if(directorBusy||song.busy)return;directorBusy=true;for(const k of ['directorPlan','directorRun'])$(k).disabled=true;try{await refreshDirectorAssets(id);directorStatus('Planning with the local director…');const result=await post('/api/projects/'+id+'/director/'+(render?'render':'plan'),directorPayload());directorSceneList(result.plan||result);if(!render){directorStatus(result.scenes.length+' scenes planned. '+(result.warnings||[]).join(' '));return;}const job=await runJob(result.job_id,j=>{showStatus($('directorStatus'),j);if(j.status==='rendering')$('directorStatus').append(' ',el('button',{type:'button',class:'tiny-btn',text:'Cancel',onclick:async()=>{try{await post('/api/jobs/'+encodeURIComponent(result.job_id)+'/cancel',{});directorStatus('Cancellation requested…');}catch(e){directorStatus(e.message,true);}}}));});if(bridge()?.state().id!==id)return;const out=job.outputs;directorStatus('Done · '+out.scenes+' scenes · '+out.cached+' reused');$('directorResult').replaceChildren(el('a',{class:'download-btn',href:out.video,download:'',text:'Download directed MP4'}),el('a',{class:'wide-ghost',href:out.plan,download:'',text:'Download scene plan JSON'}));}catch(e){directorStatus('Director stopped: '+e.message,true);}finally{directorBusy=false;for(const k of ['directorPlan','directorRun'])$(k).disabled=false;}}
+async function runDirector(render){
+ const id=bridge()?.state().id;if(!id){toast('Open a song or voiceover first.',true);return;}if(directorBusy||song.busy)return;
+ const payload=directorPayload();directorBusy=true;
+ for(const k of ['directorPlan','directorRun'])$(k).disabled=true;
+ const current=()=>bridge()?.state().id===id;
+ try{
+  await refreshDirectorAssets(id);if(!current())return;
+  directorStatus('Planning with the local director…');
+  const result=await post('/api/projects/'+id+'/director/'+(render?'render':'plan'),payload);
+  if(!current())return;
+  directorSceneList(result.plan||result);
+  if(!render){directorStatus(result.scenes.length+' scenes planned. '+(result.warnings||[]).join(' '));return;}
+  const job=await runJob(result.job_id,j=>{
+   if(!current())return;
+   showStatus($('directorStatus'),j);
+   if(j.status==='rendering')$('directorStatus').append(' ',el('button',{type:'button',class:'tiny-btn',text:'Cancel',onclick:async()=>{try{await post('/api/jobs/'+encodeURIComponent(result.job_id)+'/cancel',{});directorStatus('Cancellation requested…');}catch(e){directorStatus(e.message,true);}}}));
+  });
+  if(!current())return;
+  const out=job.outputs, finalPlan=await api(out.plan);if(!current())return;
+  directorSceneList(finalPlan);await refreshDirectorAssets(id);if(!current())return;
+  const sources=finalPlan.visual_sources||{};
+  directorStatus('Done · '+out.scenes+' scenes · '+out.cached+' reused · '+(sources.downloaded||0)+' pictures found. '+(finalPlan.warnings||[]).join(' '));
+  $('directorResult').replaceChildren(el('video',{controls:true,preload:'metadata',src:out.video,class:'director-proof'}),el('a',{class:'download-btn',href:out.video,download:'',text:'Download directed MP4'}),el('a',{class:'wide-ghost',href:out.plan,download:'',text:'Download scene plan JSON'}));
+ }catch(e){if(current())directorStatus('Director stopped: '+e.message,true);}
+ finally{directorBusy=false;for(const k of ['directorPlan','directorRun'])$(k).disabled=false;}
+}
 
 function stopPreview() { if (song.stop) { song.stop(); song.stop = null; } }
 function previewSegment(start, end) {

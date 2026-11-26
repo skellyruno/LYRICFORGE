@@ -203,13 +203,15 @@
             <button id="autoRunBtn" class="primary-btn render-btn" type="button">✦ Run autopilot</button>
             <div id="autoStatus" class="render-status hidden" role="status" aria-live="polite"></div>
             <section class="director-section" aria-label="Autonomous scene director">
-              <div class="control-head after-gap">SCENE DIRECTOR <span class="director-local">LOCAL</span></div>
+              <div class="control-head after-gap">SCENE DIRECTOR <span class="director-local">AUTO</span></div>
               <p class="motion-hint">Turn voiceovers or songs into edited videos with matching visuals and timed captions.</p>
               <div class="control-group"><label for="directorPreset">Visual direction</label><select id="directorPreset"><option value="plugin">Plugin walkthrough</option><option value="doc">Documentary / explainer</option></select></div>
               <div class="control-group"><label for="directorBrand">Brand / closing card</label><input id="directorBrand" type="text" value="SKELLYMOTION" maxlength="80" /></div>
               <label class="wide-ghost director-upload">＋ Add screenshots / video footage<input id="directorAssets" type="file" multiple accept="image/png,image/jpeg,image/webp,video/mp4,video/quicktime,video/webm,.mkv,.m4v" /></label>
               <div class="control-group"><label for="directorAssetDescription">Asset description (optional)</label><input id="directorAssetDescription" type="text" maxlength="300" placeholder="e.g. EQ depth control, main plugin window" /></div>
               <div id="directorAssetsList" class="director-list" aria-live="polite"></div>
+              <label class="toggle-line"><span>Find pictures automatically<small>Optional: send short transcript keywords to Wikimedia Commons. Public-domain / CC0 images only.</small></span><input id="directorAutoPictures" type="checkbox" /><i class="switch"></i></label>
+              <p class="motion-hint">Your screenshots take priority. Online pictures are labelled illustrative and credited in the scene plan. Review before publishing.</p>
               <label class="toggle-line"><span>15-second proof<small>Fast preview before the full export</small></span><input id="directorPreview" type="checkbox" checked /><i class="switch"></i></label>
               <label class="toggle-line"><span>Brand Kit music<small>Duck the bed under your voice</small></span><input id="directorMusic" type="checkbox" /><i class="switch"></i></label>
               <button id="directorPlan" class="wide-ghost" type="button">Preview scene plan</button>

@@ -37,6 +37,7 @@ import studio_viz as viz_lib
 import studio_proof as proof
 import studio_edit as edit
 import studio_director as director
+import studio_visual_sources as visual_sources
 
 ROOT = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
 DATA = Path(os.environ.get("LYRICFORGE_DATA", ROOT / "workspace")).resolve()
@@ -3130,6 +3131,7 @@ def download_generated_file(project_id: str, name: str):
 
 # ---- Local autonomous scene director (voiceover and lyric projects) ----
 class DirectorRequest(BaseModel):
+    auto_pictures: bool = False
     preset: str = "plugin"
     preview: bool = True
     music: bool = False
@@ -3148,6 +3150,14 @@ def director_folder(project_id: str) -> Path:
 @app.get("/api/projects/{project_id}/director/assets")
 def list_director_assets(project_id: str):
     return {"assets": director.assets_for(director_folder(project_id))}
+
+
+@app.get("/api/projects/{project_id}/director/assets/{asset_id}")
+def get_director_image(project_id: str, asset_id: str):
+    path = director.asset_path(director_folder(project_id), asset_id)
+    if path is None or path.suffix not in director.IMAGE_EXT:
+        raise HTTPException(404, "Image not found")
+    return FileResponse(path)
 
 
 @app.post("/api/projects/{project_id}/director/assets")
@@ -3176,11 +3186,12 @@ async def add_director_asset(project_id: str, file: UploadFile = File(...), desc
             info = clips.probe_media(target)
             if not info["has_video"] or info["duration"] <= 0 or not info["width"]:
                 raise ValueError("No readable video stream")
-        index = perf.read_cache(folder / "index.json")
-        if len(index) >= 40:
-            raise ValueError("Director supports up to 40 assets per project")
-        index[name] = {"name": Path(file.filename or "visual").name[:120], "description": description[:300]}
-        perf.atomic_write_json(folder / "index.json", index)
+        with visual_sources.INDEX_LOCK:
+            index = perf.read_cache(folder / "index.json")
+            if len(index) >= 40:
+                raise ValueError("Director supports up to 40 assets per project")
+            index[name] = {"name": Path(file.filename or "visual").name[:120], "description": description[:300]}
+            perf.atomic_write_json(folder / "index.json", index)
     except HTTPException:
         target.unlink(missing_ok=True)
         raise
@@ -3214,6 +3225,9 @@ def prepare_director(project_id: str, body: DirectorRequest):
 @app.post("/api/projects/{project_id}/director/plan")
 def preview_director_plan(project_id: str, body: DirectorRequest):
     _, _, plan = prepare_director(project_id, body)
+    visual_sources.fill_missing(plan, director_folder(project_id))
+    if body.auto_pictures:
+        plan["warnings"].append("Online sourcing runs when you select Direct & render.")
     return plan
 
 
@@ -3224,16 +3238,21 @@ def start_director(project_id: str, body: DirectorRequest):
     if body.music and music is None:
         raise HTTPException(400, "Add background music in Brand Kit first")
     job_id = register_job(project_id, "director", settings)
-    executor.submit(run_director, project_id, job_id, plan, settings, body.preview, music)
+    executor.submit(run_director, project_id, job_id, plan, settings, body.preview, music, body.auto_pictures)
     return {"job_id": job_id, "plan": plan}
 
 
-def run_director(project_id: str, job_id: str, plan: dict, settings: dict, preview: bool, music: Path | None = None):
+def run_director(project_id: str, job_id: str, plan: dict, settings: dict, preview: bool, music: Path | None = None, auto_pictures: bool = False):
     started = time.monotonic()
     p = project_dir(project_id)
     try:
         data = read_project(project_id)
         w, h = output_size(settings)
+        def sourcing(done, total):
+            with job_lock:
+                jobs[job_id].update(stage="finding_visuals", progress=min(4, int(4*done/max(1,total))))
+        visual_sources.fill_missing(plan, director_folder(project_id), auto_pictures,
+                                    lambda: check_cancel(job_id), sourcing)
         def make_ass(rows, target):
             create_ass(rows, settings, w, h, target)
         def encode(args, cwd, length, stage, base, span):

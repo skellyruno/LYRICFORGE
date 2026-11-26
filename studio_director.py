@@ -17,7 +17,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 import studio_performance as perf
 
-VERSION = 2
+VERSION = 3
 IMAGE_EXT = {'.png', '.jpg', '.jpeg', '.webp'}
 VIDEO_EXT = {'.mp4', '.mov', '.mkv', '.m4v', '.webm'}
 PRESETS = {
@@ -49,7 +49,8 @@ def assets_for(folder: Path) -> list[dict]:
             continue
         label = str(value.get('name', key))[:120]
         items.append({'id': key, 'name': label, 'kind': 'video' if path.suffix in VIDEO_EXT else 'image',
-                      'description': str(value.get('description', ''))[:300]})
+                      'description': str(value.get('description', ''))[:300],
+                      **({'source': value['source']} if isinstance(value.get('source'), dict) else {})})
     return items[:40]
 
 
@@ -65,6 +66,8 @@ def make_plan(lines: list[dict], duration: float, assets: list[dict], preset: st
     look = PRESETS[preset]
     lines = [line for line in lines if float(line['start']) < duration and float(line['end']) > 0]
     boundaries = sorted({round(float(line['end']) * fps) for line in lines if 0 < float(line['end']) < duration})
+    # Web photos must not masquerade as a plugin UI or a source document.
+    assets = [a for a in assets if not a.get("source")]
     scenes, cursor, used = [], 0, []
     while cursor < total:
         ideal = cursor + round(look['pace'] * fps)
@@ -89,11 +92,13 @@ def make_plan(lines: list[dict], duration: float, assets: list[dict], preset: st
                 overlap = len(terms(text) & terms(a['name'] + ' ' + a.get('description', '')))
                 return (overlap, int(preset == 'plugin' and a['kind'] == 'image'), -used.count(a['id']))
             chosen = max(pool, key=score)
-            kind = 'ui_demo' if preset == 'plugin' else 'document' if chosen['kind'] == 'image' and terms(chosen['name']+' '+chosen.get('description','')) & {'article','document','source','comment','forum'} else 'broll'
-            scene.update(type=kind, asset=chosen['id'], asset_name=chosen['name'],
-                         camera='still' if kind in ('ui_demo','document') else ('push' if len(scenes) % 2 == 0 else 'pull'),
-                         text=title if preset == 'plugin' else '')
-            used.append(chosen['id'])
+            # Documentary footage needs an actual metadata match. Otherwise use a card.
+            if preset != "doc" or score(chosen)[0] > 0:
+                kind = 'ui_demo' if preset == 'plugin' else 'document' if chosen['kind'] == 'image' and terms(chosen['name']+' '+chosen.get('description','')) & {'article','document','source','comment','forum'} else 'broll'
+                scene.update(type=kind, asset=chosen['id'], asset_name=chosen['name'],
+                             camera='still' if kind in ('ui_demo','document') else ('push' if len(scenes) % 2 == 0 else 'pull'),
+                             text=title if preset == 'plugin' else '')
+                used.append(chosen['id'])
         if end == total and not active:
             scene.update(type='outro', text=brand, camera='still')
             scene.pop('asset', None); scene.pop('asset_name', None)
@@ -146,6 +151,14 @@ def artwork(scene: dict, preset: str, w: int, h: int, asset: Path | None, base: 
         for y in range(int(h*.75),h):
             alpha = round(175 * ((y-h*.75)/(h*.25)))
             d.line((0,y,w,y),fill=(0,0,0,alpha))
+    if scene.get("source"):
+        label = "ILLUSTRATIVE · WIKIMEDIA COMMONS"
+        f = font(max(12,h//44),True)
+        x,y = int(w*.025),int(h*.025)
+        padding = max(6,h//65)
+        width = min(w-x,int(d.textlength(label,font=f))+2*padding)
+        d.rounded_rectangle((x,y,x+width,y+int(h*.06)),radius=max(3,h//100),fill=(10,14,12,220))
+        d.text((x+padding,y+int(h*.03)), label, font=f, fill="#e8f5e8",anchor="lm")
     layer.save(overlay)
 
 

@@ -584,3 +584,5 @@ html.desktop-mode .rail-bottom{margin-top:auto}
 .director-scene{display:grid;gap:3px;padding:8px;border:1px solid #31463a;border-radius:6px;background:#101813;overflow-wrap:anywhere}
 .director-scene span,.director-scene small{font-size:11px;color:#a3b8aa}.director-scene b{font-size:12px;color:#d9edda}
 .director-section .wide-ghost,.director-section .render-btn{width:100%;margin-top:7px}
+
+.director-thumb,.director-proof{width:100%;max-height:180px;object-fit:contain;border:1px solid #34483a;border-radius:7px;background:#0b100c}
