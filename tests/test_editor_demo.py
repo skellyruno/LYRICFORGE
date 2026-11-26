@@ -53,3 +53,37 @@ def test_native_double_resolution_capture_contract(tmp_path):
         enlarged.save(path)
     result=demo.seal(root)
     assert result['meta']['width']==960 and result['distinct_frames']==24
+
+
+def spacer_fixture(root):
+    # Synthetic test fixture only: verifies importer contract, NOT JUCE origin.
+    root=fixture(root)
+    meta=json.loads((root/'capture.json').read_text())
+    meta.update(product='Skell Spacer',parameter='amount',width=1100,height=900,source_kind='synthetic_test_signal',latency_samples=0)
+    (root/'capture.json').write_text(json.dumps(meta))
+    rows=list(csv.reader((root/'editor.csv').open()))
+    for row in rows[1:]:
+        row[2]='amount';row[4]=str(float(row[3])*100.)
+    with (root/'editor.csv').open('w',newline='') as f:csv.writer(f).writerows(rows)
+    for path in root.glob('frame_*.png'):
+        with Image.open(path) as im:frame=im.resize((1100,900))
+        frame.save(path)
+    shutil.copyfile(root/'dry.wav',root/'sidechain.wav')
+    return root
+
+
+def test_spacer_capture_contract(tmp_path):
+    root=spacer_fixture(tmp_path/'spacer')
+    report=demo.seal(root)
+    assert report['amount_range']==pytest.approx([25.,82.5])
+    assert report['parameter_range']==report['amount_range']
+    assert report['meta']['width']==1100 and 'sidechain.wav' in report['hashes']
+    (root/'sidechain.wav').write_bytes(b'bad')
+    with pytest.raises(ValueError,match='integrity'):demo.validate(root)
+
+
+def test_spacer_rejects_inactive_sidechain(tmp_path):
+    root=spacer_fixture(tmp_path/'silent-key')
+    with wave.open(str(root/'sidechain.wav'),'wb') as w:
+        w.setparams((1,2,48000,0,'NONE','not compressed'));w.writeframes(bytes(48000*2))
+    with pytest.raises(ValueError,match='active sidechain'):demo.seal(root)
