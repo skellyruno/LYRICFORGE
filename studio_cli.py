@@ -69,6 +69,8 @@ def build_parser() -> argparse.ArgumentParser:
     demo=sub.add_parser('demo',help='validate and render a measured SkellCore capture')
     demo.add_argument('action',choices=['seal','verify','render'])
     demo.add_argument('capture',type=Path);demo.add_argument('--out',type=Path)
+    editor_demo=sub.add_parser('editor-demo',help='validate and render an actual offline JUCE editor capture')
+    editor_demo.add_argument('action',choices=['seal','verify','render']);editor_demo.add_argument('capture',type=Path);editor_demo.add_argument('--out',type=Path)
     return parser
 
 
@@ -96,6 +98,11 @@ def build_options(args: argparse.Namespace, preset: dict | None = None) -> dict:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.command=='editor-demo':
+        import studio_editor_demo
+        cmd=[args.action,str(args.capture)]
+        if args.out is not None:cmd+=['--out',str(args.out)]
+        return studio_editor_demo.main(cmd)
     if args.command=='demo':
         import studio_demo
         cmd=[args.action,str(args.capture)]
