@@ -1372,7 +1372,9 @@ def render_with_progress(args: list[str], folder: Path, job_id: str, duration: f
     def sample_encoder_memory():
         try:
             import psutil
-            child=psutil.Process(process.pid)
+            pid=getattr(process,'pid',None)
+            if not isinstance(pid,int) or pid<=0:return
+            child=psutil.Process(pid)
             while not memory_stop.is_set():
                 try:
                     info=child.memory_info()
