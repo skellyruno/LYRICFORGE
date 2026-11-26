@@ -6,7 +6,7 @@ const defaultSettings = () => ({aspect:'portrait',resolution:'720p',renderSpeed:
 const backgrounds = {midnight:['#101418','#020605','#6fff87'],acid:['#15372b','#07120f','#72ff68'],violet:['#35244a','#0e0c1c','#bb8cfa'],crimson:['#4b1d2d','#130911','#fb5d88'],ocean:['#16445d','#06121f','#6be4ff'],noir:['#282b31','#050505','#b3b8bc'],sunset:['#4a2449','#170c23','#ffad7a'],arctic:['#234c61','#071c29','#a7edff']};
 const state = {id:null, title:'Untitled project', duration:0, lines:[], settings:defaultSettings(), time:0, playing:false, selected:0, demo:false, zoom:1, snap:false, sourceObjectUrl:null, backgroundUrl:null, pendingSave:null, backgroundIsVideo:false, waveform:[],persisted:false,dirty:false};
 const audio=$('songAudio'), canvas=$('previewCanvas'), ctx=canvas.getContext('2d'), bgImg=$('backgroundImage'),bgVid=$('backgroundVideo');
-let lastFrame=performance.now(), lastPreviewPaint=0, pollTimer=null, backgroundVersion=0;
+let lastFrame=performance.now(), pollTimer=null, backgroundVersion=0;
 let resizeTimer=null;
 let saveSerial=Promise.resolve(), recoverySerial=Promise.resolve(), editRevision=0;
 let transitionBusy=false,downloadBusy=false,renderBusy=false,uploadBusy=false,closeBusy=false;
@@ -769,7 +769,24 @@ function showText(t){const w=canvas.width,h=canvas.height,s=state.settings,ln=ac
  }
  ctx.restore();
 }
-let pendingPreviewFrame=false,previewWakeTimer=null;
+// Deadline-based cadence: do not reset the timer to every late RAF tick.
+// Turbo follows the display at up to 60 Hz; Balanced/Eco stay at 30/15 Hz.
+function previewInterval(hidden,covered,playing,mode){
+ return hidden?250:covered?250:!playing?120:1000/(mode==='turbo'?60:mode==='eco'?15:30);
+}
+function previewFrameDue(clock,now,interval,force=false){
+ if(!Number.isFinite(now)||!Number.isFinite(interval)||interval<=0)return false;
+ if(force||clock.interval!==interval||!Number.isFinite(clock.next)){
+  clock.interval=interval;clock.next=now+interval;return true;
+ }
+ // Allow sub-millisecond RAF timestamp jitter without dropping a refresh.
+ if(now+.75<clock.next)return false;
+ const skipped=Math.max(1,Math.floor((now+.75-clock.next)/interval)+1);
+ clock.next+=skipped*interval;
+ return true;
+}
+const previewClock={interval:0,next:NaN};
+let pendingPreviewFrame=false,previewWakeTimer=null,previewDirty=true;
 function schedulePreviewFrame(delay=0){
  if(pendingPreviewFrame)return;
  if(previewWakeTimer!==null){
@@ -784,7 +801,7 @@ function schedulePreviewFrame(delay=0){
   previewWakeTimer=setTimeout(()=>{previewWakeTimer=null;schedule();},delay);
  }else schedule();
 }
-function requestPreviewNow(){schedulePreviewFrame(0);}
+function requestPreviewNow(){previewDirty=true;schedulePreviewFrame(0);}
 function drawFrame(now){
  // No 60-Hz callback loop while paused: schedule one low-frequency wake.
  // Playback still uses requestAnimationFrame for smooth timing.
@@ -794,10 +811,12 @@ function drawFrame(now){
  // playing yet. Keep the entire idle welcome view static.
  const covered=!$('welcome').classList.contains('hidden')||!$('reviewOverlay').classList.contains('hidden');
  if(covered&&!state.playing&&!state.lines.length)return;
- // Prefer 30 fps while playing, 12 fps while editing and 4 fps during modal.
- const interval=document.hidden?250:covered?250:state.playing?(state.settings.performanceMode==='eco'?67:33):120;
- if(now-lastPreviewPaint<interval)return;
- const elapsed=Math.min(.15,(now-lastFrame)/1000);lastFrame=now;lastPreviewPaint=now;
+ const interval=previewInterval(document.hidden,covered,state.playing,state.settings.performanceMode);
+ if(!previewFrameDue(previewClock,now,interval,previewDirty))return;
+ previewDirty=false;
+ // Demo time follows the real elapsed clock, rather than slowing down when
+ // a capture or paint stalls. Normal project playback remains audio-clocked.
+ const elapsed=Math.max(0,(now-lastFrame)/1000);lastFrame=now;
  if(state.demo&&state.playing){state.time+=elapsed;if(state.time>state.duration){state.time=0;state.playing=false;}}
  if(state.id&&state.playing&&isFinite(audio.currentTime))state.time=audio.currentTime;
  const w=canvas.width,h=canvas.height;ctx.clearRect(0,0,w,h);drawBackground(w,h,state.time);showText(state.time);drawPositionGuide();
@@ -811,8 +830,8 @@ function drawFrame(now){
  if(state.backgroundIsVideo&&state.playing&&bgVid.paused)bgVid.play().catch(()=>{});
  if(state.backgroundIsVideo&&!state.playing&&!bgVid.paused)bgVid.pause();
 }
-function seek(seconds){state.time=clamp(seconds,0,state.duration);if(state.id&&audio.readyState)audio.currentTime=state.time;if(state.backgroundIsVideo&&Number.isFinite(bgVid.duration)&&bgVid.duration>0)bgVid.currentTime=state.time%bgVid.duration;requestPreviewNow();}
-function play(){if(!state.duration){toast('Upload a song to preview lyrics.');return;}state.playing=!state.playing;requestPreviewNow();if(state.id){if(state.playing)audio.play().catch(e=>{state.playing=false;toast(e.message,true);});else audio.pause();}}
+function seek(seconds){lastFrame=performance.now();state.time=clamp(seconds,0,state.duration);if(state.id&&audio.readyState)audio.currentTime=state.time;if(state.backgroundIsVideo&&Number.isFinite(bgVid.duration)&&bgVid.duration>0)bgVid.currentTime=state.time%bgVid.duration;requestPreviewNow();}
+function play(){if(!state.duration){toast('Upload a song to preview lyrics.');return;}lastFrame=performance.now();state.playing=!state.playing;requestPreviewNow();if(state.id){if(state.playing)audio.play().catch(e=>{state.playing=false;toast(e.message,true);});else audio.pause();}}
 function selectLine(index,jump=false){
  const previous=state.selected;
  state.selected=clamp(index,0,Math.max(0,state.lines.length-1));
@@ -1415,6 +1434,7 @@ function wireUI(){
  $('exitBtn').addEventListener('click',quitStudio);
  window.addEventListener('skellymotion-close-request',()=>{quitStudio();});
  document.addEventListener('visibilitychange',()=>{
+   lastFrame=performance.now();requestPreviewNow();
    // Tab hiding can happen before the normal recovery debounce elapses.
    if(document.hidden&&state.id&&state.dirty){clearTimeout(state.pendingSave);writeRecovery();}
   });

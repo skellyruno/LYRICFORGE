@@ -24,7 +24,7 @@ jobs:
         run: |
           sudo apt-get update -q
           sudo apt-get install -y ffmpeg libespeak-ng1
-          python -m pip install 'kokoro-onnx==0.4.9'
+          python -m pip install 'kokoro-onnx==0.6.1' 'onnxruntime==1.22.1' 'numpy==2.2.6'
       - uses: actions/cache@v4
         with:
           path: .voice-model-cache
@@ -49,6 +49,8 @@ jobs:
           OMP_NUM_THREADS: '2'
           OPENBLAS_NUM_THREADS: '1'
           MKL_NUM_THREADS: '1'
+          LYRICFORGE_KOKORO_THREADS: '2'
+          LYRICFORGE_VOICE_DIAGNOSTICS: '1'
         run: |
           python studio_voice_audition.py .voice-model-cache/kokoro-v1.0.onnx .voice-model-cache/voices-v1.0.bin voice-audition
           git rev-parse HEAD > voice-audition/producer-revision.txt

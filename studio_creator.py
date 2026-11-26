@@ -115,7 +115,13 @@ def run_checked(args, *, input_text=None, check_cancel=lambda:None, timeout=120)
                     check_cancel()
                     if time.monotonic()>deadline:raise TimeoutError('Narration process timed out')
                     time.sleep(.05)
-                if proc.returncode:raise RuntimeError(f'Narration/media process failed (exit {proc.returncode})')
+                if proc.returncode:
+                    # Opt-in only. The worker may include user narration text in
+                    # stderr, so never attach diagnostics to ordinary UI errors.
+                    if os.environ.get('LYRICFORGE_VOICE_DIAGNOSTICS')=='1':
+                        err.seek(0,2);err.seek(max(0,err.tell()-8192))
+                        print(err.read(8192).decode('utf-8',errors='replace'),file=sys.stderr)
+                    raise RuntimeError(f'Narration/media process failed (exit {proc.returncode})')
             finally:
                 if proc.poll() is None:proc.kill();proc.wait()
 

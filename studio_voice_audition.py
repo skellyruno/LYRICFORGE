@@ -37,7 +37,33 @@ def run(model,voices,out):
         with wave.open(str(target),'wb') as wav:
             wav.setparams((1,2,rate,0,'NONE','not compressed'));wav.writeframes(x.tobytes())
         rows.append({'voice':voice,'model_voice':creator.KOKORO_VOICES[voice],'seconds':len(samples)/rate,'synthesis_seconds':elapsed,'rms_dbfs':20*math.log10(rms),'peak_dbfs':20*math.log10(peak),'matched_gain_db':20*math.log10(gain),'original_sha256':digest(raw),'matched_sha256':digest(target),'timing':result['word_timing']})
-    report={'model_sha256':MODEL_SHA,'voices_sha256':VOICES_SHA,'script':SCRIPT,'voices':rows,'matching':'RMS target -22 dBFS, peak cap -1 dBFS; not LUFS normalization','approval':'Unapproved. Listening required.'}
+    # Generate provisional production speech for the two benchmark videos
+    # using the same verified adapter. Keep each chapter independently
+    # timed and leave the actual audio-proof intervals free of narration.
+    benchmark={
+      'spacer':[
+       ('opening','Two tracks can compete for the same frequencies. Skell Spacer creates room using a sidechain signal.'),
+       ('operation','Watch the actual amount control rise. The display follows the processor as the sidechain carves into the main signal.'),
+       ('listen','Power switches processing off and back on. Listen mode lets you hear the detector signal.'),
+       ('proof','Compare these two matched source excerpts. The first is dry. The second is processed by Skell Spacer. These are synthetic test signals.'),
+       ('closing','Frequency-selective ducking. Zero added plugin latency. Skell Spacer.')
+      ],
+      'motion':[
+       ('opening','Skelly Motion brings lyrics, editing, narration and video production into one creative workspace.'),
+       ('lyrics','Import your song, review the lyrics, then edit the timing on the timeline. Choose a background and animate the words.'),
+       ('creator','Creator turns a written brief into an editable production. Attach real footage, choose a narrator, and guide the visual style.'),
+       ('director','Director selects visual scenes, technical diagrams, titles and transitions. Keep original audio comparisons intact.'),
+       ('tools','Clip long videos into shorts, make visualizers and use quick audio and video tools. Choose a performance mode that fits your computer.'),
+       ('closing','Create your own look, review the results, and export your finished video. Skelly Motion.')
+      ]}
+    timed={}
+    for product,chapters in benchmark.items():
+        path=out/(product+'-provisional.wav')
+        script=[{'title':title,'narration':speech,'visual_hint':title} for title,speech in chapters]
+        production=creator.narration(script,path,voice='kokoro',speed=1.,delivery='tutorial',pronunciation={'Skell':'Skell','SkellyMotion':'Skelly Motion'})
+        if production['provider']!='kokoro':raise RuntimeError('Production voice fell back')
+        timed[product]={'file':path.name,'sha256':digest(path),'duration':production['duration'],'lines':production['lines'],'approval':'provisional, not yet approved'}
+    report={'benchmark':timed,'model_sha256':MODEL_SHA,'voices_sha256':VOICES_SHA,'script':SCRIPT,'voices':rows,'matching':'RMS target -22 dBFS, peak cap -1 dBFS; not LUFS normalization','approval':'Unapproved. Listening required.'}
     (out/'report.json').write_text(json.dumps(report,indent=2),encoding='utf-8')
     return report
 

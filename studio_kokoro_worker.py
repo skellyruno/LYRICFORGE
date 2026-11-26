@@ -15,16 +15,31 @@ def main():
     if not root.is_dir() or root.is_symlink():raise ValueError('Invalid output directory')
     import numpy as np
     from kokoro_onnx import Kokoro
-    engine=Kokoro(sys.argv[1],sys.argv[2])
+    # Explicit CPU-only audition budget; leave ordinary operator-configured
+    # providers alone. Modern Kokoro handles the model's actual input dtype.
+    import os
+    if os.environ.get('LYRICFORGE_KOKORO_THREADS') and hasattr(Kokoro,'from_session'):
+        import onnxruntime as ort
+        options=ort.SessionOptions()
+        options.intra_op_num_threads=max(1,min(4,int(os.environ['LYRICFORGE_KOKORO_THREADS'])))
+        options.inter_op_num_threads=1
+        session=ort.InferenceSession(sys.argv[1],sess_options=options,providers=['CPUExecutionProvider'])
+        engine=Kokoro.from_session(session,sys.argv[2])
+    else:
+        engine=Kokoro(sys.argv[1],sys.argv[2])
     total_seconds=0.
     for i,text in enumerate(phrases):
         samples,rate=engine.create(text,voice=voice,speed=speed,lang='en-us')
         x=np.asarray(samples,dtype=np.float32)
+        if x.ndim==2 and 1 in x.shape:x=x.reshape(-1)
         if x.ndim!=1 or not 8000<=rate<=48000 or not 0<x.size<=rate*50 or not np.isfinite(x).all():
             raise ValueError('Invalid neural audio')
         total_seconds+=x.size/rate
         if total_seconds>1800:raise ValueError('Narration exceeds 30 minutes')
-        if np.max(np.abs(x))<1e-5:raise ValueError('Silent neural phrase')
+        peak=float(np.max(np.abs(x)))
+        if peak<1e-5:raise ValueError('Silent neural phrase')
+        # Preserve an unclipped waveform if an exported model overshoots 0 dBFS.
+        if peak>.98:x=x*(.98/peak)
         target=root/f'neural-{i:04d}.wav'
         if target.exists():raise ValueError('Refusing to overwrite neural output')
         with wave.open(str(target),'wb') as out:
