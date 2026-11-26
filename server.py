@@ -1362,8 +1362,15 @@ def render_with_progress(args: list[str], folder: Path, job_id: str, duration: f
                                stdin=subprocess.DEVNULL, **child_options)
     started = time.monotonic()
     frames = 0
-    watchdog = threading.Timer(1800, process.kill)
-    watchdog.daemon = True
+    from studio_process_guard import guard_process
+    guard_stop=threading.Event()
+    guard_outcome=[None];progress_at=[started]
+    # A dead or silent child must not block the reader or cancellation for
+    # thirty minutes. Longer jobs retain a generous no-progress budget.
+    idle_limit=120. if duration<=30 else 300.
+    watchdog=threading.Thread(target=guard_process,
+        args=(process,guard_stop,lambda:cancel_requested(job_id),progress_at,guard_outcome,idle_limit),
+        daemon=True)
     watchdog.start()
     # Sample memory independently of FFmpeg progress; short jobs may otherwise
     # finish between progress updates. Null means no measurement available.
@@ -1374,7 +1381,8 @@ def render_with_progress(args: list[str], folder: Path, job_id: str, duration: f
             import psutil
             pid=getattr(process,'pid',None)
             if not isinstance(pid,int) or pid<=0:return
-            child=psutil.Process(pid)
+            try:child=psutil.Process(pid)
+            except (psutil.NoSuchProcess,psutil.AccessDenied):return
             while not memory_stop.is_set():
                 try:
                     info=child.memory_info()
@@ -1397,10 +1405,16 @@ def render_with_progress(args: list[str], folder: Path, job_id: str, duration: f
                 raise JobCancelled("Cancelled by you.")
             row = line.strip()
             if row.startswith("out_time="):
-                progress_seconds = ffmpeg_seconds(row.partition("=")[2])
+                position = ffmpeg_seconds(row.partition("=")[2])
+                if position>progress_seconds:
+                    progress_at[0]=time.monotonic()
+                    progress_seconds=position
             elif row.startswith("frame="):
                 try:
-                    frames = max(0, int(row.partition("=")[2]))
+                    frame = max(0, int(row.partition("=")[2]))
+                    if frame>frames:
+                        progress_at[0]=time.monotonic()
+                        frames=frame
                 except ValueError:
                     pass
             elif row.startswith("progress="):
@@ -1422,11 +1436,17 @@ def render_with_progress(args: list[str], folder: Path, job_id: str, duration: f
                 if len(error_tail) > 25:
                     error_tail.pop(0)
         code = process.wait()
+        if guard_outcome[0]=='cancelled' or cancel_requested(job_id):
+            raise JobCancelled("Cancelled by you.")
+        if guard_outcome[0]=='stalled':
+            raise RuntimeError(f"FFmpeg made no frame or audio progress for {idle_limit:g}s: "+" | ".join(error_tail)[-1000:])
+        if guard_outcome[0]=='deadline':
+            raise RuntimeError("FFmpeg exceeded the 30-minute job deadline")
         if code:
             raise RuntimeError("FFmpeg exited with code " + str(code) +
                                ": " + " | ".join(error_tail)[-1400:])
     finally:
-        watchdog.cancel()
+        guard_stop.set();watchdog.join(timeout=.5)
         memory_stop.set();memory_worker.join(timeout=.3)
         with job_lock:
             current=jobs.get(job_id)

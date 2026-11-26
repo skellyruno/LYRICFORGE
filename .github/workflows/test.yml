@@ -38,6 +38,8 @@ jobs:
           node tests/autoclip_smoke.mjs
           node tests/compressor_lab_smoke.mjs
       - name: Fail fast on Hold and Cut release regressions
-        run: python -m pytest tests/test_quick_tools2.py -q -k 'hold or cut'
+        timeout-minutes: 8
+        run: python -m pytest tests/test_quick_tools2.py -vv -k 'hold or cut' -o faulthandler_timeout=90 --durations=10
       - name: Test API, timing and actual MP4 export
-        run: python -m pytest tests -q
+        timeout-minutes: 35
+        run: python -m pytest tests -q -o faulthandler_timeout=120 --durations=15

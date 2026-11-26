@@ -122,3 +122,18 @@ def test_a_cancelled_render_kills_then_reaps_ffmpeg_and_closes_its_pipe(data, mo
     with pytest.raises(server.JobCancelled):
         server.render_with_progress(["ffmpeg", "-y", "out.mp4"], data, "jc", 1.0)
     assert events[0] == "kill" and events[-1] == "wait" and proc.stdout.closed, events
+
+
+def test_silent_child_is_cancelled_without_progress(data):
+    import sys,threading,time
+    job='silent'
+    server.jobs[job]={'id':job,'performance_mode':'balanced','status':'rendering'}
+    def cancel():
+        with server.job_lock:server.jobs[job]['cancel']=True
+    timer=threading.Timer(.25,cancel);timer.start()
+    started=time.monotonic()
+    try:
+        with pytest.raises(server.JobCancelled):
+            server.render_with_progress([sys.executable,'-c','import time;time.sleep(60)','-threads','1'],data,job,1.)
+        assert time.monotonic()-started<5.
+    finally:timer.cancel();timer.join()

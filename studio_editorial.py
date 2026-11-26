@@ -68,9 +68,7 @@ def technical_frame(kind,t,theme='legacy'):
     from studio_theme import palette
     colors=palette(theme) or {'background':'#101216','accent':'#f5b942','ink':'#e9eae8','muted':'#b1b6b9'}
     im=Image.new('RGB',(960,540),colors['background']);d=ImageDraw.Draw(im)
-    def f(size):
-        try:return ImageFont.truetype('DejaVuSans.ttf',size)
-        except OSError:return ImageFont.load_default()
+    from studio_live_diagrams import font as f
     def txt(x,y,s,size=20,color=None,anchor='la'):d.text((x,y),s,font=f(size),fill=color or colors['ink'],anchor=anchor)
     txt(48,34,kind.upper(),31,colors['accent']);txt(912,46,'ILLUSTRATIVE MODEL',13,colors['muted'],'ra')
     if kind=='Spectral ducking':
