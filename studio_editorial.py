@@ -29,14 +29,18 @@ def evidence_card(scene,w,h,font):
     d.rounded_rectangle((x,y,right,bottom),radius=max(6,h//65),fill='#ffffff')
     margin=round(w*.045);left=x+margin
     d.rectangle((x,y,x+max(3,w//300),bottom),fill='#e5b934')
-    label=font(max(13,h//39),True)
-    d.text((left,y+round(h*.045)),'RESEARCH / AUTHOR-SUPPLIED CLAIM',font=label,fill='#5b5c58')
+    limit=right-left-margin
+    heading='RESEARCH / AUTHOR-SUPPLIED CLAIM'
+    label_size=max(12,min(h//39,w//32));label=font(label_size,True)
+    while label_size>10 and d.textlength(heading,font=label)>limit:
+        label_size-=1;label=font(label_size,True)
+    d.text((left,y+round(h*.045)),heading,font=label,fill='#5b5c58')
     body=str(scene.get('evidence_text') or scene.get('text') or '')
-    limit=right-left-margin;size=max(16,round(h*.067))
+    size=max(16,min(round(h*.067),round(w*.064)))
     while True:
         f=font(size,True);rows=wrap(d,body,f,limit)
         line_height=max(1,round(size*1.2))
-        if len(rows)*line_height<=h*.32 or size<=12:break
+        if (len(rows)*line_height<=h*.32 and all(d.textlength(word,font=f)<=limit for word in body.split())) or size<=12:break
         size-=2
     if len(rows)*line_height>h*.32:
         count=max(1,int(h*.32/line_height));rows=rows[:count]
@@ -49,8 +53,11 @@ def evidence_card(scene,w,h,font):
     for i,row in enumerate(rows):d.text((left,top+i*line_height),row,font=f,fill='#20211f')
     hosts=', '.join(dict.fromkeys(urlsplit(u).hostname or '' for u in scene.get('claim_sources',[])))
     src='Source supplied: '+hosts
-    while len(src)>18 and d.textlength(src,font=label)>limit:src=src[:-5]+'…'
-    d.text((left,bottom-round(h*.065)),src,font=label,fill='#5b5c58')
+    source_size=label_size;source_font=label
+    while source_size>10 and d.textlength(src,font=source_font)>limit:
+        source_size-=1;source_font=font(source_size,True)
+    while len(src)>18 and d.textlength(src,font=source_font)>limit:src=src[:-5]+'…'
+    d.text((left,bottom-round(h*.065)),src,font=source_font,fill='#5b5c58')
     return im
 
 
