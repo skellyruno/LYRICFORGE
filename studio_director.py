@@ -75,7 +75,7 @@ def make_plan(lines: list[dict], duration: float, assets: list[dict], preset: st
     Timing is represented in frames to avoid gaps/drift. No invented facts,
     quotations, coordinates, or filenames; cards use only transcript text.
     """
-    if preset not in PRESETS or fps not in (24, 30) or not math.isfinite(duration) or duration <= 0:
+    if preset not in PRESETS or fps not in (24, 30, 60) or not math.isfinite(duration) or duration <= 0:
         raise ValueError('Invalid director timing or style')
     duration = min(duration, 15.0) if preview else duration
     if duration > 1800:

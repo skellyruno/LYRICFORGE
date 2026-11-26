@@ -4,8 +4,8 @@ import re
 
 def camera_filter(width,height,fps,frames,camera,focus=(.5,.5)):
     if (type(width) is not int or type(height) is not int or width%2 or height%2
-            or not 2<=width<=3840 or not 2<=height<=3840 or fps not in (24,30)
-            or type(frames) is not int or not 1<=frames<=900 or camera not in ('push','pull')):
+            or not 2<=width<=3840 or not 2<=height<=3840 or fps not in (24,30,60)
+            or type(frames) is not int or not 1<=frames<=30*fps or camera not in ('push','pull')):
         raise ValueError('Invalid editorial camera geometry or clock')
     if not isinstance(focus,(list,tuple)) or len(focus)!=2 or any(not isinstance(v,(int,float)) or not math.isfinite(v) for v in focus):
         focus=(.5,.5)

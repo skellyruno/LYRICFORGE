@@ -70,7 +70,7 @@ def profile_config(name: str, cores: int | None = None) -> dict:
     threads = {"eco": max(1, min(2, cores // 2)),
                "balanced": max(1, min(6, cores - 2 if cores > 3 else cores)),
                "turbo": min(12, cores)}[name]
-    return {"name": name, "threads": threads, "preview_fps": {"eco": 15, "balanced": 30, "turbo": 30}[name],
+    return {"name": name, "threads": threads, "preview_fps": {"eco": 15, "balanced": 30, "turbo": 60}[name],
             "low_priority": name == "eco"}
 
 

@@ -19,3 +19,14 @@ def test_presenter_pacing_is_context_aware_and_bounded():
 ])
 def test_shot_intent(text,hint,kind,intent):
     assert shot.shot_intent(text,hint,kind)==intent
+
+def test_native_sixty_fps_clock():
+    from studio_director import make_plan
+    from server import DirectorRequest,CreatorRequest
+    plan=make_plan([{'text':'Welcome to the studio.','start':0.,'end':2.}],2.,[],'doc',fps=60)
+    assert plan['fps']==60 and sum(s['frames'] for s in plan['scenes'])==120
+    assert DirectorRequest(output_fps=60).output_fps==60
+    assert CreatorRequest(product='Test',output_fps=60).output_fps==60
+    assert DirectorRequest().output_fps is None
+    assert 'fps=60' in shot.camera_filter(1920,1080,60,960,'push')
+    with pytest.raises(ValueError):shot.camera_filter(1920,1080,60,1801,'push')

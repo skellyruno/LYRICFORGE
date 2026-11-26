@@ -21,7 +21,7 @@ import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile, Request
 from fastapi.responses import FileResponse, PlainTextResponse, Response
@@ -4430,6 +4430,7 @@ class DirectorAssetEdit(BaseModel):
 
 
 class DirectorRequest(BaseModel):
+    output_fps: Literal[24,30,60] | None = None
     title_motion: bool = False
     editorial_style: str = "standard"
     visual_theme: str | None = None
@@ -4473,6 +4474,7 @@ class CreatorBrief(BaseModel):
 
 
 class CreatorRequest(CreatorBrief):
+    output_fps: Literal[24,30,60] | None = None
     visual_theme: str = "clean"
     skell_terminology: bool = False
     chapters: list[dict] = Field(default_factory=list,max_length=120)
@@ -4599,7 +4601,7 @@ def run_creator(project_id,job_id,body,script,voice):
             data.update(status='editor',duration=result['duration'],lines=lines,original_words=[w for line in lines for w in line['words']],creator_metadata={k:v for k,v in result.items() if k!='lines'},creator_cues=[{'id':r['id'],'text':r['text'],'chapter_title':r['chapter_title'],'visual_hint':r['visual_hint'],**({'source_url':r['source_url']} if r.get('source_url') else {})} for r in result['lines']])
             save_project(p,data)
         if body.auto_render:
-            _,settings,plan=prepare_director(project_id,DirectorRequest(preset='doc' if body.production_mode=='research' else 'plugin',brand=body.product,preview=body.preview,output_format=body.format,cinematic_finish=True,guided_replay=True,editorial_style='reference',visual_theme=body.visual_theme,skell_terminology=body.skell_terminology,caption_style='clean',caption_scale=.85,transition_style='auto',transition_seconds=.28,sound_design=body.sound_design,title_motion=body.title_motion,title_style=body.title_style))
+            _,settings,plan=prepare_director(project_id,DirectorRequest(output_fps=body.output_fps,preset='doc' if body.production_mode=='research' else 'plugin',brand=body.product,preview=body.preview,output_format=body.format,cinematic_finish=True,guided_replay=True,editorial_style='reference',visual_theme=body.visual_theme,skell_terminology=body.skell_terminology,caption_style='clean',caption_scale=.85,transition_style='auto',transition_seconds=.28,sound_design=body.sound_design,title_motion=body.title_motion,title_style=body.title_style))
             run_director(project_id,job_id,plan,settings,body.preview)
             with job_lock: jobs[job_id]['project_id']=project_id
         else:
@@ -4734,6 +4736,8 @@ def prepare_director(project_id: str, body: DirectorRequest):
                                   "resolution": "540p" if body.preview else "1080p",
                                   "mode": "line", "animation": "fade", "position": 85,
                                   "fontSize": 34, "upper": False, "textColor": "#FFFFFF"})
+    # Director-only 60 FPS opt-in; never mutate the lyric project's saved frame rate.
+    if body.output_fps is not None: settings['fps']=body.output_fps
     if silent: settings['fps']=30
     lines = validate_lines(body.lines if body.lines is not None else song_lines_for(data), data["duration"], allow_empty=True)
     creator_cues={row['id']:row for row in data.get('creator_cues',[]) if isinstance(row,dict) and 'id' in row}
