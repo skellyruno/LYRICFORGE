@@ -10,7 +10,7 @@ import vm from 'node:vm';
 const html = fs.readFileSync('static/index.html', 'utf8');
 const script = fs.readFileSync('static/app.js', 'utf8');
 const instrumentedScript = script.replace('function easing(t){',
-  'window.__studioDebug = { state, activeLyric, invalidatePlaybackIndex, previewDimensions, clipLocation, clipMotionMs, activeWordAtTime };\nfunction easing(t){');
+  'window.__studioDebug = { state, activeLyric, invalidatePlaybackIndex, previewDimensions, clipLocation, clipMotionMs, activeWordAtTime, quitStudio, applyStudioZoom };\nfunction easing(t){');
 const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map(m => m[1]);
 assert.equal(new Set(ids).size, ids.length, 'HTML contains duplicate IDs');
 
@@ -271,4 +271,19 @@ assert.equal(debug.state.settings.background,'arctic');
 assert.ok(groups['[data-animation]'].some(x=>x.dataset.animation==='pulse'));
 assert.ok(groups['[data-background]'].some(x=>x.dataset.background==='sunset'));
 
+// Unsaved native close flow and virtual viewport sizing.
+let closeCount=0, cancelCount=0, recoveryWrites=0;
+win.pywebview={api:{approve_close:async()=>{closeCount++;},cancel_close:async()=>{cancelCount++;}}};
+context.fetch=async(path,opts)=>{if(path.endsWith('/recovery')&&opts.method==='PUT'){recoveryWrites++;return {ok:true,json:async()=>({recovered:true})};}throw Error('unexpected request '+path);};
+debug.state.id='a'.repeat(32);debug.state.demo=false;debug.state.persisted=false;debug.state.dirty=true;debug.state.lines=[];
+nodes.lyricsText.value='unsaved review';
+const pendingClose=debug.quitStudio();
+assert.ok(!nodes.saveDecisionOverlay.classList.contains('hidden'));
+await debug.quitStudio();
+nodes.decisionCancel.onclick();await pendingClose;assert.equal(closeCount,0);assert.equal(cancelCount,1);
+const keepClose=debug.quitStudio();nodes.decisionKeep.onclick();await keepClose;
+assert.equal(recoveryWrites,1);assert.equal(closeCount,1);
+doc.documentElement.classList.add('desktop-mode');win.innerWidth=860;win.innerHeight=561;
+nodes.studioZoom.value='fit';debug.applyStudioZoom();const fit=Number(nodes.studioShell.style['--studio-scale']);assert.ok(fit>.65&&fit<1);
+nodes.studioZoom.value='1.1';debug.applyStudioZoom();assert.ok(Number(nodes.studioShell.style['--studio-scale'])<=860/980);
 console.log('SkellyMotion editor smoke tests passed: load, edit, undo, redo, split, delete, snap, styles, layout tools, SRT.');

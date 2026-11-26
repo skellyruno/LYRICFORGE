@@ -14,6 +14,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import tempfile
 import time
 from typing import Any
 
@@ -135,10 +136,35 @@ def read_cache(path: Path) -> dict:
         return {}
 
 
+def publish_staged_file(staging: Path, target: Path) -> None:
+    """Retry transient Windows sharing violations without truncating the target."""
+    # MoveFileEx may briefly reject a replace when another writer/reader or
+    # antivirus holds a handle. Bound the retry; surface persistent failures.
+    for attempt in range(9):
+        try:
+            staging.replace(target)
+            return
+        except PermissionError as exc:
+            if getattr(exc, "winerror", None) not in (5, 32, 33) or attempt == 8:
+                raise
+            time.sleep(min(0.01 * (2 ** attempt), 0.15))
+
+
+def atomic_write_json(path: Path, value: Any, **json_options: Any) -> None:
+    """Publish complete JSON using a private sibling file (safe on Windows too)."""
+    payload = json.dumps(value, **json_options)
+    fd, name = tempfile.mkstemp(prefix=f".{path.name}-", suffix=".tmp", dir=path.parent)
+    staging = Path(name)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as out:
+            out.write(payload)
+        publish_staged_file(staging, path)
+    finally:
+        staging.unlink(missing_ok=True)
+
+
 def store_cache(path: Path, cache: dict) -> None:
-    temp = path.with_suffix(".tmp")
-    temp.write_text(json.dumps(cache, sort_keys=True), encoding="utf-8")
-    temp.replace(path)
+    atomic_write_json(path, cache, sort_keys=True)
 
 
 def uncertain_words(words: list[dict], threshold: float = .60, limit: int = 45) -> list[dict]:

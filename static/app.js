@@ -9,7 +9,8 @@ const audio=$('songAudio'), canvas=$('previewCanvas'), ctx=canvas.getContext('2d
 let lastFrame=performance.now(), lastPreviewPaint=0, pollTimer=null, backgroundVersion=0;
 let resizeTimer=null;
 let saveSerial=Promise.resolve(), recoverySerial=Promise.resolve(), editRevision=0;
-let transitionBusy=false,downloadBusy=false,renderBusy=false,uploadBusy=false;
+let transitionBusy=false,downloadBusy=false,renderBusy=false,uploadBusy=false,closeBusy=false;
+let studioScale=1;
 let timelineTravelWidth=0;
 let previewQuality='auto';
 try {
@@ -29,8 +30,9 @@ const toast=(msg,error=false)=>{const el=document.createElement('div');el.classN
 async function api(path,options={}){
  const method=(options.method||'GET').toUpperCase();
  const shortPoll=path.startsWith('/api/jobs/')||/^\/api\/projects\/[0-9a-f]{32}$/.test(path);
- const controller=method==='GET'&&shortPoll&&!options.signal?new AbortController():null;
- const timer=controller?setTimeout(()=>controller.abort(),20000):null;
+ const bounded=shortPoll||options.closeTimeout;
+ const controller=bounded&&!options.signal&&typeof AbortController!=='undefined'?new AbortController():null;
+ const timer=controller?setTimeout(()=>controller.abort(),options.closeTimeout||20000):null;
  try{
   const response=await fetch(path,controller?{...options,signal:controller.signal}:options);
   if(!response.ok){
@@ -221,8 +223,8 @@ function showClipMenu(e){
  e.preventDefault();selectLine(Number(clip.dataset.index),false);
  const menu=$('clipContextMenu');
  menu.classList.remove('hidden');
- menu.style.left=Math.max(8,Math.min(e.clientX,(window.innerWidth||1200)-190))+'px';
- menu.style.top=Math.max(8,Math.min(e.clientY,(window.innerHeight||900)-170))+'px';
+ menu.style.left=Math.max(8,Math.min(e.clientX/studioScale,(window.innerWidth||1200)/studioScale-190))+'px';
+ menu.style.top=Math.max(8,Math.min(e.clientY/studioScale,(window.innerHeight||900)/studioScale-170))+'px';
 }
 function runClipMenuAction(action){
  hideClipMenu();
@@ -260,6 +262,24 @@ function saveLayout(){
    timeline:parseFloat(css.getPropertyValue('--timeline-height'))||210
   }));
  }catch{}
+}
+function applyStudioZoom(){
+ if(!document.documentElement.classList.contains('desktop-mode'))return;
+ const select=$('studioZoom');
+ let selected=select.value||'fit';
+ const w=window.innerWidth||960,h=window.innerHeight||623;
+ const fit=Math.min(1.15,w/1120,h/720);
+ const ceiling=Math.min(w/980,h/620,1.25);
+ studioScale=Math.max(.35,Math.min(selected==='fit'?fit:Number(selected)||fit,ceiling));
+ const shell=$('studioShell');
+ shell.style.setProperty('--studio-scale',String(studioScale));
+ shell.style.setProperty('--studio-width',(100/studioScale)+'vw');
+ shell.style.setProperty('--studio-height',(100/studioScale)+'vh');
+ select.title='Interface zoom: '+Math.round(studioScale*100)+'% (limited to fit window)';
+}
+function restoreStudioZoom(){
+ try{const saved=localStorage.getItem('skellymotion-interface-zoom');if(['fit','0.75','0.9','1','1.1'].includes(saved))$('studioZoom').value=saved;}catch{}
+ applyStudioZoom();
 }
 function restoreLayout(){
  try{
@@ -902,16 +922,16 @@ function queueSave(){
  clearTimeout(state.pendingSave);
  state.pendingSave=setTimeout(()=>writeRecovery(),750);
 }
-function writeRecovery(){
+function writeRecovery(strict=false){
  if(!state.id)return Promise.resolve();
  const id=state.id;
  const draft=$('reviewOverlay').classList.contains('hidden')?'':$('lyricsText').value;
  const payload=JSON.stringify({lines:state.lines,settings:state.settings,draft_lyrics:draft});
  // Crash-only recovery; never overwrite project.json.
  recoverySerial=recoverySerial.catch(()=>{}).then(()=>api('/api/projects/'+id+'/recovery',{
-  method:'PUT',headers:{'Content-Type':'application/json'},body:payload
+  method:'PUT',headers:{'Content-Type':'application/json'},body:payload,closeTimeout:15000
  }));
- return recoverySerial.catch(e=>{if(state.id===id)toast('Crash recovery failed: '+e.message,true);});
+ return strict?recoverySerial:recoverySerial.catch(e=>{if(state.id===id)toast('Crash recovery failed: '+e.message,true);});
 }
 async function save(){
  if(!state.id||state.demo)return false;
@@ -919,10 +939,11 @@ async function save(){
  const id=state.id,revision=editRevision;
  // Complete pending recovery writes before committing and clearing the cache.
  await recoverySerial.catch(()=>{});
- const payload=JSON.stringify({settings:state.settings,lines:state.lines});
+ const draft=$('reviewOverlay').classList.contains('hidden')?undefined:$('lyricsText').value;
+ const payload=JSON.stringify({settings:state.settings,lines:state.lines,draft_lyrics:draft});
  $('projectStatus').textContent='Saving…';
  saveSerial=saveSerial.catch(()=>{}).then(()=>api('/api/projects/'+id,{
-  method:'PUT',headers:{'Content-Type':'application/json'},body:payload
+  method:'PUT',headers:{'Content-Type':'application/json'},body:payload,closeTimeout:15000
  }));
  try{
   await saveSerial;
@@ -942,36 +963,46 @@ async function save(){
 }
 function askSaveDecision(reason='leave'){
  if(!state.id||(!state.dirty&&state.persisted))return Promise.resolve('skip');
+ $('decisionKeep').classList.toggle('hidden',reason!=='close');
  $('saveDecisionText').textContent=state.persisted?
   'Save changes to "'+state.title+'"? Don’t Save keeps the last saved version and clears only the crash recovery.':
   'Save "'+state.title+'"? Don’t Save permanently deletes this unsaved draft and its temporary media.';
+ if(reason==='close')$('saveDecisionText').textContent+=' Keep recovery closes without deleting the draft, even while analysis is running.';
  $('saveDecisionOverlay').classList.remove('hidden');
  return new Promise(resolve=>{
   let settled=false;
   const finish=(answer)=>{
    if(settled)return;settled=true;
    $('saveDecisionOverlay').classList.add('hidden');
-   ['decisionSave','decisionDiscard','decisionCancel'].forEach(k=>$(k).onclick=null);
+   ['decisionSave','decisionKeep','decisionDiscard','decisionCancel'].forEach(k=>$(k).onclick=null);
    resolve(answer);
   };
   $('decisionSave').onclick=()=>finish('save');
+  $('decisionKeep').onclick=()=>finish('keep');
   $('decisionDiscard').onclick=()=>finish('discard');
   $('decisionCancel').onclick=()=>finish('cancel');
  });
 }
-async function mayLeaveProject(){
+async function mayLeaveProject(reason='leave'){
  if(transitionBusy)return false;
  if(!state.id)return true;
  transitionBusy=true;
  try{
-  const decision=await askSaveDecision();
+  const decision=await askSaveDecision(reason);
   if(decision==='cancel')return false;
   if(decision==='save')return await save();
+  if(decision==='keep'){
+   clearTimeout(state.pendingSave);
+   await saveSerial.catch(()=>{});
+   await writeRecovery(true);
+   return true;
+  }
   if(decision==='discard'){
    clearTimeout(state.pendingSave);
    await recoverySerial.catch(()=>{});
+   await saveSerial.catch(()=>{});
    const id=state.id;
-   await api('/api/projects/'+id+'/discard',{method:'POST'});
+   await api('/api/projects/'+id+'/discard',{method:'POST',closeTimeout:15000});
    if(localStorage.getItem('lyricforge-last')===id)
     localStorage.removeItem('lyricforge-last');
    return true;
@@ -981,13 +1012,18 @@ async function mayLeaveProject(){
  finally{transitionBusy=false;}
 }
 async function quitStudio(){
- if(!await mayLeaveProject())return;
- if(window.pywebview?.api?.approve_close){
-  try{await window.pywebview.api.approve_close();}catch(e){toast('Could not close: '+e.message,true);}
- }else{
-  resetWorkspace();
-  toast('You can close this browser tab now.');
- }
+ if(closeBusy)return;
+ closeBusy=true;
+ const bridge=window.pywebview?.api;
+ let approved=false;
+ try{
+  if(!await mayLeaveProject('close'))return;
+  audio.pause();
+  clearTimeout(state.pendingSave);state.dirty=false;
+  if(bridge?.approve_close){await bridge.approve_close();approved=true;}
+  else{state.persisted=true;toast('You can close this browser tab now.');}
+ }catch(e){toast('Could not close: '+e.message,true);}
+ finally{closeBusy=false;if(!approved){try{await bridge?.cancel_close?.();}catch{}}}
 }
 function resetWorkspace(){
  clearTimeout(state.pendingSave);
@@ -1370,6 +1406,7 @@ function wireUI(){
  $('upper').addEventListener('change',e=>setSetting('upper',e.target.checked));
  ['mode','animation','background','aspect'].forEach(key=>$$(`[data-${key}]`).forEach(b=>b.addEventListener('click',()=>setSetting(key,b.dataset[key]))));
  $('heroUpload').addEventListener('click',chooseSong);
+ $('studioZoom').addEventListener('change',()=>{try{localStorage.setItem('skellymotion-interface-zoom',$('studioZoom').value)}catch{}applyStudioZoom();resizePreview();drawWaveform();renderTimeline();});
  $('exitBtn').addEventListener('click',quitStudio);
  window.addEventListener('skellymotion-close-request',()=>{quitStudio();});
  document.addEventListener('visibilitychange',()=>{
@@ -1406,6 +1443,7 @@ function wireUI(){
  $('newBtn').addEventListener('click',async()=>{if(await mayLeaveProject())resetWorkspace();});
  $('previewFull').addEventListener('click',()=>{const stage=$('stage');if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});else stage.requestFullscreen?.().catch(()=>{});});
  window.addEventListener('resize',()=>{
+   applyStudioZoom();
    clearTimeout(resizeTimer);
    resizeTimer=setTimeout(()=>{resizePreview();drawWaveform();timelineTravelWidth=Math.max(0,$('timelineInner').clientWidth-110);requestPreviewNow();},100);
  });
@@ -1413,6 +1451,7 @@ function wireUI(){
  audio.addEventListener('ended',()=>{state.playing=false;});audio.addEventListener('pause',()=>{if(!audio.ended)state.playing=false;});audio.addEventListener('play',()=>{state.playing=true;});
  document.addEventListener('keydown',e=>{
   const ctrl=e.ctrlKey||e.metaKey;
+  if(!$('saveDecisionOverlay').classList.contains('hidden')){if(e.key==='Escape'){e.preventDefault();$('decisionCancel').onclick?.();}return;}
    if(e.key==='Escape')hideClipMenu();
   const typing=!!e.target.closest('input,textarea,select,[contenteditable="true"]');
   if(e.key==='Escape'&&!$('shortcutsOverlay').classList.contains('hidden')){e.preventDefault();showShortcuts(false);return;}
@@ -1469,7 +1508,7 @@ async function restore(interactive=false){
   button.disabled=false;button.textContent='↻ Resume last project →';
  }
 }
-restoreLayout();
+restoreLayout();restoreStudioZoom();
 try{const savedMode=localStorage.getItem('skellymotion-perf-mode');
  if(['eco','balanced','turbo'].includes(savedMode)){
   $('startupPerformance').value=savedMode;state.settings.performanceMode=savedMode;

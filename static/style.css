@@ -11,28 +11,10 @@
 @media(max-width:760px){.rail-item{width:16.66%;font-size:9px}}
 
 
-/* SkellyMotion desktop app — intentional 65% scale on ALL interface components.
-   A zoomed, inverse-sized app maintains exactly one viewport of usable space.
-   The hosted web version is unaffected. Native mode also overrides the mobile
-   breakpoint, which otherwise switches to stacked panels on high-DPI displays. */
-html.desktop-mode, html.desktop-mode body{width:100%;height:100%;margin:0;overflow:hidden}
-html.desktop-mode .app{
-  /* Scale the complete editor in a fixed virtual viewport: avoids CSS zoom
-     changing layout breakpoints or scrolling during window resizing. */
-  zoom:1;
-  position:absolute;
-  inset:0 auto auto 0;
-  transform:scale(.65);
-  transform-origin:top left;
-  width:153.846154vw;
-  height:153.846154vh;
-  min-width:0;
-  min-height:0;
-  max-height:none;
-  display:flex;
-  flex-direction:column;
-  overflow:hidden;
-}
+/* One shared virtual viewport for editor and overlays. */
+html.desktop-mode,html.desktop-mode body{width:100%;height:100%;margin:0;overflow:hidden}
+html.desktop-mode #studioShell{position:absolute;inset:0 auto auto 0;width:var(--studio-width,153.846154vw);height:var(--studio-height,153.846154vh);transform:scale(var(--studio-scale,.65));transform-origin:top left;overflow:hidden}
+html.desktop-mode .app{position:absolute;inset:0;width:100%;height:100%;min-width:0;min-height:0;max-height:none;display:flex;flex-direction:column;overflow:hidden}
 html.desktop-mode .topbar{
   width:100%;height:70px;min-height:70px;flex-shrink:0;
   padding:0 24px;gap:15px;display:flex;align-items:center;
@@ -575,3 +557,32 @@ html.desktop-mode .welcome-overlay{scrollbar-width:thin;scrollbar-color:#4b704e 
  #topExport{width:38px;min-width:38px;padding:0;font-size:0}
  #topExport span{font-size:17px}
 }
+
+.brand-symbol{background:none;clip-path:none;flex-shrink:0;width:36px;height:36px}
+.brand-symbol img{width:100%;height:100%;display:block}
+.studio-zoom{display:none}
+html.desktop-mode .studio-zoom{display:block;width:64px;min-width:64px;height:34px;border:1px solid #34483a;border-radius:7px;background:#141b17;color:#d6e8d4;padding:0 4px;font-size:12px}
+html.desktop-mode .brand{width:auto;min-width:0;gap:7px}
+html.desktop-mode .top-middle{flex:1 1 0;min-width:0}
+html.desktop-mode .top-actions{flex:0 0 auto;gap:5px}
+html.desktop-mode .top-actions .ghost-btn{padding-inline:9px}
+html.desktop-mode .top-actions .icon-action{padding:0}
+html.desktop-mode .topbar{gap:9px;padding-inline:12px}
+html.desktop-mode .brand-pill{display:none}
+.decision-overlay{z-index:9000;overflow:auto}
+.decision-card{max-height:calc(100% - 24px);overflow:auto}
+.decision-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+.decision-actions button{white-space:normal;min-width:0;height:auto;min-height:38px}
+.decision-actions .hidden{display:none!important}
+html.desktop-mode .rail{overflow-y:auto;scrollbar-width:thin}
+html.desktop-mode .rail-bottom{margin-top:auto}
+.director-section{margin:20px 0;padding:12px;border:1px solid #31473a;border-radius:11px;background:#121b16}
+.director-local{float:right;color:#9bf08e;font-size:9px;letter-spacing:1px}
+.director-upload{display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative}
+.director-upload input{position:absolute;width:100%;height:100%;opacity:0;cursor:pointer}
+.director-list{max-height:200px;overflow:auto;display:grid;gap:5px;margin:8px 0}
+.director-scene{display:grid;gap:3px;padding:8px;border:1px solid #31463a;border-radius:6px;background:#101813;overflow-wrap:anywhere}
+.director-scene span,.director-scene small{font-size:11px;color:#a3b8aa}.director-scene b{font-size:12px;color:#d9edda}
+.director-section .wide-ghost,.director-section .render-btn{width:100%;margin-top:7px}
+
+.director-thumb,.director-proof{width:100%;max-height:180px;object-fit:contain;border:1px solid #34483a;border-radius:7px;background:#0b100c}
