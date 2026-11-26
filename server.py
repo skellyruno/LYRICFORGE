@@ -1403,14 +1403,13 @@ def render_with_progress(args: list[str], folder: Path, job_id: str, duration: f
                                ": " + " | ".join(error_tail)[-1400:])
     finally:
         watchdog.cancel()
-        if process.poll() is None:
-            process.kill()
-            try:
-                process.wait(timeout=10)  # reap it: a killed FFmpeg left unwaited stays a zombie and keeps its pipe
-            except subprocess.TimeoutExpired:
-                pass
-        if process.stdout:
-            process.stdout.close()
+        try:
+            if process.poll() is None:
+                process.kill()
+                process.wait(timeout=10)  # wait for actual exit before removing staged output
+        finally:
+            if process.stdout:
+                process.stdout.close()
 
 
 def render_project(project_id: str, job_id: str, settings: dict,
@@ -1723,6 +1722,18 @@ def finish_child(child: str) -> None:
         job.update(status="done", progress=100)
 
 
+def remove_render_staging(path: Path) -> None:
+    """Remove owned temporary render output, retrying transient Windows sharing violations."""
+    for attempt in range(9):
+        try:
+            path.unlink(missing_ok=True)
+            return
+        except PermissionError as exc:
+            if getattr(exc, "winerror", None) not in (5, 32, 33) or attempt == 8:
+                raise
+            time.sleep(min(.02 * 2 ** attempt, .20))
+
+
 def encode_with_fallback(job_id: str, settings: dict, length: float, folder: Path,
                          build_args, temporary: Path) -> None:
     """Shared encoder selection and CPU fallback for all export paths."""
@@ -1742,15 +1753,16 @@ def encode_with_fallback(job_id: str, settings: dict, length: float, folder: Pat
         except Exception:
             if encoder == "libx264":
                 raise
-            temporary.unlink(missing_ok=True)
+            remove_render_staging(temporary)
             with job_lock:
                 jobs[job_id].update(stage="cpu_fallback", progress=0, encoder_used="libx264",
                                     hardware_fallback=True)
             render_with_progress(build_args("libx264", temporary), folder, job_id, length)
+        check_cancel(job_id)
         if not temporary.is_file() or temporary.stat().st_size < 1024:
             raise RuntimeError("Encoder completed without a usable video")
     except Exception:
-        temporary.unlink(missing_ok=True)
+        remove_render_staging(temporary)
         raise
 
 
@@ -3942,12 +3954,18 @@ TOOL_FILTERS = {
 _filter_cache: dict[str, set[str] | None] = {}
 
 
+def parse_ffmpeg_filters(listing: str) -> set[str]:
+    """Accept both legacy flags and FFmpeg 9's flagless filter rows, not the legend."""
+    return {match.group(1) for line in listing.splitlines()
+            if (match := re.match(r"^\s*(?:[A-Z.]{3}\s+)?([A-Za-z0-9_]+)\s+[AVN|]+->[AVN|]+(?:\s|$)", line))}
+
+
 def available_filters() -> set[str] | None:
     """The filter names this ffmpeg has (None if it cannot be run). Cached: the binary does not change while the app runs."""
     if "filters" not in _filter_cache:
         try:
             done = subprocess.run(["ffmpeg", "-hide_banner", "-filters"], capture_output=True, text=True, timeout=20)
-            names = {parts[1] for line in done.stdout.splitlines() if len(parts := line.split()) >= 3 and re.fullmatch(r"[A-Z.|]{3}", parts[0])}
+            names = parse_ffmpeg_filters(done.stdout) if done.returncode == 0 else set()
             _filter_cache["filters"] = names or None
         except (OSError, subprocess.SubprocessError):
             _filter_cache["filters"] = None
