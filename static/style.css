@@ -588,3 +588,14 @@ html.desktop-mode .rail-bottom{margin-top:auto}
 .welcome-creator-btn{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;max-width:535px;min-height:39px;margin:9px 0 0;padding:8px 12px;border:1px solid #526f4b;border-radius:8px;background:#233924;color:#b5ffab;font-weight:700;font-size:12px;text-align:left}
 .welcome-creator-btn small{font-size:10px;color:#a3b5a0;font-weight:500}
 .welcome-creator-btn:hover{background:#304b30;border-color:#9cf58c}
+
+/* Home is a full-height start screen, not an empty timeline editor. Preserve
+   underlying layout geometry for the first editor render, but remove it from
+   sight and keyboard navigation while Home is visible. */
+.welcome-overlay{top:65px;bottom:0;flex-direction:column;align-items:center;justify-content:flex-start;overscroll-behavior:contain}
+.welcome-content{flex:0 0 auto;margin:auto 0}
+html.desktop-mode .welcome-overlay{top:64px;bottom:0;max-height:none;align-items:center;justify-content:flex-start}
+html.desktop-mode .welcome-content{margin:auto 0}
+.app:has(>#welcome:not(.hidden)) > :is(.main-layout,.timeline-pane,#timelineResizer){visibility:hidden}
+.welcome-decor{pointer-events:none}
+@media(max-height:720px){.welcome-decor{display:none}}

@@ -109,3 +109,49 @@ def test_actual_auto_picture_render(tmp_path,monkeypatch):
     if os.getenv('LF_EVIDENCE'):
         shutil.copyfile(p/'director_preview.mp4',Path(os.environ['LF_EVIDENCE'])/'auto_picture_test.mp4')
         shutil.copyfile(p/'director_preview_plan.json',Path(os.environ['LF_EVIDENCE'])/'auto_picture_test_plan.json')
+
+
+@pytest.mark.parametrize('damage', ['disabled', 'invalid_license', 'missing_name'])
+def test_network_does_not_revive_rejected_cached_picture(tmp_path, monkeypatch, damage):
+    folder = tmp_path / 'assets'
+    requests = []
+    def get(url, host, cap):
+        requests.append(host)
+        return json.dumps(payload()).encode() if host == 'commons.wikimedia.org' else fixture_bytes()
+    monkeypatch.setattr(vs, 'read_url', get)
+    first = vs.fill_missing(plan(), folder, True)
+    key = first['scenes'][0]['asset']
+    index_path = folder / 'index.json'
+    index = json.loads(index_path.read_text())
+    if damage == 'disabled':
+        index[key]['disabled'] = True
+    elif damage == 'invalid_license':
+        index[key]['source']['license'] = 'Unknown'
+    else:
+        del index[key]['name']
+    index_path.write_text(json.dumps(index))
+    original = (folder / key).read_bytes()
+    for online in (False, True):
+        result = vs.fill_missing(plan(), folder, online)
+        assert result['scenes'][0]['type'] == 'big_text'
+        assert result['visual_sources']['downloaded'] == 0
+    assert requests.count('upload.wikimedia.org') == 1
+    assert (folder / key).read_bytes() == original
+    assert json.loads(index_path.read_text()) == index
+
+
+def test_disabled_during_picture_download_is_not_replaced(tmp_path, monkeypatch):
+    folder = tmp_path / 'assets'
+    folder.mkdir()
+    item = vs.candidates(payload(), 'depth signal')[0]
+    key = vs.hashlib.sha256(('commons:' + str(item['id'])).encode()).hexdigest()[:32] + '.jpg'
+    def get(*args):
+        (folder / key).write_bytes(b'existing')
+        (folder / 'index.json').write_text(json.dumps({key: {
+            'name': 'Disabled', 'source': item['source'], 'disabled': True
+        }}))
+        return fixture_bytes()
+    monkeypatch.setattr(vs, 'read_url', get)
+    with pytest.raises(ValueError):
+        vs.import_picture(folder, item)
+    assert (folder / key).read_bytes() == b'existing'

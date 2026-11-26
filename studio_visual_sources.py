@@ -128,6 +128,17 @@ def search(query):
     return candidates(json.loads(data),query)
 
 
+def reusable_picture(target, meta):
+    """Never revive disabled entries or trust incomplete cached provenance."""
+    if not target.is_file() or target.is_symlink() or not isinstance(meta, dict) or meta.get('disabled'):
+        return False
+    source = meta.get('source')
+    return (isinstance(source, dict) and isinstance(meta.get('name'), str)
+            and source.get('provider') == 'Wikimedia Commons'
+            and str(source.get('license', '')).casefold() in LICENSES
+            and trusted_url(source.get('page', ''), 'commons.wikimedia.org'))
+
+
 def import_picture(folder, item):
     key = hashlib.sha256(('commons:'+str(item['id'])).encode()).hexdigest()[:32]+'.jpg'
     target = folder/key
@@ -135,8 +146,10 @@ def import_picture(folder, item):
         raise ValueError('Linked image path')
     with INDEX_LOCK:
         index = perf.read_cache(folder/'index.json')
-        if target.is_file() and key in index and isinstance(index[key],dict) and index[key].get('source'):
+        if reusable_picture(target, index.get(key)):
             return key, index[key]
+        if key in index or target.exists():
+            raise ValueError('Existing image is disabled or has invalid provenance')
         if len(index)>=40:
             raise ValueError('Asset library full')
     raw = read_url(item['url'],'upload.wikimedia.org',MAX_IMAGE)
@@ -151,9 +164,9 @@ def import_picture(folder, item):
         tile.save(temp,format='JPEG',quality=90,optimize=True)
         with INDEX_LOCK:
             index=perf.read_cache(folder/'index.json')
-            if target.is_file() and key in index and isinstance(index[key],dict) and index[key].get('source'):
+            if reusable_picture(target, index.get(key)):
                 return key,index[key]
-            if len(index)>=40 or target.exists():
+            if len(index)>=40 or key in index or target.exists() or target.is_symlink():
                 raise ValueError('Asset library full or image already exists')
             meta={'name':item['title'],'description':item['source']['query'],'source':item['source']}
             perf.publish_staged_file(temp,target)
@@ -185,11 +198,7 @@ def fill_missing(plan, folder: Path, allow_network=False, check_cancel=lambda:No
         for key,meta in index.items():
             if not re.fullmatch(r'[a-f0-9]{32}\.jpg',key) or not isinstance(meta,dict):
                 continue
-            if meta.get('disabled'): continue
-            source=meta.get('source')
-            if (isinstance(source,dict) and source.get('query')==query and source.get('provider')=='Wikimedia Commons' and
-                    str(source.get('license','')).casefold() in LICENSES and trusted_url(source.get('page',''),'commons.wikimedia.org') and
-                    (folder/key).is_file() and not (folder/key).is_symlink()):
+            if reusable_picture(folder/key, meta) and meta['source'].get('query')==query:
                 match=(key,meta);break
         if match:
             reused+=1

@@ -592,6 +592,9 @@ def run_desktop(home: Path, safe_mode: bool = False,
                                         "&&Math.abs(b.width-innerWidth)<4&&Math.abs(b.height-innerHeight)<4"
                                         "&&e.right<=innerWidth+2&&e.left>=0&&e.top>=0"
                                         "&&timeline.getBoundingClientRect().height>20"
+                                        "&&getComputedStyle(timeline).visibility==='hidden'"
+                                        "&&Math.abs(welcome.getBoundingClientRect().bottom-b.bottom)<3"
+                                        "&&welcome.querySelector('.welcome-content').getBoundingClientRect().top>=welcome.getBoundingClientRect().top-2"
                                         "&&getComputedStyle(welcome).overflowY!=='hidden';"
                                         "})()")
                                 except Exception as exc:
