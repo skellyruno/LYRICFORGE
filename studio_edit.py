@@ -180,7 +180,7 @@ def _simplify(pts: list[tuple[float, float, float, float]], limit: int = 48):
 
 
 def _num(v: float) -> str:
-    text = f"{v:.6f}".rstrip("0").rstrip(".")
+    text = f"{v:.4f}".rstrip("0").rstrip(".")
     return text if text not in ("", "-0") else "0"
 
 
@@ -197,9 +197,9 @@ def lerp_expr(points: list[tuple[float, float]], tvar: str) -> str:
             (t0, v0), (t1, v1) = pts[lo], pts[hi]
             if v0 == v1:
                 return _num(v0)
-            return f"{_num(v0)}+({_num(v1 - v0)})*clip(({tvar}-{_num(t0)})/{_num(max(t1 - t0, .001))},0,1)"
+            return f"{_num(v0)}+({_num(v1 - v0)})*clip(({tvar}-{t0:.3f})/{max(t1 - t0, .001):.3f},0,1)"
         mid = (lo + hi) // 2
-        return f"if(lt({tvar},{_num(pts[mid][0])}),{build(lo, mid)},{build(mid, hi)})"
+        return f"if(lt({tvar},{pts[mid][0]:.3f}),{build(lo, mid)},{build(mid, hi)})"
     return build(0, len(pts) - 1)
 
 
@@ -251,21 +251,22 @@ def sanitize_brand(data: Any) -> dict:
 
 
 def process_logo(source: Path, target: Path, max_side: int = 512) -> None:
-    """Re-encode an uploaded image as a bounded RGBA PNG without losing the prior logo on failure."""
+    """Validate and atomically replace the logo, preserving an older good logo on failure."""
     from PIL import Image
-    temporary = target.with_name(f".{target.stem}-{uuid.uuid4().hex}.tmp")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    pending = target.with_name(f".{target.name}.{uuid.uuid4().hex}.tmp")
     try:
-        target.parent.mkdir(parents=True, exist_ok=True)
         with Image.open(source) as image:
             image.verify()
         with Image.open(source) as image:
-            image = image.convert("RGBA")
-            image.thumbnail((max_side, max_side))
-            image.save(temporary, "PNG")
-        temporary.replace(target)
+            converted = image.convert("RGBA")
+            converted.thumbnail((max_side, max_side))
+            converted.save(pending, "PNG")
+        pending.replace(target)
     except Exception as exc:
-        temporary.unlink(missing_ok=True)
         raise ValueError("That file is not a usable image") from exc
+    finally:
+        pending.unlink(missing_ok=True)
 
 
 def ass_color(hex_color: str, alpha: int = 0) -> str:

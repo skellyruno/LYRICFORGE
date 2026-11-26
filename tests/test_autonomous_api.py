@@ -60,14 +60,17 @@ def png_bytes(color=(10, 200, 90, 255), size=(300, 120)):
 def test_brand_kit_over_http_including_logo_upload(tmp_path, monkeypatch):
     c = client(tmp_path, monkeypatch)
     assert c.get("/api/brand").json()["brand"]["has_logo"] is False
+    assert not (tmp_path / "_brand").exists(), "Reading settings must not create storage"
     saved = c.put("/api/brand", json={"brand": {"name": "Skelly", "accent": "#112233", "font": "Bad,Font"}}).json()["brand"]
     assert saved["name"] == "Skelly" and saved["accent"] == "#112233" and saved["font"] == "Arial"
     assert c.get("/api/brand/logo").status_code == 404
     ok = c.post("/api/brand/logo", files={"file": ("logo.png", io.BytesIO(png_bytes()), "image/png")})
     assert ok.status_code == 200 and ok.json()["brand"]["has_logo"] is True
+    good_logo = (tmp_path / "_brand" / "logo.png").read_bytes()
     assert c.get("/api/brand/logo").headers["content-type"] == "image/png"
     assert c.post("/api/brand/logo", files={"file": ("x.txt", io.BytesIO(b"hi"), "text/plain")}).status_code == 400
     assert c.post("/api/brand/logo", files={"file": ("fake.png", io.BytesIO(b"not a png"), "image/png")}).status_code == 400
+    assert (tmp_path / "_brand" / "logo.png").read_bytes() == good_logo
     assert c.get("/api/brand").json()["brand"]["has_logo"] is True  # a rejected upload leaves the good logo alone
     assert c.delete("/api/brand/logo").json()["brand"]["has_logo"] is False
     assert not [p for p in (tmp_path / "_brand").iterdir() if p.suffix == ".tmp"]

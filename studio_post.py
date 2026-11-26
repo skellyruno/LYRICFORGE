@@ -9,7 +9,6 @@ import json
 import re
 from typing import Any, Callable
 
-import studio_clips as clips
 import studio_edit as edit
 
 PLATFORMS = ("youtube_shorts", "tiktok", "instagram", "x")

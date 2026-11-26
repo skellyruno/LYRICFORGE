@@ -92,3 +92,88 @@
 .brand-sound{display:flex;flex-direction:column;gap:10px;padding-top:12px;border-top:1px solid #2d382f}
 .brand-sound>b{font-size:12px}.brand-asset{display:flex;align-items:center;gap:10px;font-size:11px;font-weight:700;color:#cdd9ce}
 .brand-asset>span:first-child{flex:1 1 150px}.brand-asset-name{color:#8fa593;font-weight:400;min-width:48px}
+
+/* Presets, post tabs, proofreading, B-roll manager, Make overlay */
+.preset-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;padding-bottom:12px;border-bottom:1px solid #2d4232}
+.preset-bar label{display:flex;flex-direction:column;gap:5px;font-size:11px;font-weight:700;color:#cdd9ce}
+.preset-bar select,.preset-bar input{background:#1a2020;color:#eaf1e9;border:1px solid #303b34;border-radius:7px;height:34px;padding:0 9px;font-size:12px}
+.make-tabs{display:flex;flex-wrap:wrap;gap:6px}
+.make-tab{background:#1b221d;border:1px solid #303c32;color:#cdd9ce;border-radius:999px;padding:7px 14px;font-size:12px;cursor:pointer}
+.make-tab:hover{border-color:var(--accent)}.make-tab.active{background:#1b2b1c;border-color:var(--accent);color:#e8ffe4}
+.posts-box textarea{width:100%;background:#111815;border:1px solid #38483b;color:#e9f1e8;border-radius:6px;padding:8px 9px;font-size:12px;resize:vertical}
+.proof-list{display:flex;flex-direction:column;gap:9px;max-height:42vh;overflow-y:auto}
+.proof-row{display:flex;flex-direction:column;gap:4px}
+.proof-row input,.proof-replace-row input{background:#111815;border:1px solid #38483b;color:#fff;border-radius:6px;padding:8px 9px;font-size:12px;width:100%}
+.proof-replace{display:flex;flex-direction:column;gap:7px;font-size:11px;color:#cdd9ce;padding-top:10px;border-top:1px solid #2d382f}
+.proof-replace-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.brand-broll{display:flex;flex-direction:column;gap:9px;padding-top:12px;border-top:1px solid #2d382f}
+.brand-broll-head{display:flex;justify-content:space-between;align-items:center;font-size:12px}.brand-broll-head small{color:#8fa593}
+.broll-list{display:flex;flex-direction:column;gap:7px}
+.broll-row{display:grid;grid-template-columns:minmax(80px,1fr) 44px 2fr auto auto;gap:7px;align-items:center;font-size:11px}
+.broll-row input,.broll-add input{background:#111815;border:1px solid #38483b;color:#fff;border-radius:6px;padding:7px 8px;font-size:11px;width:100%}
+.broll-add{display:flex;gap:8px;align-items:center}
+.make-step{max-width:760px}.make-form{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.make-field{display:flex;flex-direction:column;gap:6px;font-size:11px;font-weight:700;color:#cdd9ce}
+.make-field.wide{grid-column:1/-1}.make-field.check{flex-direction:row;align-items:center;gap:9px;font-weight:500;font-size:12px}
+.make-field input[type=text],.make-field input[type=number],.make-field textarea,.make-field select{background:#1a2020;color:#eaf1e9;border:1px solid #303b34;border-radius:7px;padding:9px 10px;font-size:12px;min-height:38px;width:100%}
+.make-field input[type=file]{font-size:11px;color:#9fb2a2}.make-field small{font-weight:400;color:#7f9183}
+.make-field.check input{accent-color:var(--accent)}
+.make-go{grid-column:1/-1;justify-self:start}
+@media(max-width:760px){.make-form{grid-template-columns:1fr}.broll-row{grid-template-columns:1fr 1fr}.proof-replace-row{grid-template-columns:1fr}}
+.clip-toolbar .clip-check{flex-direction:row;align-items:center;gap:8px;font-weight:500}
+.clip-toolbar input[type=checkbox]{width:auto;height:auto;accent-color:var(--accent)}
+.make-warning{color:#ffd37a;font-size:12px;border-left:3px solid #ffb84d;padding:6px 10px;background:#2a2417;border-radius:4px}
+.make-recent{display:flex;flex-direction:column;gap:8px;margin-top:18px;padding-top:14px;border-top:1px solid #2d382f;font-size:12px}
+.recent-row{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;background:#161d18;border:1px solid #2b372e;border-radius:8px;padding:9px 12px}
+.recent-row small{color:#8fa593}
+.make-tab.unavailable{opacity:.45;text-decoration:line-through}
+
+.make-groups{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.make-group{background:none;border:0;border-bottom:2px solid transparent;color:#9fb0a1;padding:4px 10px;font-size:12px;cursor:pointer}
+.make-group:hover{color:#e8ffe4}.make-group.active{color:#e8ffe4;border-bottom-color:var(--accent)}
+.make-tab.hidden{display:none}
+.make-search{width:100%;max-width:320px;margin-bottom:8px;background:#141a15;border:1px solid #303c32;color:#e8ffe4;border-radius:8px;padding:7px 10px;font-size:13px}
+.make-picked{color:#9fb0a1;word-break:break-all}
+select.further{background:#1b221d;border:1px solid #303c32;color:#cdd9ce;border-radius:8px;padding:6px 8px;font-size:12px}
+/* Sixty-odd tabs: show about four rows and scroll the rest, so the form is always on screen */
+.make-tabs{max-height:164px;overflow-y:auto;padding-right:4px;scrollbar-width:thin}
+.make-tabs:has(.make-tab.hidden){max-height:none}
+.make-form input[type=file]::file-selector-button,.make input[type=file]::file-selector-button{background:#1b221d;color:#e8ffe4;border:1px solid #303c32;border-radius:8px;padding:6px 12px;margin-right:10px;cursor:pointer;font:inherit;font-size:12px}
+.make-form input[type=file]::file-selector-button:hover,.make input[type=file]::file-selector-button:hover{border-color:var(--accent)}
+
+/* ---- Make page polish: categories you can tell apart, a clear title for the chosen tool, drop-zone files ---- */
+.g-create{--dot:#94ff73;--order:1}.g-video{--dot:#6ec8ff;--order:2}.g-audio{--dot:#ffb86b;--order:3}.g-picture{--dot:#d69bff;--order:4}.g-all{--dot:#cdd9ce}
+.make-tab{order:var(--order);display:inline-flex;align-items:center;gap:7px;transition:border-color .15s,background .15s,transform .15s}
+.make-tab::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--dot);flex:none;opacity:.85}
+.make-tab:hover{transform:translateY(-1px)}
+.make-tab.active{box-shadow:0 0 0 3px rgba(148,255,115,.14)}
+.make-group::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--dot);margin-right:7px;vertical-align:1px}
+.make-tool-title{margin:22px 0 4px;font-size:24px;letter-spacing:-.01em;display:flex;align-items:center;gap:12px;color:#f2f6f0}
+.make-tool-title::after{content:attr(data-kind);font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--dot);border:1px solid currentColor;border-radius:999px;padding:3px 9px;opacity:.9}
+#makeBlurb{max-width:640px;line-height:1.55;font-size:13px;color:#a9b8ab;margin:0 0 14px}
+.make-form{background:#0f1411;border:1px solid #232d26;border-radius:16px;padding:20px;box-shadow:0 12px 40px rgba(0,0,0,.28)}
+.make-field.required>span:first-child::after{content:" *";color:var(--accent)}
+.make-field.make-file{border:1.5px dashed #3b4a3e;border-radius:12px;padding:14px 16px;background:#0c110e;transition:border-color .15s,background .15s}
+.make-field.make-file:hover,.dragging .make-field.make-file{border-color:var(--accent);background:#101a12}
+.make-field input:focus-visible,.make-field select:focus-visible,.make-field textarea:focus-visible,.make-tab:focus-visible,.make-group:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.make-go{padding:11px 22px;font-size:14px;border-radius:10px;box-shadow:0 6px 18px rgba(148,255,115,.18)}
+.make-go:disabled{box-shadow:none;opacity:.5;cursor:not-allowed}
+.auto-result{border-radius:14px;padding:14px;background:#111714;border-color:#263029}
+.dragging::after{content:"Drop it anywhere";position:fixed;inset:12px;border:2px dashed var(--accent);border-radius:18px;background:rgba(10,16,11,.72);display:grid;place-items:center;font-size:20px;font-weight:700;color:#e8ffe4;pointer-events:none;z-index:50}
+@media (prefers-reduced-motion:reduce){.make-tab,.make-field.make-file{transition:none}.make-tab:hover{transform:none}}
+.make-field.invalid{animation:make-nudge .35s}.make-field.invalid.make-file,.make-field.invalid input,.make-field.invalid select,.make-field.invalid textarea{border-color:#ff7a7a}
+.make-field.invalid>span:first-child{color:#ffb0b0}
+@keyframes make-nudge{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+@media (prefers-reduced-motion:reduce){.make-field.invalid{animation:none}}
+
+.director-asset-library{max-height:520px;overflow:auto;overscroll-behavior:contain}
+.director-asset-card,.director-finish-settings{padding:8px;border:1px solid #34483a;border-radius:7px;background:#111c16;margin:5px 0;min-width:0}
+.director-asset-card summary,.director-finish-settings summary{cursor:pointer;overflow-wrap:anywhere;color:#c6dfc7;font-weight:600}
+.director-asset-card[open]{display:grid;gap:7px}.director-asset-card input,.director-asset-card select{width:100%;min-width:0;margin:3px 0}.director-asset-pair{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:5px;align-items:center}
+.director-edit-thumb{display:block;max-width:100%;max-height:220px;width:auto;height:auto;margin:6px auto;cursor:crosshair;border-radius:4px}
+.director-finish-settings .control-group{margin-top:8px}.director-asset-pair button{white-space:normal}
+
+/* Creator script stays editable while providing a compact, non-modal timing guide. */
+.creator-script-stats{display:block;color:#a6b9aa;font-size:11px;font-variant-numeric:tabular-nums;line-height:1.5;margin-top:4px;overflow-wrap:anywhere}
+.creator-panel textarea{resize:vertical;min-height:48px;max-width:100%;box-sizing:border-box}
+.creator-panel .render-btn{min-height:34px;white-space:normal}

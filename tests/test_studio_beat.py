@@ -82,3 +82,27 @@ def test_leading_gap_before_the_first_beat_is_covered():
     shifted = {**analysis, "beats": [b + .8 for b in analysis["beats"]]}
     cuts = beat.plan_cuts(shifted, 17.0)
     assert cuts[0]["start"] == 0.0 and cuts[0]["end"] == pytest.approx(.8) and cuts[0]["beats"] == 0
+
+
+@needs_ffmpeg
+def test_confidence_separates_steady_music_from_rhythmless_audio(tmp_path):
+    def conf_of(name, expr=None, source=None):
+        path = tmp_path / (name + ".wav")
+        if expr:
+            subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i", f"aevalsrc='{expr}':d=24:s=48000", str(path)], check=True)
+        else:
+            subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i", source, str(path)], check=True)
+        return beat.analyze(sa.decode_mono(path, rate=beat.RATE), 24.0)["confidence"]
+    steady = tmp_path / "s.wav"
+    click_track(steady, 120, 24)
+    assert beat.analyze(sa.decode_mono(steady, rate=beat.RATE), 24.0)["confidence"] >= .9
+    assert conf_of("drone", "0.3*sin(2*PI*220*t)") == 0.0
+    assert conf_of("noise", source="anoisesrc=d=24:c=pink:r=48000:a=0.3") < beat.LOW_CONFIDENCE
+    drift = "0.7*sin(2*PI*900*t)*exp(-40*mod(t*(1+t/30),0.55))+0.05*sin(2*PI*110*t)"  # the tempo keeps speeding up
+    assert conf_of("drift", drift) < beat.LOW_CONFIDENCE
+
+
+def test_confidence_handles_empty_and_flat_input():
+    assert beat.tempo_confidence([], 86.0, 120.0) == 0.0
+    assert beat.tempo_confidence([0.0] * 500, 86.0, 120.0) == 0.0
+    assert beat.tempo_confidence([1.0] * 500, 86.0, 0.0) == 0.0

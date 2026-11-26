@@ -10,7 +10,6 @@ import math
 import random
 from pathlib import Path
 
-import studio_clips as clips
 import studio_edit as edit
 
 MAX_PASSES = 6  # times one file may be re-opened for a second run through its footage

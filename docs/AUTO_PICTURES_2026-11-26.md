@@ -1,0 +1,7 @@
+# Automatic pictures — 2026-11-26
+
+Enable **Find pictures automatically** in Scene Director. Existing user screenshots and relevant local footage take precedence. A render may send up to six short keyword queries (not audio or complete transcripts) to the Wikimedia Commons Action API. Only explicitly Public Domain/CC0 JPEG/PNG results with matching metadata, no recorded restrictions, no required attribution flag, and trusted HTTPS hosts are selected. Redirects are not followed, downloads and decoded image sizes are bounded, and images are re-encoded locally. Licenses/creator/source page are saved to the project and exported plan. Photos are illustrative, not verified product screenshots or evidence. Review relevance and rights before publishing.
+
+Local preview plans do not make network requests. Actual rendering can source missing images when opted in. Cached photos can be reused offline. Missing/uncertain results stay transcript cards. Metadata-only relevance is not image understanding. Automatic image generation and paid stock services are not included.
+
+Previous Windows candidate 6cf139e completed successfully and its screenshot shows the skull icon and Fit selector. Larger WIP prior baseline passed 442 tests. The equivalent new WIP changes passed 20 focused Director/sourcing tests including actual FFmpeg output, mocked image responses, offline cache reuse and both Node smoke suites. Live Commons connectivity could not be verified in the local runtime (DNS failure). Exact release branch CI and native UI review required. Keep draft.

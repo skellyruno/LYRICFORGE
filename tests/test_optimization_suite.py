@@ -211,3 +211,26 @@ def test_performance_endpoint_does_not_probe_gpu_unprompted(monkeypatch):
     assert result.status_code == 200
     assert result.json()["gpu_encoders"] is None
     assert result.json()["resources"]["cpu_percent"] == 4.2
+
+
+def test_cancelled_gpu_export_never_retries_on_cpu(tmp_path, monkeypatch):
+    folder = project(tmp_path, "e" * 32)
+    monkeypatch.setattr(server, "DATA", tmp_path)
+    monkeypatch.setattr(server.perf, "available_gpu_encoders", lambda: ("h264_nvenc",))
+    monkeypatch.setattr(server, "create_gradient", lambda style, path: path.write_bytes(b"png"))
+    calls = []
+    def cancel_render(args, working_dir, job_id, duration):
+        calls.append(args[args.index("-c:v") + 1])
+        Path(args[-1]).write_bytes(b"partial")
+        raise server.JobCancelled("Cancelled by you.")
+    monkeypatch.setattr(server, "render_with_progress", cancel_render)
+    server.jobs["cancelled-gpu"] = {"status": "rendering", "performance_mode": "balanced"}
+    try:
+        server.render_project(folder.name, "cancelled-gpu", server.sanitize_settings({}),
+                              server.validate_lines(example_lines(), 30))
+        assert calls == ["h264_nvenc"]
+        assert server.jobs["cancelled-gpu"]["cancelled"] is True
+        assert not (folder / "lyric_video.mp4").exists()
+        assert not list(folder.glob("render-*.mp4"))
+    finally:
+        server.jobs.pop("cancelled-gpu", None)

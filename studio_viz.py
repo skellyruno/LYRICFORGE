@@ -114,7 +114,7 @@ def build_ab_render(before: Path, after: Path, out_w: int, out_h: int, fps: int,
                      f"afade=t=in:st=0:d={f:.3f},afade=t=out:st={step - f:.3f}:d={f:.3f},aresample=48000,{stereo}{gain}[s{k}]")
         parts.append(f"[s{k}]asplit=2[o{k}][v{k}]")
         color = MUTED if lab == "A" else brand["accent"].replace("#", "0x")
-        parts.append(f"[v{k}]volume={viz_gain_db:.2f}dB,showwaves=s={wave_w}x{wave_h}:mode=cline:scale=sqrt:rate={fps}:"
+        parts.append(f"[v{k}]volume={viz_gain_db:.2f}dB,showwaves=s={wave_w}x{wave_h}:mode=cline:draw=full:scale=sqrt:rate={fps}:"
                      f"colors={color},format=rgba,colorkey=black:0.12:0.1,setpts=PTS-STARTPTS[w{k}]")
         wave_labels.append(f"[w{k}]")
         audio_labels.append(f"[o{k}]")
@@ -157,7 +157,7 @@ def build_visualizer_render(audio: Path, out_w: int, out_h: int, fps: int, outpu
         src = "vizB" if style == "both" else "vizA"
         color = "0xFFFFFF" if style == "both" else accent
         wh = round(out_h * (.22 if style == "both" else .3) / 2) * 2
-        parts.append(f"[{src}]volume={viz_gain_db:.2f}dB,showwaves=s={round(out_w * .9 / 2) * 2}x{wh}:mode=cline:scale=sqrt:"
+        parts.append(f"[{src}]volume={viz_gain_db:.2f}dB,showwaves=s={round(out_w * .9 / 2) * 2}x{wh}:mode=cline:draw=full:scale=sqrt:"
                      f"rate={fps}:colors={color},{key}[wave]")
         layers.append(("wave", "(main_w-overlay_w)/2:(main_h-overlay_h)/2-" + str(round(out_h * .1) if style == "both" else 0)))
     cur = "1:v"

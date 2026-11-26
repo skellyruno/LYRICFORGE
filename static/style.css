@@ -11,28 +11,10 @@
 @media(max-width:760px){.rail-item{width:16.66%;font-size:9px}}
 
 
-/* SkellyMotion desktop app — intentional 65% scale on ALL interface components.
-   A zoomed, inverse-sized app maintains exactly one viewport of usable space.
-   The hosted web version is unaffected. Native mode also overrides the mobile
-   breakpoint, which otherwise switches to stacked panels on high-DPI displays. */
-html.desktop-mode, html.desktop-mode body{width:100%;height:100%;margin:0;overflow:hidden}
-html.desktop-mode .app{
-  /* Scale the complete editor in a fixed virtual viewport: avoids CSS zoom
-     changing layout breakpoints or scrolling during window resizing. */
-  zoom:1;
-  position:absolute;
-  inset:0 auto auto 0;
-  transform:scale(.65);
-  transform-origin:top left;
-  width:153.846154vw;
-  height:153.846154vh;
-  min-width:0;
-  min-height:0;
-  max-height:none;
-  display:flex;
-  flex-direction:column;
-  overflow:hidden;
-}
+/* One shared virtual viewport for the editor, dialogs and Make tools. */
+html.desktop-mode,html.desktop-mode body{width:100%;height:100%;margin:0;overflow:hidden}
+html.desktop-mode #studioShell{position:absolute;inset:0 auto auto 0;width:var(--studio-width,153.846154vw);height:var(--studio-height,153.846154vh);transform:scale(var(--studio-scale,.65));transform-origin:top left;overflow:hidden}
+html.desktop-mode .app{position:absolute;inset:0;width:100%;height:100%;min-width:0;min-height:0;max-height:none;display:flex;flex-direction:column;overflow:hidden}
 html.desktop-mode .topbar{
   width:100%;height:70px;min-height:70px;flex-shrink:0;
   padding:0 24px;gap:15px;display:flex;align-items:center;
@@ -569,9 +551,61 @@ html.desktop-mode .welcome-overlay{scrollbar-width:thin;scrollbar-color:#4b704e 
  .word-timing-editor{padding-inline:8px}
 }
 
+/* Native branding and consistent zoom. Existing lyric-editing layout stays intact. */
+.brand-symbol{background:none;clip-path:none;flex-shrink:0;width:36px;height:36px}
+.brand-symbol img{width:100%;height:100%;display:block}
+.studio-zoom{display:none}
+html.desktop-mode .studio-zoom{display:block;width:64px;min-width:64px;height:34px;border:1px solid #34483a;border-radius:7px;background:#141b17;color:#d6e8d4;padding:0 4px;font-size:12px}
+html.desktop-mode .brand{width:auto;min-width:0;gap:7px}
+html.desktop-mode .top-middle{flex:1 1 0;min-width:0}
+html.desktop-mode .top-actions{flex:0 0 auto;gap:5px}
+html.desktop-mode .top-actions .ghost-btn{padding-inline:9px}
+html.desktop-mode .top-actions .icon-action{padding:0}
+html.desktop-mode .topbar{gap:9px;padding-inline:12px}
+html.desktop-mode .brand-pill{display:none}
+.decision-overlay{z-index:9000;overflow:auto}
+.decision-card{max-height:calc(100% - 24px);overflow:auto}
+.decision-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+.decision-actions button{white-space:normal;min-width:0;height:auto;min-height:38px}
+.decision-actions .hidden{display:none!important}
+html.desktop-mode .rail{overflow-y:auto;scrollbar-width:thin}
+html.desktop-mode .rail-bottom{margin-top:auto}
 
-/* Keep the primary export action reachable on narrow phone headers. */
-@media(max-width:760px){
- #topExport{width:38px;min-width:38px;padding:0;font-size:0}
- #topExport span{font-size:17px}
-}
+.director-section{margin:20px 0;padding:12px;border:1px solid #31473a;border-radius:11px;background:#121b16}
+.director-local{float:right;color:#9bf08e;font-size:9px;letter-spacing:1px}
+.director-upload{display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative}
+.director-upload input{position:absolute;width:100%;height:100%;opacity:0;cursor:pointer}
+.director-list{max-height:200px;overflow:auto;display:grid;gap:5px;margin:8px 0}
+.director-scene{display:grid;gap:3px;padding:8px;border:1px solid #31463a;border-radius:6px;background:#101813;overflow-wrap:anywhere}
+.director-scene span,.director-scene small{font-size:11px;color:#a3b8aa}.director-scene b{font-size:12px;color:#d9edda}
+.director-section .wide-ghost,.director-section .render-btn{width:100%;margin-top:7px}
+
+.director-thumb,.director-proof{width:100%;max-height:180px;object-fit:contain;border:1px solid #34483a;border-radius:7px;background:#0b100c}
+
+.creator-panel textarea{box-sizing:border-box;width:100%;resize:vertical;min-height:54px;color:inherit;background:#0d1612;border:1px solid #30473b;padding:8px;border-radius:7px;font:inherit;line-height:1.4}.creator-panel{margin-bottom:16px}.creator-panel .control-group{min-width:0}.creator-panel .wide-ghost{white-space:normal}
+
+/* Direct Creator entry, visible without uploading a song. */
+.welcome-creator-btn{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;max-width:535px;min-height:39px;margin:9px 0 0;padding:8px 12px;border:1px solid #526f4b;border-radius:8px;background:#233924;color:#b5ffab;font-weight:700;font-size:12px;text-align:left}
+.welcome-creator-btn small{font-size:10px;color:#a3b5a0;font-weight:500}
+.welcome-creator-btn:hover{background:#304b30;border-color:#9cf58c}
+
+/* Home is a full-height start screen, not an empty timeline editor. Preserve
+   underlying layout geometry for the first editor render, but remove it from
+   sight and keyboard navigation while Home is visible. */
+.welcome-overlay{top:65px;bottom:0;flex-direction:column;align-items:center;justify-content:flex-start;overscroll-behavior:contain}
+.welcome-content{flex:0 0 auto;margin:auto 0}
+html.desktop-mode .welcome-overlay{top:64px;bottom:0;max-height:none;align-items:center;justify-content:flex-start}
+html.desktop-mode .welcome-content{margin:auto 0}
+.app:has(>#welcome:not(.hidden)) > :is(.main-layout,.timeline-pane,#timelineResizer){visibility:hidden}
+.welcome-decor{pointer-events:none}
+@media(max-height:720px){.welcome-decor{display:none}}
+
+/* Timeline trim zones reflect the real clip duration. Keep both ends reachable. */
+.lyric-clip{padding-inline:9px;min-width:3px}
+.lyric-clip .clip-grab{width:min(7px,28%);background:#8be67e55}
+.lyric-clip .clip-grab-start{left:0;right:auto}
+.lyric-clip .clip-grab-end{right:0;left:auto}
+.lyric-clip.selected .clip-grab,.lyric-clip:hover .clip-grab{background:#a6ef9099}
+.ruler{background:none;cursor:crosshair}
+.tick{color:#9bafa1;font-variant-numeric:tabular-nums}
+.tick::before{content:'';position:absolute;left:2px;top:-9px;height:5px;border-left:1px solid #536c59}

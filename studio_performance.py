@@ -14,6 +14,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import tempfile
 import time
 from typing import Any
 
@@ -30,15 +31,29 @@ def waveform_envelope(pcm, points: int) -> list[float]:
     count = len(pcm)
     if count == 0:
         return [0.0] * points
+    # For decoded PCM, vectorize the reductions without copying the entire
+    # track. Float64 preserves the scalar path's abs/denormal semantics.
+    from array import array
+    samples = None
+    if count >= 65536 and isinstance(pcm, array) and pcm.typecode in ('f','d'):
+        import numpy as np
+        samples = np.asarray(pcm)
     peaks = []
     for i in range(points):
         start, end = (i * count) // points, ((i + 1) * count) // points
         amplitude = 0.0
-        for j in range(start, end):
-            sample = float(pcm[j])
-            if not math.isfinite(sample) or abs(sample) < 1e-30:
-                continue
-            amplitude = max(amplitude, abs(sample))
+        if samples is not None:
+            for j in range(start,end,65536):
+                values=np.abs(samples[j:min(j+65536,end)].astype(np.float64,copy=False))
+                values[~np.isfinite(values)]=0.
+                peak=float(values.max(initial=0.))
+                amplitude=max(amplitude,peak if peak>=1e-30 else 0.)
+        else:
+            for j in range(start, end):
+                sample = float(pcm[j])
+                if not math.isfinite(sample) or abs(sample) < 1e-30:
+                    continue
+                amplitude = max(amplitude, abs(sample))
         peaks.append(amplitude)
     reference = max(1e-5, sorted(peaks)[round((len(peaks) - 1) * .98)])
     return [round(min(1.0, (peak / reference) ** .65), 3)
@@ -55,7 +70,7 @@ def profile_config(name: str, cores: int | None = None) -> dict:
     threads = {"eco": max(1, min(2, cores // 2)),
                "balanced": max(1, min(6, cores - 2 if cores > 3 else cores)),
                "turbo": min(12, cores)}[name]
-    return {"name": name, "threads": threads, "preview_fps": {"eco": 15, "balanced": 30, "turbo": 30}[name],
+    return {"name": name, "threads": threads, "preview_fps": {"eco": 15, "balanced": 30, "turbo": 60}[name],
             "low_priority": name == "eco"}
 
 
@@ -94,6 +109,14 @@ def choose_encoder(mode: str, installed: tuple[str, ...]) -> str:
     if mode == "cpu":
         return "libx264"
     return installed[0] if installed else "libx264"
+
+
+def director_encode_args(mode, crf):
+    """Bound x264 lookahead. Eco is opt-in; Balanced preserves normal CRF and GOP."""
+    threads=1 if mode=='eco' else min(4,profile_config(mode)['threads']) if mode=='turbo' else 2
+    params='sync-lookahead=0:rc-lookahead=2:bframes=1' if mode=='eco' else 'sync-lookahead=0'
+    return ['-c:v','libx264','-threads',str(threads),'-preset','veryfast','-crf',str(crf),
+            '-pix_fmt','yuv420p','-x264-params',params]
 
 
 def encode_args(encoder: str, speed: str, width: int, height: int, threads: int) -> list[str]:
@@ -135,10 +158,35 @@ def read_cache(path: Path) -> dict:
         return {}
 
 
+def publish_staged_file(staging: Path, target: Path) -> None:
+    """Retry transient Windows sharing violations without truncating the target."""
+    # MoveFileEx may briefly reject a replace when another writer/reader or
+    # antivirus holds a handle. Bound the retry; surface persistent failures.
+    for attempt in range(9):
+        try:
+            staging.replace(target)
+            return
+        except PermissionError as exc:
+            if getattr(exc, "winerror", None) not in (5, 32, 33) or attempt == 8:
+                raise
+            time.sleep(min(0.01 * (2 ** attempt), 0.15))
+
+
+def atomic_write_json(path: Path, value: Any, **json_options: Any) -> None:
+    """Publish complete JSON using a private sibling file (safe on Windows too)."""
+    payload = json.dumps(value, **json_options)
+    fd, name = tempfile.mkstemp(prefix=f".{path.name}-", suffix=".tmp", dir=path.parent)
+    staging = Path(name)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as out:
+            out.write(payload)
+        publish_staged_file(staging, path)
+    finally:
+        staging.unlink(missing_ok=True)
+
+
 def store_cache(path: Path, cache: dict) -> None:
-    temp = path.with_suffix(".tmp")
-    temp.write_text(json.dumps(cache, sort_keys=True), encoding="utf-8")
-    temp.replace(path)
+    atomic_write_json(path, cache, sort_keys=True)
 
 
 def uncertain_words(words: list[dict], threshold: float = .60, limit: int = 45) -> list[dict]:

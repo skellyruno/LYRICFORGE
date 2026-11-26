@@ -13,7 +13,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 COPY requirements.txt ./
 RUN pip install -r requirements.txt
-COPY server.py studio_performance.py studio_clips.py studio_edit.py studio_audio.py studio_broll.py studio_focus.py studio_post.py studio_viz.py studio_proof.py ./
+# Every studio_*.py module is imported by server.py; a glob means a new one can never be left out of the image.
+COPY server.py studio_*.py ./
 COPY static/ ./static/
 RUN useradd --uid 10001 --create-home appuser && mkdir -p /data /app && chown -R appuser:appuser /app
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh

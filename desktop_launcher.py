@@ -17,6 +17,39 @@ from desktop_watchdog import ConsecutiveFailureDetector, windows_ui_responding
 WINDOW_TITLE = "SkellyMotion | Lyric video studio"
 
 
+def initial_window_geometry(usable_width: int, usable_height: int) -> tuple[int, int, tuple[int, int]]:
+    """Fit the native editor inside compact Windows working areas."""
+    room_width = max(320, int(usable_width) - 24)
+    room_height = max(240, int(usable_height) - 24)
+    if 800 <= usable_width < 1200:
+        room_width = min(room_width, max(800, int(usable_width * 0.84)))
+    if 560 <= usable_height < 820:
+        room_height = min(room_height, max(520, int(usable_height * 0.78)))
+    width = min(960, room_width)
+    height = min(623, room_height)
+    return width, height, (min(800, width), min(520, height))
+
+
+def native_work_area() -> tuple[int, int]:
+    if sys.platform != "win32":
+        return 1920, 1080
+    try:
+        import ctypes
+        from ctypes import wintypes
+        bounds = wintypes.RECT()
+        if ctypes.windll.user32.SystemParametersInfoW(0x0030, 0, ctypes.byref(bounds), 0):
+            width, height = int(bounds.right - bounds.left), int(bounds.bottom - bounds.top)
+            if width > 0 and height > 0:
+                return width, height
+        width = int(ctypes.windll.user32.GetSystemMetrics(0))
+        height = int(ctypes.windll.user32.GetSystemMetrics(1))
+        if width > 0 and height > 0:
+            return width, height
+    except (AttributeError, OSError, TypeError, ValueError):
+        pass
+    return 1920, 1080
+
+
 def runtime_dir() -> Path:
     return Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
 
@@ -292,14 +325,24 @@ class DesktopFilePicker:
         self.active_project = False
         self.allow_close = False
         self._saving_video = threading.Lock()
+        self._close_pending = threading.Lock()
         self._selected_audio = None
 
     def session_active(self, active):
         self.active_project = bool(active)
         return {"active": self.active_project}
 
+    def cancel_close(self):
+        if self._close_pending.locked():
+            try:
+                self._close_pending.release()
+            except RuntimeError:
+                pass
+        return True
+
     def approve_close(self):
         self.allow_close = True
+        self.cancel_close()
         if self._window is not None:
             self._window.destroy()
         return True
@@ -452,10 +495,11 @@ def run_desktop(home: Path, safe_mode: bool = False,
 
     try:
         picker = DesktopFilePicker()
+        window_width, window_height, min_window = initial_window_geometry(*native_work_area())
+        log_stage(f"initial editor window {window_width}x{window_height}, minimum {min_window}")
         window = webview.create_window(WINDOW_TITLE,
                               "http://127.0.0.1:" + str(port) + "/?desktop=1",
-                              # 25% smaller default window; user can resize/maximize freely.
-                              width=960, height=623, min_size=(800, 520),
+                              width=window_width, height=window_height, min_size=min_window,
                               resizable=True, background_color="#090c0c",
                               js_api=picker)
         picker._window = window
@@ -464,12 +508,29 @@ def run_desktop(home: Path, safe_mode: bool = False,
                 # Never block the native UI thread waiting for JavaScript.
                 if picker.allow_close or smoke_test or not picker.active_project:
                     return True
+                if not picker._close_pending.acquire(blocking=False):
+                    return False
                 def request_decision():
                     try:
-                        window.evaluate_js(
-                            "window.dispatchEvent(new Event('skellymotion-close-request'))")
+                        delivered = window.evaluate_js(
+                            "Boolean(window.SkellyBridge) && window.dispatchEvent(new Event('skellymotion-close-request'))")
+                        if delivered is not True:
+                            raise RuntimeError("Editor close bridge is not ready")
                     except Exception as exc:
                         log_stage("Could not show Save / Don't Save / Cancel: " + str(exc))
+                        # Never silently discard the current project if the JS
+                        # bridge is unavailable. Explicitly offer recovery-only exit.
+                        try:
+                            import ctypes
+                            answer = ctypes.windll.user32.MessageBoxW(
+                                None, "The editor could not open its Save dialog. Close and keep the last stored recovery? Recent unflushed edits may be lost.",
+                                "SkellyMotion — close", 0x04 | 0x30 | 0x40000)
+                            if answer == 6:
+                                picker.approve_close()
+                        except Exception as fallback_error:
+                            log_stage("Native close dialog unavailable: " + str(fallback_error))
+                        finally:
+                            picker.cancel_close()
                 threading.Thread(target=request_decision, daemon=True).start()
                 return False
             window.events.closing += on_closing
@@ -522,11 +583,18 @@ def run_desktop(home: Path, safe_mode: bool = False,
                                         "const app=document.querySelector('.app');"
                                         "const timeline=document.getElementById('timelineScroll');"
                                         "const welcome=document.getElementById('welcome');"
-                                        "if(!app||!timeline||!welcome)return false;"
-                                        "const b=app.getBoundingClientRect();"
+                                        "const shell=document.getElementById('studioShell');"
+                                        "const exp=document.getElementById('topExport');"
+                                        "if(!app||!timeline||!welcome||!shell||!exp)return false;"
+                                        "const e=exp.getBoundingClientRect(),b=app.getBoundingClientRect();"
                                         "return Number.isFinite(b.width)&&Number.isFinite(b.height)"
                                         "&&b.width>200&&b.height>160"
+                                        "&&Math.abs(b.width-innerWidth)<4&&Math.abs(b.height-innerHeight)<4"
+                                        "&&e.right<=innerWidth+2&&e.left>=0&&e.top>=0"
                                         "&&timeline.getBoundingClientRect().height>20"
+                                        "&&getComputedStyle(timeline).visibility==='hidden'"
+                                        "&&Math.abs(welcome.getBoundingClientRect().bottom-b.bottom)<3"
+                                        "&&welcome.querySelector('.welcome-content').getBoundingClientRect().top>=welcome.getBoundingClientRect().top-2"
                                         "&&getComputedStyle(welcome).overflowY!=='hidden';"
                                         "})()")
                                 except Exception as exc:
@@ -540,8 +608,24 @@ def run_desktop(home: Path, safe_mode: bool = False,
                                       + str(size) + ": " + str(layout),
                                       file=sys.stderr, flush=True)
                                 os._exit(7)
+                        editor_check={}
+                        def check_editor():
+                            try:
+                                editor_check['ok']=window.evaluate_js(
+                                    "(function(){document.getElementById('demoBtn').click();"
+                                    "const clips=document.querySelectorAll('#lyricTrack .lyric-clip');"
+                                    "return clips.length===6&&document.getElementById('welcome').classList.contains('hidden')"
+                                    "&&document.querySelectorAll('#lyricTrack .clip-grab-end').length===6"
+                                    "&&getComputedStyle(document.getElementById('timelineScroll')).visibility==='visible'"
+                                    "&&document.getElementById('ruler').children.length>0"
+                                    "&&Boolean(document.getElementById('creatorScriptStats'));})()")
+                            except Exception as exc:editor_check['error']=repr(exc)
+                        editor_probe=threading.Thread(target=check_editor,daemon=True);editor_probe.start();editor_probe.join(timeout=8)
+                        if editor_probe.is_alive() or editor_check.get('ok') is not True:
+                            print("[window-smoke] actual timeline interaction failed: "+str(editor_check),file=sys.stderr,flush=True)
+                            os._exit(8)
                         log_stage("UI message pump, JavaScript and 3 window sizes "
-                                  "passed repeated smoke probes")
+                                  "passed repeated smoke probes; actual demo timeline opened")
                         window.destroy()
                     timer = threading.Timer(2, check_window_and_close)
                     timer.daemon = True
@@ -611,8 +695,12 @@ def run_desktop(home: Path, safe_mode: bool = False,
                 name="SkellyMotionUIHangMonitor", daemon=True)
             monitor_worker.start()
         log_stage("native window created; initializing WebView2")
+        # pywebview versions differ in support for native icon overrides.
+        # The packaged EXE always embeds the skull icon.
+        from inspect import signature
+        options = {"icon": str(runtime_dir() / "static" / "skull.ico")} if "icon" in signature(webview.start).parameters else {}
         webview.start(gui="edgechromium", debug=False, private_mode=False,
-                      storage_path=str(profile))
+                      storage_path=str(profile), **options)
     finally:
         monitor_stop.set()
         if watchdog is not None:

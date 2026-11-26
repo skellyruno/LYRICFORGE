@@ -6,10 +6,11 @@ const defaultSettings = () => ({aspect:'portrait',resolution:'720p',renderSpeed:
 const backgrounds = {midnight:['#101418','#020605','#6fff87'],acid:['#15372b','#07120f','#72ff68'],violet:['#35244a','#0e0c1c','#bb8cfa'],crimson:['#4b1d2d','#130911','#fb5d88'],ocean:['#16445d','#06121f','#6be4ff'],noir:['#282b31','#050505','#b3b8bc'],sunset:['#4a2449','#170c23','#ffad7a'],arctic:['#234c61','#071c29','#a7edff']};
 const state = {id:null, title:'Untitled project', duration:0, lines:[], settings:defaultSettings(), time:0, playing:false, selected:0, demo:false, zoom:1, snap:false, sourceObjectUrl:null, backgroundUrl:null, pendingSave:null, backgroundIsVideo:false, waveform:[],persisted:false,dirty:false};
 const audio=$('songAudio'), canvas=$('previewCanvas'), ctx=canvas.getContext('2d'), bgImg=$('backgroundImage'),bgVid=$('backgroundVideo');
-let lastFrame=performance.now(), lastPreviewPaint=0, pollTimer=null, backgroundVersion=0;
+let lastFrame=performance.now(), pollTimer=null, backgroundVersion=0;
 let resizeTimer=null;
 let saveSerial=Promise.resolve(), recoverySerial=Promise.resolve(), editRevision=0;
-let transitionBusy=false,downloadBusy=false,renderBusy=false,uploadBusy=false;
+let transitionBusy=false,downloadBusy=false,renderBusy=false,uploadBusy=false,closeBusy=false;
+let studioScale=1;
 let timelineTravelWidth=0;
 let previewQuality='auto';
 try {
@@ -29,8 +30,9 @@ const toast=(msg,error=false)=>{const el=document.createElement('div');el.classN
 async function api(path,options={}){
  const method=(options.method||'GET').toUpperCase();
  const shortPoll=path.startsWith('/api/jobs/')||/^\/api\/projects\/[0-9a-f]{32}$/.test(path);
- const controller=method==='GET'&&shortPoll&&!options.signal?new AbortController():null;
- const timer=controller?setTimeout(()=>controller.abort(),20000):null;
+ const bounded=shortPoll||options.closeTimeout;
+ const controller=bounded&&!options.signal&&typeof AbortController!=='undefined'?new AbortController():null;
+ const timer=controller?setTimeout(()=>controller.abort(),options.closeTimeout||20000):null;
  try{
   const response=await fetch(path,controller?{...options,signal:controller.signal}:options);
   if(!response.ok){
@@ -221,8 +223,8 @@ function showClipMenu(e){
  e.preventDefault();selectLine(Number(clip.dataset.index),false);
  const menu=$('clipContextMenu');
  menu.classList.remove('hidden');
- menu.style.left=Math.max(8,Math.min(e.clientX,(window.innerWidth||1200)-190))+'px';
- menu.style.top=Math.max(8,Math.min(e.clientY,(window.innerHeight||900)-170))+'px';
+ menu.style.left=Math.max(8,Math.min(e.clientX/studioScale,(window.innerWidth||1200)/studioScale-190))+'px';
+ menu.style.top=Math.max(8,Math.min(e.clientY/studioScale,(window.innerHeight||900)/studioScale-170))+'px';
 }
 function runClipMenuAction(action){
  hideClipMenu();
@@ -260,6 +262,24 @@ function saveLayout(){
    timeline:parseFloat(css.getPropertyValue('--timeline-height'))||210
   }));
  }catch{}
+}
+function applyStudioZoom(){
+ if(!document.documentElement.classList.contains('desktop-mode'))return;
+ const select=$('studioZoom');
+ let selected=select.value||'fit';
+ const w=window.innerWidth||960,h=window.innerHeight||623;
+ const fit=Math.min(1.15,w/1120,h/720);
+ const ceiling=Math.min(w/980,h/620,1.25);
+ studioScale=Math.max(.35,Math.min(selected==='fit'?fit:Number(selected)||fit,ceiling));
+ const shell=$('studioShell');
+ shell.style.setProperty('--studio-scale',String(studioScale));
+ shell.style.setProperty('--studio-width',(100/studioScale)+'vw');
+ shell.style.setProperty('--studio-height',(100/studioScale)+'vh');
+ select.title='Interface zoom: '+Math.round(studioScale*100)+'% (limited to fit window)';
+}
+function restoreStudioZoom(){
+ try{const saved=localStorage.getItem('skellymotion-interface-zoom');if(['fit','0.75','0.9','1','1.1'].includes(saved))$('studioZoom').value=saved;}catch{}
+ applyStudioZoom();
 }
 function restoreLayout(){
  try{
@@ -379,6 +399,7 @@ async function openSavedProject(id){
  if(id===state.id){panel('lyrics');return;}
  try{
   const project=await api('/api/projects/'+id);
+  if(project.status==='creator_pending'||project.status==='creator_failed'){toast(project.status==='creator_pending'?'Narration is still being prepared.':'Narration failed. The draft is retained in the workspace; use Creator to try again.',true);return;}
   if(project.kind==='clip_source'&&window.SkellyClips){window.SkellyClips.open(id);return;}
   if(!await mayLeaveProject())return;
   let recovered=null;
@@ -748,7 +769,24 @@ function showText(t){const w=canvas.width,h=canvas.height,s=state.settings,ln=ac
  }
  ctx.restore();
 }
-let pendingPreviewFrame=false,previewWakeTimer=null;
+// Deadline-based cadence: do not reset the timer to every late RAF tick.
+// Turbo follows the display at up to 60 Hz; Balanced/Eco stay at 30/15 Hz.
+function previewInterval(hidden,covered,playing,mode){
+ return hidden?250:covered?250:!playing?120:1000/(mode==='turbo'?60:mode==='eco'?15:30);
+}
+function previewFrameDue(clock,now,interval,force=false){
+ if(!Number.isFinite(now)||!Number.isFinite(interval)||interval<=0)return false;
+ if(force||clock.interval!==interval||!Number.isFinite(clock.next)){
+  clock.interval=interval;clock.next=now+interval;return true;
+ }
+ // Allow sub-millisecond RAF timestamp jitter without dropping a refresh.
+ if(now+.75<clock.next)return false;
+ const skipped=Math.max(1,Math.floor((now+.75-clock.next)/interval)+1);
+ clock.next+=skipped*interval;
+ return true;
+}
+const previewClock={interval:0,next:NaN};
+let pendingPreviewFrame=false,previewWakeTimer=null,previewDirty=true;
 function schedulePreviewFrame(delay=0){
  if(pendingPreviewFrame)return;
  if(previewWakeTimer!==null){
@@ -763,7 +801,7 @@ function schedulePreviewFrame(delay=0){
   previewWakeTimer=setTimeout(()=>{previewWakeTimer=null;schedule();},delay);
  }else schedule();
 }
-function requestPreviewNow(){schedulePreviewFrame(0);}
+function requestPreviewNow(){previewDirty=true;schedulePreviewFrame(0);}
 function drawFrame(now){
  // No 60-Hz callback loop while paused: schedule one low-frequency wake.
  // Playback still uses requestAnimationFrame for smooth timing.
@@ -773,10 +811,12 @@ function drawFrame(now){
  // playing yet. Keep the entire idle welcome view static.
  const covered=!$('welcome').classList.contains('hidden')||!$('reviewOverlay').classList.contains('hidden');
  if(covered&&!state.playing&&!state.lines.length)return;
- // Prefer 30 fps while playing, 12 fps while editing and 4 fps during modal.
- const interval=document.hidden?250:covered?250:state.playing?(state.settings.performanceMode==='eco'?67:33):120;
- if(now-lastPreviewPaint<interval)return;
- const elapsed=Math.min(.15,(now-lastFrame)/1000);lastFrame=now;lastPreviewPaint=now;
+ const interval=previewInterval(document.hidden,covered,state.playing,state.settings.performanceMode);
+ if(!previewFrameDue(previewClock,now,interval,previewDirty))return;
+ previewDirty=false;
+ // Demo time follows the real elapsed clock, rather than slowing down when
+ // a capture or paint stalls. Normal project playback remains audio-clocked.
+ const elapsed=Math.max(0,(now-lastFrame)/1000);lastFrame=now;
  if(state.demo&&state.playing){state.time+=elapsed;if(state.time>state.duration){state.time=0;state.playing=false;}}
  if(state.id&&state.playing&&isFinite(audio.currentTime))state.time=audio.currentTime;
  const w=canvas.width,h=canvas.height;ctx.clearRect(0,0,w,h);drawBackground(w,h,state.time);showText(state.time);drawPositionGuide();
@@ -790,8 +830,8 @@ function drawFrame(now){
  if(state.backgroundIsVideo&&state.playing&&bgVid.paused)bgVid.play().catch(()=>{});
  if(state.backgroundIsVideo&&!state.playing&&!bgVid.paused)bgVid.pause();
 }
-function seek(seconds){state.time=clamp(seconds,0,state.duration);if(state.id&&audio.readyState)audio.currentTime=state.time;if(state.backgroundIsVideo&&Number.isFinite(bgVid.duration)&&bgVid.duration>0)bgVid.currentTime=state.time%bgVid.duration;requestPreviewNow();}
-function play(){if(!state.duration){toast('Upload a song to preview lyrics.');return;}state.playing=!state.playing;requestPreviewNow();if(state.id){if(state.playing)audio.play().catch(e=>{state.playing=false;toast(e.message,true);});else audio.pause();}}
+function seek(seconds){lastFrame=performance.now();state.time=clamp(seconds,0,state.duration);if(state.id&&audio.readyState)audio.currentTime=state.time;if(state.backgroundIsVideo&&Number.isFinite(bgVid.duration)&&bgVid.duration>0)bgVid.currentTime=state.time%bgVid.duration;requestPreviewNow();}
+function play(){if(!state.duration){toast('Upload a song to preview lyrics.');return;}lastFrame=performance.now();state.playing=!state.playing;requestPreviewNow();if(state.id){if(state.playing)audio.play().catch(e=>{state.playing=false;toast(e.message,true);});else audio.pause();}}
 function selectLine(index,jump=false){
  const previous=state.selected;
  state.selected=clamp(index,0,Math.max(0,state.lines.length-1));
@@ -821,7 +861,7 @@ function renderLines(){syncClipInspector();renderWordTiming();const holder=$('ly
  holder.querySelectorAll('[data-action]').forEach(b=>b.addEventListener('click',()=>{const i=+b.dataset.i;if(b.dataset.action==='jump'){selectLine(i,true);return;}deleteAt(i);}));
  holder.querySelectorAll('.lyric-input').forEach(el=>el.addEventListener('input',()=>{const i=+el.dataset.text,ln=state.lines[i];if(ln.text===el.value)return;recordEdit('text:'+i);ln.text=el.value;reflowWords(ln);renderWordTiming();
  const clip=$('lyricTrack').querySelector('.lyric-clip[data-index="'+i+'"]');
- if(clip){const handle=clip.querySelector('.clip-grab');clip.textContent=trimLine(ln.text);if(handle)clip.prepend(handle);}
+ if(clip){const handles=Array.from(clip.querySelectorAll('.clip-grab'));clip.textContent=trimLine(ln.text);if(handles.length)clip.prepend(...handles);}
  scheduleTimelineRefresh();queueSave();requestPreviewNow();}));
  holder.querySelectorAll('input[data-start],input[data-end]').forEach(el=>el.addEventListener('change',()=>{const i=+(el.dataset.start??el.dataset.end),ln=state.lines[i];const start=el.hasAttribute('data-start');const oldStart=ln.start,oldEnd=ln.end;const val=Number(el.value);if(!Number.isFinite(val))return;recordEdit('timing:'+i);if(start)ln.start=clamp(val,0,Math.max(0,ln.end-.06));else ln.end=clamp(val,ln.start+.06,state.duration);retimeWords(ln,oldStart,oldEnd);renderLines();renderTimeline();queueSave();}));
 }
@@ -835,7 +875,7 @@ function renderEffects(){
       (i===state.selected?'selected':'')+'" data-fx-index="'+i+'" title="'+
       safe(line.text+' · '+clipAnimationName(effect)+(custom?' (customized)':' (global)'))+
       '" style="left:'+clamp(100*line.start/d,0,100)+'%;width:'+
-      clamp(100*(line.end-line.start)/d,.3,100)+'%;">'+safe(label)+'</button>';
+      clamp(100*(line.end-line.start)/d,0,100)+'%;">'+safe(label)+'</button>';
  }).join('');
  fx.querySelectorAll('[data-fx-index]').forEach(button=>button.addEventListener('click',e=>{
    e.preventDefault();e.stopPropagation();
@@ -850,25 +890,29 @@ function scheduleTimelineRefresh(){
 function flushTimelineRefresh(){
  if(timelineRefreshTimer!==null){clearTimeout(timelineRefreshTimer);timelineRefreshTimer=null;renderTimeline();}
 }
-function renderTimeline(){if(timelineRefreshTimer!==null){clearTimeout(timelineRefreshTimer);timelineRefreshTimer=null;}invalidatePlaybackIndex();const d=state.duration||1;const clips=$('lyricTrack');clips.innerHTML=state.lines.map((l,i)=>`<div class="lyric-clip ${i===state.selected?'selected':''}" data-index="${i}" style="left:${clamp(100*l.start/d,0,100)}%;width:${clamp(100*(l.end-l.start)/d,.3,100)}%;"><span class="clip-grab"></span>${safe(trimLine(l.text))}</div>`).join('');
+function timelineTickInterval(duration,pixels){const target=Math.max(.25,duration*76/Math.max(1,pixels));return [0.25,.5,1,2,5,10,15,30,60,120,300,600].find(n=>n>=target)||600;}
+function timelineTickLabel(t,interval){return interval<1?shortTime(Math.floor(t))+'.'+Math.floor((t%1)*100+1e-5).toString().padStart(2,'0').replace(/0$/,''):shortTime(t);}
+function renderTimeline(){if(timelineRefreshTimer!==null){clearTimeout(timelineRefreshTimer);timelineRefreshTimer=null;}invalidatePlaybackIndex();const d=state.duration||1;const clips=$('lyricTrack');clips.innerHTML=state.lines.map((l,i)=>`<div class="lyric-clip ${i===state.selected?'selected':''}" data-index="${i}" style="left:${clamp(100*l.start/d,0,100)}%;width:${clamp(100*(l.end-l.start)/d,0,100)}%;"><span class="clip-grab clip-grab-start" data-edge="start" title="Trim start"></span><span class="clip-grab clip-grab-end" data-edge="end" title="Trim end"></span>${safe(trimLine(l.text))}</div>`).join('');
  renderEffects();
  $('clipCount').textContent=`${state.lines.length} clips`;$('timelineInner').style.width=`${Math.max(100,state.zoom*100)}%`;
  timelineTravelWidth=Math.max(0,$('timelineInner').clientWidth-110);
- const ruler=$('ruler');ruler.innerHTML='';const interval=d<45?5:d<150?15:d<360?30:60;for(let s=0;s<d;s+=interval){const tick=document.createElement('span');tick.className='tick';tick.style.left=`${s/d*100}%`;tick.textContent=shortTime(s);ruler.appendChild(tick);}
+ const ruler=$('ruler');ruler.innerHTML='';const interval=timelineTickInterval(d,ruler.getBoundingClientRect().width);for(let s=0;s<d;s+=interval){const tick=document.createElement('span');tick.className='tick';tick.style.left=`${s/d*100}%`;tick.textContent=timelineTickLabel(s,interval);ruler.appendChild(tick);}
  drawWaveform();
- clips.querySelectorAll('.lyric-clip').forEach(el=>el.addEventListener('pointerdown',e=>{if(e.button!==0)return;e.preventDefault();const i=+el.dataset.index;const line=state.lines[i];state.selected=i;const trackRect=clips.getBoundingClientRect(),startX=e.clientX;const originalStart=line.start,originalEnd=line.end,originalWords=line.words.map(w=>({...w}));const resize=e.target.classList.contains('clip-grab');let moved=false;selectLine(i,false);const move=evt=>{
+ clips.querySelectorAll('.lyric-clip').forEach(el=>el.addEventListener('pointerdown',e=>{if(e.button!==0)return;e.preventDefault();const i=+el.dataset.index;const line=state.lines[i];if(!line)return;const trackRect=clips.getBoundingClientRect(),startX=e.clientX;if(trackRect.width<=0)return;const originalStart=line.start,originalEnd=line.end,originalWords=(line.words||[]).map(w=>({...w}));const edge=e.target.dataset.edge;let moved=false;selectLine(i,false);const move=evt=>{
+ if(evt.pointerId!==undefined&&e.pointerId!==undefined&&evt.pointerId!==e.pointerId)return;
  const diff=(evt.clientX-startX)/trackRect.width*d;
  if(Math.abs(diff)<.004&&!moved)return;
  if(!moved){recordEdit('drag');moved=true;}
- if(resize){line.start=clamp(snapTime(originalStart+diff),0,line.end-.1)}
+ if(edge==='start'){line.start=clamp(snapTime(originalStart+diff),0,Math.max(0,originalEnd-.06))}
+ else if(edge==='end'){line.end=clamp(snapTime(originalEnd+diff),Math.min(d,originalStart+.06),d)}
  else{const len=originalEnd-originalStart;line.start=clamp(snapTime(originalStart+diff),0,Math.max(0,d-len));line.end=line.start+len;}
  retimeWords(line,originalStart,originalEnd,originalWords);
  invalidatePlaybackIndex();
  // Update just the dragged clip; rebuilding hundreds of clips each pointer
  // event causes the editor to stutter and invalidates drag targets.
  const live=clips.querySelector('.lyric-clip[data-index="'+i+'"]');
- if(live){live.style.left=clamp(100*line.start/d,0,100)+'%';live.style.width=clamp(100*(line.end-line.start)/d,.3,100)+'%';}
-};const up=()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);if(moved){state.lines.sort((a,b)=>a.start-b.start);state.selected=state.lines.indexOf(line);}renderLines();renderTimeline();if(moved)queueSave();};window.addEventListener('pointermove',move);window.addEventListener('pointerup',up,{once:true});}));
+ if(live){live.style.left=clamp(100*line.start/d,0,100)+'%';live.style.width=clamp(100*(line.end-line.start)/d,0,100)+'%';}
+};const up=evt=>{if(evt?.pointerId!==undefined&&e.pointerId!==undefined&&evt.pointerId!==e.pointerId)return;window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);window.removeEventListener('pointercancel',up);window.removeEventListener('blur',up);if(moved){state.lines.sort((a,b)=>a.start-b.start);state.selected=state.lines.indexOf(line);}renderLines();renderTimeline();if(moved)queueSave();};window.addEventListener('pointermove',move);window.addEventListener('pointerup',up);window.addEventListener('pointercancel',up);window.addEventListener('blur',up);}));
 }
 function drawWaveform(){
  const holder=$('audioWave');holder.style.backgroundImage='none';
@@ -902,16 +946,16 @@ function queueSave(){
  clearTimeout(state.pendingSave);
  state.pendingSave=setTimeout(()=>writeRecovery(),750);
 }
-function writeRecovery(){
+function writeRecovery(strict=false){
  if(!state.id)return Promise.resolve();
  const id=state.id;
  const draft=$('reviewOverlay').classList.contains('hidden')?'':$('lyricsText').value;
  const payload=JSON.stringify({lines:state.lines,settings:state.settings,draft_lyrics:draft});
  // Crash-only recovery; never overwrite project.json.
  recoverySerial=recoverySerial.catch(()=>{}).then(()=>api('/api/projects/'+id+'/recovery',{
-  method:'PUT',headers:{'Content-Type':'application/json'},body:payload
+  method:'PUT',headers:{'Content-Type':'application/json'},body:payload,closeTimeout:15000
  }));
- return recoverySerial.catch(e=>{if(state.id===id)toast('Crash recovery failed: '+e.message,true);});
+ return strict?recoverySerial:recoverySerial.catch(e=>{if(state.id===id)toast('Crash recovery failed: '+e.message,true);});
 }
 async function save(){
  if(!state.id||state.demo)return false;
@@ -919,10 +963,11 @@ async function save(){
  const id=state.id,revision=editRevision;
  // Complete pending recovery writes before committing and clearing the cache.
  await recoverySerial.catch(()=>{});
- const payload=JSON.stringify({settings:state.settings,lines:state.lines});
+ const draft=$('reviewOverlay').classList.contains('hidden')?undefined:$('lyricsText').value;
+ const payload=JSON.stringify({settings:state.settings,lines:state.lines,draft_lyrics:draft});
  $('projectStatus').textContent='Saving…';
  saveSerial=saveSerial.catch(()=>{}).then(()=>api('/api/projects/'+id,{
-  method:'PUT',headers:{'Content-Type':'application/json'},body:payload
+  method:'PUT',headers:{'Content-Type':'application/json'},body:payload,closeTimeout:15000
  }));
  try{
   await saveSerial;
@@ -942,36 +987,46 @@ async function save(){
 }
 function askSaveDecision(reason='leave'){
  if(!state.id||(!state.dirty&&state.persisted))return Promise.resolve('skip');
+ $('decisionKeep').classList.toggle('hidden',reason!=='close');
  $('saveDecisionText').textContent=state.persisted?
   'Save changes to "'+state.title+'"? Don’t Save keeps the last saved version and clears only the crash recovery.':
   'Save "'+state.title+'"? Don’t Save permanently deletes this unsaved draft and its temporary media.';
+ if(reason==='close')$('saveDecisionText').textContent+=' Keep recovery closes without deleting the draft, even while analysis is running.';
  $('saveDecisionOverlay').classList.remove('hidden');
  return new Promise(resolve=>{
   let settled=false;
   const finish=(answer)=>{
    if(settled)return;settled=true;
    $('saveDecisionOverlay').classList.add('hidden');
-   ['decisionSave','decisionDiscard','decisionCancel'].forEach(k=>$(k).onclick=null);
+   ['decisionSave','decisionKeep','decisionDiscard','decisionCancel'].forEach(k=>$(k).onclick=null);
    resolve(answer);
   };
   $('decisionSave').onclick=()=>finish('save');
+  $('decisionKeep').onclick=()=>finish('keep');
   $('decisionDiscard').onclick=()=>finish('discard');
   $('decisionCancel').onclick=()=>finish('cancel');
  });
 }
-async function mayLeaveProject(){
+async function mayLeaveProject(reason='leave'){
  if(transitionBusy)return false;
  if(!state.id)return true;
  transitionBusy=true;
  try{
-  const decision=await askSaveDecision();
+  const decision=await askSaveDecision(reason);
   if(decision==='cancel')return false;
   if(decision==='save')return await save();
+  if(decision==='keep'){
+   clearTimeout(state.pendingSave);
+   await saveSerial.catch(()=>{});
+   await writeRecovery(true);
+   return true;
+  }
   if(decision==='discard'){
    clearTimeout(state.pendingSave);
    await recoverySerial.catch(()=>{});
+   await saveSerial.catch(()=>{});
    const id=state.id;
-   await api('/api/projects/'+id+'/discard',{method:'POST'});
+   await api('/api/projects/'+id+'/discard',{method:'POST',closeTimeout:15000});
    if(localStorage.getItem('lyricforge-last')===id)
     localStorage.removeItem('lyricforge-last');
    return true;
@@ -981,13 +1036,18 @@ async function mayLeaveProject(){
  finally{transitionBusy=false;}
 }
 async function quitStudio(){
- if(!await mayLeaveProject())return;
- if(window.pywebview?.api?.approve_close){
-  try{await window.pywebview.api.approve_close();}catch(e){toast('Could not close: '+e.message,true);}
- }else{
-  resetWorkspace();
-  toast('You can close this browser tab now.');
- }
+ if(closeBusy)return;
+ closeBusy=true;
+ const bridge=window.pywebview?.api;
+ let approved=false;
+ try{
+  if(!await mayLeaveProject('close'))return;
+  audio.pause();
+  clearTimeout(state.pendingSave);
+  if(bridge?.approve_close){await bridge.approve_close();approved=true;}
+  else{toast('You can close this browser tab now.');}
+ }catch(e){toast('Could not close: '+e.message,true);}
+ finally{closeBusy=false;if(!approved){try{await bridge?.cancel_close?.();}catch{}}}
 }
 function resetWorkspace(){
  clearTimeout(state.pendingSave);
@@ -1370,9 +1430,11 @@ function wireUI(){
  $('upper').addEventListener('change',e=>setSetting('upper',e.target.checked));
  ['mode','animation','background','aspect'].forEach(key=>$$(`[data-${key}]`).forEach(b=>b.addEventListener('click',()=>setSetting(key,b.dataset[key]))));
  $('heroUpload').addEventListener('click',chooseSong);
+ $('studioZoom').addEventListener('change',()=>{try{localStorage.setItem('skellymotion-interface-zoom',$('studioZoom').value)}catch{}applyStudioZoom();resizePreview();drawWaveform();renderTimeline();});
  $('exitBtn').addEventListener('click',quitStudio);
  window.addEventListener('skellymotion-close-request',()=>{quitStudio();});
  document.addEventListener('visibilitychange',()=>{
+   lastFrame=performance.now();requestPreviewNow();
    // Tab hiding can happen before the normal recovery debounce elapses.
    if(document.hidden&&state.id&&state.dirty){clearTimeout(state.pendingSave);writeRecovery();}
   });
@@ -1394,6 +1456,7 @@ function wireUI(){
   mayLeaveProject().then(ok=>{if(ok){resetWorkspace();loadDemo();}});
  });
  $('openProjectsWelcome').addEventListener('click',()=>{$('welcome').classList.add('hidden');panel('library');});
+ $('openCreatorWelcome').addEventListener('click',()=>{$('welcome').classList.add('hidden');panel('auto');const creator=$('creatorProduct');creator.closest('details').open=true;creator.scrollIntoView({block:'center'});creator.focus({preventScroll:true});});
  $('resumeLastBtn').addEventListener('click',()=>restore(true));
  $('playButton').addEventListener('click',play);$('skipBack').addEventListener('click',()=>seek(state.time-5));$('skipAhead').addEventListener('click',()=>seek(state.time+5));
  $('zoomIn').addEventListener('click',()=>{state.zoom=clamp(state.zoom+.25,1,5);$('zoomDisplay').textContent=`${Math.round(state.zoom*100)}%`;renderTimeline();});
@@ -1406,6 +1469,7 @@ function wireUI(){
  $('newBtn').addEventListener('click',async()=>{if(await mayLeaveProject())resetWorkspace();});
  $('previewFull').addEventListener('click',()=>{const stage=$('stage');if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});else stage.requestFullscreen?.().catch(()=>{});});
  window.addEventListener('resize',()=>{
+   applyStudioZoom();
    clearTimeout(resizeTimer);
    resizeTimer=setTimeout(()=>{resizePreview();drawWaveform();timelineTravelWidth=Math.max(0,$('timelineInner').clientWidth-110);requestPreviewNow();},100);
  });
@@ -1413,6 +1477,7 @@ function wireUI(){
  audio.addEventListener('ended',()=>{state.playing=false;});audio.addEventListener('pause',()=>{if(!audio.ended)state.playing=false;});audio.addEventListener('play',()=>{state.playing=true;});
  document.addEventListener('keydown',e=>{
   const ctrl=e.ctrlKey||e.metaKey;
+  if(!$('saveDecisionOverlay').classList.contains('hidden')){if(e.key==='Escape'){e.preventDefault();$('decisionCancel').onclick?.();}return;}
    if(e.key==='Escape')hideClipMenu();
   const typing=!!e.target.closest('input,textarea,select,[contenteditable="true"]');
   if(e.key==='Escape'&&!$('shortcutsOverlay').classList.contains('hidden')){e.preventDefault();showShortcuts(false);return;}
@@ -1469,7 +1534,7 @@ async function restore(interactive=false){
   button.disabled=false;button.textContent='↻ Resume last project →';
  }
 }
-restoreLayout();
+restoreLayout();restoreStudioZoom();
 try{const savedMode=localStorage.getItem('skellymotion-perf-mode');
  if(['eco','balanced','turbo'].includes(savedMode)){
   $('startupPerformance').value=savedMode;state.settings.performanceMode=savedMode;
@@ -1480,7 +1545,7 @@ let lastSession=null;
 try{lastSession=localStorage.getItem('lyricforge-last')}catch{}
 // Small, read-mostly surface used by static/autoclip.js (Autopilot, Shorts, Clip Studio).
 window.SkellyBridge={
- state:()=>state,toast,api,panel,audio:()=>audio,
+ state:()=>state,toast,api,panel,audio:()=>audio,openSavedProject,
  async reloadProject(id){const project=await api('/api/projects/'+id);loadProjectData(project);$('reviewOverlay').classList.add('hidden');$('welcome').classList.add('hidden');renderTitle();renderLines();renderTimeline();loadWaveform();}
 };
 $('resumeLastBtn').classList.toggle('hidden',!lastSession);

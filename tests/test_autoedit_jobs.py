@@ -327,8 +327,12 @@ def test_brand_assets_are_validated_stored_and_flagged(tmp_path, monkeypatch):
     assert server.brand_asset("music").name == "music.wav" and server.brand_asset("outro") is None
     with pytest.raises(ValueError, match="at most 20 seconds"):
         server.store_brand_asset("outro", long_clip)
+    audio_only = tmp_path / "audio_only.mp4"  # a valid video extension, but nothing to see
+    subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", str(music), "-c:a", "aac", str(audio_only)], check=True)
     with pytest.raises(ValueError, match="no video"):
-        server.store_brand_asset("intro", music)  # audio-only file as an intro
+        server.store_brand_asset("intro", audio_only)
+    with pytest.raises(ValueError, match="Unsupported"):
+        server.store_brand_asset("intro", music)  # a .wav is not a video file type
     with pytest.raises(ValueError, match="no audio"):
         _silent_as_music(tmp_path)
     with pytest.raises(ValueError, match="Unsupported"):
@@ -342,8 +346,10 @@ def test_brand_assets_are_validated_stored_and_flagged(tmp_path, monkeypatch):
 
 
 def _silent_as_music(tmp_path):
-    silent = tmp_path / "silent.mp4"
-    solid(silent, "gray", 2, audio=False)
+    video = tmp_path / "silent.mp4"
+    solid(video, "gray", 2, audio=False)
+    silent = tmp_path / "silent.m4a"  # an allowed music extension whose content has no audio stream
+    shutil.copy2(video, silent)
     server.store_brand_asset("music", silent)
 
 
