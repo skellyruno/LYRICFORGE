@@ -263,3 +263,28 @@ def test_initial_window_geometry_fits_compact_windows_work_area():
     assert desktop_launcher.initial_window_geometry(1024, 720) == (860, 561, (800, 520))
     assert desktop_launcher.initial_window_geometry(896, 574) == (800, 520, (800, 520))
     assert desktop_launcher.initial_window_geometry(780, 520) == (756, 496, (756, 496))
+
+
+def test_shared_skellyhub_brand_icon_is_packaged_and_valid(tmp_path):
+    from PIL import Image
+    from studio_icon import generate, SIZES
+    asset = ROOT / "static" / "skellyhub-skull.png"
+    with Image.open(asset) as image:
+        assert image.format == "PNG"
+        assert image.size == (128, 128)
+        rgba = image.convert("RGBA")
+        assert rgba.getextrema()[3] == (0, 255)
+        assert rgba.getbbox() is not None
+    target = tmp_path / "skull.ico"
+    generate(asset, target)
+    with Image.open(target) as icon:
+        assert icon.ico.sizes() == {(n, n) for n in SIZES}
+        for n in SIZES:
+            frame = icon.ico.getimage((n, n)).convert("RGBA")
+            assert frame.getbbox() is not None
+    html = (ROOT / "static" / "index.html").read_text(encoding="utf-8")
+    assert html.count('/static/skellyhub-skull.png') == 2
+    assert 'aria-label="Undo"' in html and 'aria-label="Redo"' in html
+    assert html.count('class="action-glyph"') >= 14
+
+

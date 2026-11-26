@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>SkellyMotion — Lyric video studio</title>
-  <link rel="icon" href="/static/skull.svg" type="image/svg+xml" />
+  <link rel="icon" href="/static/skellyhub-skull.png" type="image/png" />
   <script>if(new URLSearchParams(location.search).get('desktop')==='1')document.documentElement.classList.add('desktop-mode');</script>
   <link rel="stylesheet" href="/static/style.css" />
   <link rel="stylesheet" href="/static/autoclip.css" />
@@ -13,30 +13,30 @@
 <div id="studioShell">
   <div id="app" class="app">
     <header class="topbar">
-      <div class="brand"><div class="brand-symbol"><img src="/static/skull.svg" alt="" /></div><span class="brand-name">SKELLY<span>MOTION</span></span><span class="brand-pill">STUDIO</span></div>
+      <div class="brand"><div class="brand-symbol"><img src="/static/skellyhub-skull.png" width="36" height="36" alt="" /></div><span class="brand-name">SKELLY<span>MOTION</span></span><span class="brand-pill">STUDIO</span></div>
       <div class="top-middle"><span id="projectTitle" class="song-title">Untitled project</span><span class="top-separator">/</span><span id="projectStatus" class="project-status">Ready to create</span></div>
       <div class="top-actions">
-        <button id="newBtn" class="ghost-btn" title="Start a new song">＋ New</button>
-        <button id="undoBtn" class="ghost-btn icon-action" title="Undo (Ctrl+Z)" aria-label="Undo" disabled>↶</button>
-        <button id="redoBtn" class="ghost-btn icon-action" title="Redo (Ctrl+Y)" aria-label="Redo" disabled>↷</button>
-        <button id="saveBtn" class="ghost-btn" title="Save this project permanently" disabled>Save</button>
+        <button id="newBtn" class="ghost-btn" title="Start a new song"><svg class="action-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14"/></svg> New</button>
+        <button id="undoBtn" class="ghost-btn icon-action" title="Undo (Ctrl+Z)" aria-label="Undo" disabled><svg class="action-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 14 4 9l5-5M4 9h10a6 6 0 0 1 0 12h-2"/></svg></button>
+        <button id="redoBtn" class="ghost-btn icon-action" title="Redo (Ctrl+Y)" aria-label="Redo" disabled><svg class="action-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m15 14 5-5-5-5M20 9H10a6 6 0 0 0 0 12h2"/></svg></button>
+        <button id="saveBtn" class="ghost-btn" title="Save this project permanently" disabled><svg class="action-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 3h12l4 4v14H3V3h2ZM7 3v7h10V3M7 21v-7h10v7"/></svg> Save</button>
         <select id="studioZoom" class="studio-zoom" title="Whole studio zoom" aria-label="Whole studio zoom"><option value="fit">Fit</option><option value="0.75">75%</option><option value="0.9">90%</option><option value="1">100%</option><option value="1.1">110%</option></select>
         <button id="exitBtn" class="ghost-btn" title="Close the project with Save / Don't Save / Cancel">Exit</button>
-        <button id="topExport" class="primary-btn" disabled><span>↗</span> Export video</button>
+        <button id="topExport" class="primary-btn" disabled><svg class="action-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M14 3h7v7m0-7L10 14M21 13v8H3V3h8"/></svg> Export video</button>
       </div>
     </header>
 
     <div class="main-layout">
       <nav class="rail" aria-label="Editor sections">
-        <button class="rail-item active" data-panel="lyrics"><span class="rail-ico">♬</span><span>Lyrics</span></button>
-        <button class="rail-item" data-panel="style"><span class="rail-ico">T</span><span>Text</span></button>
-        <button class="rail-item" data-panel="animation"><span class="rail-ico">✧</span><span>Motion</span></button>
-        <button class="rail-item" data-panel="background"><span class="rail-ico">▧</span><span>Canvas</span></button>
-        <button class="rail-item" data-panel="export"><span class="rail-ico">↗</span><span>Export</span></button>
-        <button class="rail-item" data-panel="auto"><span class="rail-ico">✦</span><span>Auto</span></button>
-        <button class="rail-item" data-panel="library"><span class="rail-ico">▦</span><span>Projects</span></button>
-        <button class="rail-item" data-panel="performance"><span class="rail-ico">⚡</span><span>Speed</span></button>
-        <button class="rail-item" data-panel="storage"><span class="rail-ico">▤</span><span>Storage</span></button>
+        <button class="rail-item active" data-panel="lyrics"><span class="rail-ico" aria-hidden="true"><svg class="action-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 18V5l12-2v13M9 18a3 3 0 1 1-3-3h3m12 1a3 3 0 1 1-3-3h3"/></svg></span><span>Lyrics</span></button>
+        <button class="rail-item" data-panel="style"><span class="rail-ico" aria-hidden="true"><svg class="action-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 7V4h16v3M12 4v16m-4 0h8"/></svg></span><span>Text</span></button>
+        <button class="rail-item" data-panel="animation"><span class="rail-ico" aria-hidden="true"><svg class="action-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m12 2 2.5 7.5L22 12l-7.5 2.5L12 22l-2.5-7.5L2 12l7.5-2.5Z"/></svg></span><span>Motion</span></button>
+        <button class="rail-item" data-panel="background"><span class="rail-ico" aria-hidden="true"><svg class="action-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m3 17 5-5 4 4 3-3 6 6"/><circle cx="16" cy="9" r="1.5"/></svg></span><span>Canvas</span></button>
+        <button class="rail-item" data-panel="export"><span class="rail-ico" aria-hidden="true"><svg class="action-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M14 3h7v7m0-7L10 14M21 13v8H3V3h8"/></svg></span><span>Export</span></button>
+        <button class="rail-item" data-panel="auto"><span class="rail-ico" aria-hidden="true"><svg class="action-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m12 2 2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4ZM20 3v4m-2-2h4"/></svg></span><span>Auto</span></button>
+        <button class="rail-item" data-panel="library"><span class="rail-ico" aria-hidden="true"><svg class="action-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span><span>Projects</span></button>
+        <button class="rail-item" data-panel="performance"><span class="rail-ico" aria-hidden="true"><svg class="action-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m13 2-9 12h7l-1 8 10-12h-7l1-8Z"/></svg></span><span>Speed</span></button>
+        <button class="rail-item" data-panel="storage"><span class="rail-ico" aria-hidden="true"><svg class="action-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 4 16 4 16 0V5M4 12c0 4 16 4 16 0"/></svg></span><span>Storage</span></button>
         <div class="rail-bottom">SM<span>01</span></div>
       </nav>
 

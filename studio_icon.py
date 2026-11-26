@@ -1,17 +1,21 @@
-"""Generate the Windows skull ICO, using Pillow (already a runtime dependency)."""
-from PIL import Image, ImageDraw
+"""Generate the Windows multi-resolution ICO from the SkellyHub ecosystem mark."""
 from pathlib import Path
+from PIL import Image
 
-root = Path(__file__).resolve().parent
-im = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
-d = ImageDraw.Draw(im)
-dark, green = "#111913", "#a0f58c"
-d.rounded_rectangle((0, 0, 255, 255), radius=56, fill=dark)
-d.ellipse((40, 28, 216, 188), fill=green)
-d.rounded_rectangle((84, 144, 172, 220), radius=10, fill=green)
-d.ellipse((64, 88, 116, 152), fill=dark)
-d.ellipse((140, 88, 192, 152), fill=dark)
-d.polygon([(128,144),(112,176),(144,176)], fill=dark)
-for x in (104,128,152):
-    d.line((x,196,x,220), fill=dark, width=10)
-im.save(root / "static" / "skull.ico", sizes=[(16,16),(24,24),(32,32),(48,48),(64,64),(128,128),(256,256)])
+ROOT = Path(__file__).resolve().parent
+SIZES = (16, 24, 32, 48, 64, 128, 256)
+
+
+def generate(source=ROOT / "static" / "skellyhub-skull.png",
+             target=ROOT / "static" / "skull.ico"):
+    with Image.open(source) as mark:
+        if mark.format != "PNG" or mark.width != mark.height:
+            raise ValueError("The shared mark must be a square PNG")
+        rgba = mark.convert("RGBA")
+        # Explicit resampling keeps the same art across all Windows icon sizes.
+        image = rgba.resize((256, 256), Image.Resampling.LANCZOS)
+        image.save(target, format="ICO", sizes=[(n, n) for n in SIZES])
+
+
+if __name__ == "__main__":
+    generate()

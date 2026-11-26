@@ -595,7 +595,8 @@ def run_desktop(home: Path, safe_mode: bool = False,
                                         "&&getComputedStyle(timeline).visibility==='hidden'"
                                         "&&Math.abs(welcome.getBoundingClientRect().bottom-b.bottom)<3"
                                         "&&welcome.querySelector('.welcome-content').getBoundingClientRect().top>=welcome.getBoundingClientRect().top-2"
-                                        "&&getComputedStyle(welcome).overflowY!=='hidden';"
+                                        "&&getComputedStyle(welcome).overflowY!=='hidden'"
+                                        "&&Array.from(document.querySelectorAll('.brand-symbol img')).every(img=>img.complete&&img.naturalWidth>0);"
                                         "})()")
                                 except Exception as exc:
                                     layout["error"] = repr(exc)
