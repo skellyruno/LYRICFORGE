@@ -135,13 +135,14 @@ def kokoro_config():
     return None
 
 
-def kokoro_batch(phrases,root,voice,speed,check_cancel):
+def kokoro_batch(phrases,root,voice,speed,check_cancel,*,speeds=None):
     config=kokoro_config()
     if not config:raise ValueError('Configure the local Kokoro runtime, model and voices first')
     if not 1<=len(phrases)<=500:raise ValueError('Narration exceeds 500 phrases')
     runtime,worker,model,voices=config
     # Fixed executable/model paths from local operator config, never request data.
     request={'phrases':phrases,'voice':KOKORO_VOICES[voice],'speed':speed}
+    if speeds is not None:request['speeds']=speeds
     run_checked([runtime,worker,model,voices,str(root)],input_text=json.dumps(request),
                 check_cancel=check_cancel,timeout=1800)
     files=[root/f'neural-{i:04d}.wav' for i in range(len(phrases))]
@@ -203,21 +204,26 @@ def narration(chapters, output, voice='auto', speed=1., check_cancel=lambda:None
         if voice in KOKORO_VOICES:
             phrases=[vs.spoken(phrase,pronunciation) for chapter in chapters for phrase in split_phrases(chapter['narration'])]
             check_cancel();progress(0,len(chapters))
-            neural=kokoro_batch(phrases,root,voice,speed,check_cancel)
+            if delivery=='presenter':
+                speeds=[vs.presenter_pace(phrase,speed,chapter['title'])[0] for chapter in chapters for phrase in split_phrases(chapter['narration'])]
+                neural=kokoro_batch(phrases,root,voice,speed,check_cancel,speeds=speeds)
+            else:
+                neural=kokoro_batch(phrases,root,voice,speed,check_cancel)
         with wave.open(str(staged),'wb') as wav:
             wav.setnchannels(1);wav.setsampwidth(2);wav.setframerate(rate)
             for i,chapter in enumerate(chapters):
                 check_cancel();progress(i,len(chapters));phrases=split_phrases(chapter['narration'])
                 for j,phrase in enumerate(phrases):
+                    local_speed,pause_factor,pitch_delta=vs.presenter_pace(phrase,speed,chapter['title']) if delivery=='presenter' else (speed,1.,0)
                     src=root/'phrase.wav';dst=root/'pcm.wav';src.unlink(missing_ok=True);dst.unlink(missing_ok=True)
                     if neural:
                         src=neural[len(lines)];native_pace=True
                     else:
-                        native_pace=synthesize_phrase(vs.spoken(phrase,pronunciation),src,voice,speed,check_cancel,pitch)
+                        native_pace=synthesize_phrase(vs.spoken(phrase,pronunciation),src,voice,local_speed,check_cancel,pitch+pitch_delta)
                     # Native neural duration control avoids a second time stretch.
                     # Older/unknown Piper versions retain the existing atempo fallback.
-                    stretch=voice=='piper' and speed!=1. and not native_pace
-                    run_checked(['ffmpeg','-v','error','-nostdin','-y','-threads','1','-i',str(src),'-ac','1','-ar',str(rate),*(['-af',f'atempo={speed:.3f}'] if stretch else []),'-c:a','pcm_s16le',str(dst)],check_cancel=check_cancel)
+                    stretch=voice=='piper' and local_speed!=1. and not native_pace
+                    run_checked(['ffmpeg','-v','error','-nostdin','-y','-threads','1','-i',str(src),'-ac','1','-ar',str(rate),*(['-af',f'atempo={local_speed:.3f}'] if stretch else []),'-c:a','pcm_s16le',str(dst)],check_cancel=check_cancel)
                     with wave.open(str(dst),'rb') as reader:
                         n=reader.getnframes()
                         if not 0<n<=rate*100:raise ValueError('Invalid synthesized phrase length')
@@ -236,6 +242,6 @@ def narration(chapters, output, voice='auto', speed=1., check_cancel=lambda:None
                     if len(lines)>=500:raise ValueError('Narration exceeds 500 editor clips')
                     lines.append({'id':uuid.uuid4().hex[:12],'text':phrase,'start':a,'end':b,'words':words,'chapter_title':chapter['title'],'visual_hint':chapter['visual_hint'],**({'source_url':chapter['source_url']} if chapter.get('source_url') else {})})
                     wav.writeframes(pcm);cursor+=n
-                    gap=round(rate*vs.pause_after(phrase,phrase_gap,chapter_gap,j+1==len(phrases)));wav.writeframes(b'\0\0'*gap);cursor+=gap
+                    gap=round(rate*pause_factor*vs.pause_after(phrase,phrase_gap,chapter_gap,j+1==len(phrases)));wav.writeframes(b'\0\0'*gap);cursor+=gap
         check_cancel();perf.publish_staged_file(staged,output)
     return {'duration':cursor/rate,'lines':lines,'provider':voice,'delivery':delivery,'word_timing':'estimated within measured phrase audio','warnings':(['Draft synthesizer, not neural narration.'] if voice=='draft' else ['System voice quality depends on installed Windows speech voices.'] if voice=='system' else [])}

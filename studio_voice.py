@@ -17,6 +17,7 @@ DELIVERY = {
     'tutorial': (.96, .18, .36, 43),
     'energetic': (1.07, .09, .18, 49),
     'documentary': (.91, .22, .40, 38),
+    'presenter': (1.0, .14, .33, 45),
 }
 FORMATS = {'tutorial', 'review', 'advertisement', 'documentary'}
 # Common audio initialisms only; owner-supplied pronunciations override these.
@@ -57,6 +58,24 @@ def delivery(name, speed):
     if not math.isfinite(float(speed)) or not .8 <= float(speed) <= 1.2: raise ValueError('Narration speed must be 0.8–1.2')
     factor, phrase_gap, chapter_gap, pitch = DELIVERY[name]
     return min(1.25,max(.75,float(speed)*factor)), phrase_gap, chapter_gap, pitch
+
+
+def presenter_pace(text, base_speed, chapter_title=''):
+    """Semantic pace and pause variation without altering the displayed script.
+    Native neural inference uses the chosen speed for each phrase.
+    """
+    value=str(text).strip();context=(str(chapter_title)+' '+value).casefold()
+    if re.search(r'\b(listen|compare|before|after|proof|difference)\b',context):
+        factor,pause,pitch=.92,1.35,-2
+    elif re.search(r'\b(click|turn|drag|toggle|watch|adjust|move|select|switch)\b',context):
+        factor,pause,pitch=.98,1.10,0
+    elif value.endswith('?') or len(value.split())<=5:
+        factor,pause,pitch=.94,1.30,1
+    elif re.search(r'\b(frequency|frequencies|sidechain|latency|spectrum|sample|timing|evidence)\b',context):
+        factor,pause,pitch=.96,1.12,-1
+    else:
+        factor,pause,pitch=1.035,.92,1
+    return min(1.25,max(.75,float(base_speed)*factor)),pause,pitch
 
 
 def dictionary(values):

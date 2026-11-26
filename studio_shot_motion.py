@@ -24,6 +24,18 @@ def prefer_diagram(text,hint,kind):
     if re.search(r'\b(click|drag|turn|toggle|adjust|set|move|listen|bypass|before|after|watch|demo|demonstrat\w*)\b',source):return False
     return bool(re.search(r'\b(conceptually|illustration|conceptual|simulation|mechanism|transfer|response|spectrum|frequency-selective|works by|how it works|why it works|signal flow)\b',source))
 
+def shot_intent(text,hint='',diagram=None):
+    """Choose a shot role from narrative intent, not keywords alone.
+    A requested listening or control demonstration never becomes a fabricated UI.
+    """
+    source=(str(text)+' '+str(hint)).casefold()
+    if re.search(r'\b(listen|compare|before and after|audio proof|a/b)\b',source):return 'audio_comparison'
+    if re.search(r'\b(click|drag|turn|toggle|adjust|set|move|watch|demonstrat\w*|recorded control)\b',source):return 'real_control'
+    if prefer_diagram(text,hint,diagram):return 'mechanism'
+    if re.search(r'\b(result|outcome|benefit|creates room|difference|conclusion)\b',source):return 'result'
+    return 'overview'
+
+
 def transition_mode(previous,current,style):
     if style!='auto':return {'dissolve':'fade','slide':'slideleft','wipe':'wipeleft'}.get(style,'fade')
     if current['type']==previous['type']=='broll' and float(current.get('features',{}).get('motion',0) or 0)>.12:return 'slideleft'

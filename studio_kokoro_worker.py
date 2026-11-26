@@ -11,6 +11,9 @@ def main():
         raise ValueError('Invalid phrase list')
     if voice not in ('am_michael','am_adam','af_sarah') or not .70<=speed<=1.30:
         raise ValueError('Invalid local voice or speed')
+    speeds=request.get('speeds')
+    if speeds is not None and (not isinstance(speeds,list) or len(speeds)!=len(phrases) or any(type(v) not in (int,float) or not .70<=float(v)<=1.30 for v in speeds)):
+        raise ValueError('Invalid phrase speeds')
     root=Path(sys.argv[3])
     if not root.is_dir() or root.is_symlink():raise ValueError('Invalid output directory')
     import numpy as np
@@ -29,7 +32,7 @@ def main():
         engine=Kokoro(sys.argv[1],sys.argv[2])
     total_seconds=0.
     for i,text in enumerate(phrases):
-        samples,rate=engine.create(text,voice=voice,speed=speed,lang='en-us')
+        samples,rate=engine.create(text,voice=voice,speed=speeds[i] if speeds is not None else speed,lang='en-us')
         x=np.asarray(samples,dtype=np.float32)
         if x.ndim==2 and 1 in x.shape:x=x.reshape(-1)
         if x.ndim!=1 or not 8000<=rate<=48000 or not 0<x.size<=rate*50 or not np.isfinite(x).all():

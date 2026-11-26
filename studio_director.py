@@ -27,7 +27,7 @@ import studio_cinematic as cinema
 import studio_walkthrough as walk
 from studio_clips import probe_media
 
-VERSION = 19
+VERSION = 20
 IMAGE_EXT = {'.png', '.jpg', '.jpeg', '.webp'}
 VIDEO_EXT = {'.mp4', '.mov', '.mkv', '.m4v', '.webm'}
 PRESETS = {
@@ -157,6 +157,8 @@ def make_plan(lines: list[dict], duration: float, assets: list[dict], preset: st
             if title_motion:scene['title_motion']=True
             if not chapter_title and re.search(r'\bretune speed knob\b',text.lower()):
                 scene['hero_title']='100 ms / Slow response' if re.search(r'\b(?:100|one hundred)\b',text.lower()) else '0 ms / Hard response' if re.search(r'\b(?:zero|0)\b',text.lower()) else 'Retune speed'
+        if reference:
+            scene['shot_intent']=shot_motion.shot_intent(text,hint,intel.diagram_kind(text+' '+hint))
         # Asset matching prefers a semantic filename/description and diversity.
         if assets:
             spoken_terms, hint_terms=terms(text),terms(hint)
@@ -182,7 +184,9 @@ def make_plan(lines: list[dict], duration: float, assets: list[dict], preset: st
             if score(chosen)[0] == 0 and (preset == "doc" or (preset == "plugin" and diagrams and intel.diagram_kind(text))):
                 pool = []
             if cinematic and preset=='plugin' and diagrams and re.search(r'\b(?:conceptually|illustration|conceptual|simulation)\b',(text+' '+hint).lower()) and intel.diagram_kind(text+' '+hint): pool=[]
-            if reference and preset=='plugin' and diagrams and chosen.get('role')!='plugin_recording' and shot_motion.prefer_diagram(text,hint,intel.diagram_kind(text+' '+hint)):
+            # A concept chapter can use a labeled technical diagram rather than
+            # replaying the same plugin recording. Action/listening intent wins.
+            if reference and preset=='plugin' and diagrams and scene.get('shot_intent')=='mechanism':
                 pool=[]
             if pool:
                 kind = 'ui_demo' if preset == 'plugin' else 'document' if chosen['kind'] == 'image' and terms(chosen['name']+' '+chosen.get('description','')) & {'article','document','source','comment','forum'} else 'broll'
@@ -211,6 +215,8 @@ def make_plan(lines: list[dict], duration: float, assets: list[dict], preset: st
             scene.update(type='diagram',text=intel.diagram_kind(text+' '+hint),camera='still')
             if scene['text']=='Pitch processing':
                 scene['retune_demo_ms']=0. if re.search(r'\b(?:zero|fast|hard)\b', text.lower()) else 100. if re.search(r'\b(?:100|one hundred)\s*(?:ms|milliseconds)\b',(text+' '+hint).lower()) else 70.
+        if reference:
+            scene['shot_reason']=('actual recording' if scene.get('recorded_demo') else 'technical explanation' if scene['type']=='diagram' else 'matched source' if scene.get('asset') else 'text fallback')
         if reference and preset=='plugin' and scene['type']=='ui_demo' and not scene.get('guided_replay'):
             scene['layout']='full_ui'
         if reference and preset=='doc' and scene.get('claim_sources') and not scene.get('asset'):

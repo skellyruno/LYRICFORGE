@@ -63,7 +63,14 @@ def run(model,voices,out):
         production=creator.narration(script,path,voice='kokoro',speed=1.,delivery='tutorial',pronunciation={'Skell':'Skell','SkellyMotion':'Skelly Motion'})
         if production['provider']!='kokoro':raise RuntimeError('Production voice fell back')
         timed[product]={'file':path.name,'sha256':digest(path),'duration':production['duration'],'lines':production['lines'],'approval':'provisional, not yet approved'}
-    report={'benchmark':timed,'model_sha256':MODEL_SHA,'voices_sha256':VOICES_SHA,'script':SCRIPT,'voices':rows,'matching':'RMS target -22 dBFS, peak cap -1 dBFS; not LUFS normalization','approval':'Unapproved. Listening required.'}
+    presenter={}
+    for product,chapters in benchmark.items():
+        path=out/(product+'-presenter.wav')
+        script=[{'title':title,'narration':speech,'visual_hint':title} for title,speech in chapters]
+        production=creator.narration(script,path,voice='kokoro',speed=1.,delivery='presenter',pronunciation={'Skell':'Skell','SkellyMotion':'Skelly Motion'})
+        if production['provider']!='kokoro':raise RuntimeError('Presenter voice fell back')
+        presenter[product]={'file':path.name,'sha256':digest(path),'duration':production['duration'],'lines':production['lines'],'approval':'provisional presenter audition'}
+    report={'presenter':presenter,'benchmark':timed,'model_sha256':MODEL_SHA,'voices_sha256':VOICES_SHA,'script':SCRIPT,'voices':rows,'matching':'RMS target -22 dBFS, peak cap -1 dBFS; not LUFS normalization','approval':'Unapproved. Listening required.'}
     (out/'report.json').write_text(json.dumps(report,indent=2),encoding='utf-8')
     return report
 

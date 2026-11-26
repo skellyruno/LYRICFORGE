@@ -161,8 +161,8 @@ def original_bed(plan, path, *, rate=24000, include_music=True, check_cancel=lam
     cut=[(float(s['start']),s.get('type','big_text'),s.get('title_motion',False)) for s in plan['scenes'][1:]]
     action=sorted(float(s['start'])+replay_hit(float(s['end'])-float(s['start'])) for s in plan['scenes'] if s.get('guided_replay') and s.get('before_asset') and not s.get('replay_fallback'))
     cut.sort(key=lambda c:c[0]);cut_times=[c[0] for c in cut]
-    # D minor / Bb / F / C; a restrained four-bar cycle, 92 BPM.
-    roots=[146.832,116.541,174.614,130.813];beat=60/92;bar=4*beat
+    # D minor / Bb / F / C; original four-bar score with an evolving arpeggio.
+    roots=[146.832,116.541,174.614,130.813];beat=60/94;bar=4*beat
     with wave.open(str(path),'wb') as wav:
         wav.setnchannels(2);wav.setsampwidth(2);wav.setframerate(rate)
         for pos in range(0,total,rate):
@@ -173,8 +173,9 @@ def original_bed(plan, path, *, rate=24000, include_music=True, check_cancel=lam
                 env=np.minimum(1,phase/.16)*np.minimum(1,(bar-phase)/.24)
                 minor=((t/bar).astype(int)%4)==0;third=np.where(minor,2**(3/12),2**(4/12))
                 pad=(np.sin(2*np.pi*root*t)+.48*np.sin(2*np.pi*root*third*t)+.45*np.sin(2*np.pi*root*1.5*t))*env*.026
-                tick=t%beat;pluck=.025*np.sin(2*np.pi*(root*2)*t)*np.exp(-tick*8)
-                kick=.032*np.sin(2*np.pi*(49*tick+3*(1-np.exp(-tick*24))))*np.exp(-tick*20)
+                step=t%(beat/2);notes=np.asarray([1,1.5,2,1.5,1.25,1.5,2,3])[(t/(beat/2)).astype(int)%8]
+                pluck=.023*np.sin(2*np.pi*(root*2*notes)*t)*np.exp(-step*12)*np.minimum(1,step/.008)
+                tick=t%beat;kick=.032*np.sin(2*np.pi*(49*tick+3*(1-np.exp(-tick*24))))*np.exp(-tick*20)*np.minimum(1,tick/.006)
                 left+=(pad+pluck+kick)*music_gain;right+=(pad+.85*pluck+kick)*music_gain
             # Only cues that can overlap this one-second block. This avoids
             # rescanning every scene for every block of a long render.
