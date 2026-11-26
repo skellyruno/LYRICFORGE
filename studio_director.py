@@ -25,7 +25,7 @@ import studio_cinematic as cinema
 import studio_walkthrough as walk
 from studio_clips import probe_media
 
-VERSION = 16
+VERSION = 17
 IMAGE_EXT = {'.png', '.jpg', '.jpeg', '.webp'}
 VIDEO_EXT = {'.mp4', '.mov', '.mkv', '.m4v', '.webm'}
 PRESETS = {
@@ -67,7 +67,7 @@ def assets_for(folder: Path, include_disabled=False) -> list[dict]:
 
 
 def make_plan(lines: list[dict], duration: float, assets: list[dict], preset: str,
-              brand: str = 'SKELLYMOTION', *, fps: int = 30, preview: bool = False, analysis: dict | None = None, intensity: str = "medium", diagrams: bool = False, motion: str = "dynamic", transitions: bool = False, audio_start: float = 0., silent: bool = False, cinematic: bool = False, guided_replay: bool = False, title_motion: bool = False) -> dict:
+              brand: str = 'SKELLYMOTION', *, fps: int = 30, preview: bool = False, analysis: dict | None = None, intensity: str = "medium", diagrams: bool = False, motion: str = "dynamic", transitions: bool = False, audio_start: float = 0., silent: bool = False, cinematic: bool = False, guided_replay: bool = False, title_motion: bool = False, editorial_style: str = 'standard') -> dict:
     """Deterministic shot selection from real transcript and asset descriptions.
 
     Timing is represented in frames to avoid gaps/drift. No invented facts,
@@ -79,18 +79,22 @@ def make_plan(lines: list[dict], duration: float, assets: list[dict], preset: st
     if duration > 1800:
         raise ValueError('Director currently supports up to 30 minutes of audio')
     total = max(1, round(duration * fps))
-    look = PRESETS[preset]
+    if editorial_style not in ('standard','reference'):raise ValueError('Unknown editorial style')
+    look = dict(PRESETS[preset])
+    reference=editorial_style=='reference'
+    if reference and preset=='doc':look.update(pace=4.,maximum=8.)
+    if reference and preset=='plugin':look.update(pace=11.,maximum=18.)
     lines = [line for line in lines if float(line['start']) < duration and float(line['end']) > 0]
     # The reference director cuts near sentence boundaries. Confirmed lyric
     # clip boundaries are the local equivalent, including pauses in speech.
     boundaries = sorted({round(float(line['end']) * fps) for line in lines if 0 < float(line['end']) < duration})
     # Split plugin diagrams at changes in technical topic (including retune mode).
     topic_cuts = []
-    if preset == 'plugin' and (diagrams or cinematic):
+    if (preset == 'plugin' and (diagrams or cinematic)) or (reference and preset=='doc'):
         for a,b in zip(lines,lines[1:]):
             explicit_chapters=bool(a.get('chapter_title') and b.get('chapter_title'))
             chapter_change=explicit_chapters and a['chapter_title']!=b['chapter_title']
-            if chapter_change or (not explicit_chapters and ((cinematic and float(a['end'])-float(a['start'])>=2) or intel.technical_topic(a['text']) != intel.technical_topic(b['text']))):
+            if chapter_change or (preset=='plugin' and not explicit_chapters and ((cinematic and float(a['end'])-float(a['start'])>=2) or intel.technical_topic(a['text']) != intel.technical_topic(b['text']))):
                 point = round(float(b['start'])*fps)
                 if 0 < point < total: topic_cuts.append(point)
     # Web photos must not masquerade as a plugin UI or a source document.
@@ -202,6 +206,11 @@ def make_plan(lines: list[dict], duration: float, assets: list[dict], preset: st
             scene.update(type='diagram',text=intel.diagram_kind(text+' '+hint),camera='still')
             if scene['text']=='Pitch processing':
                 scene['retune_demo_ms']=0. if re.search(r'\b(?:zero|fast|hard)\b', text.lower()) else 100. if re.search(r'\b(?:100|one hundred)\s*(?:ms|milliseconds)\b',(text+' '+hint).lower()) else 70.
+        if reference and preset=='plugin' and scene['type']=='ui_demo' and not scene.get('guided_replay'):
+            scene['layout']='full_ui'
+        if reference and preset=='doc' and scene.get('claim_sources') and not scene.get('asset'):
+            # Author-supplied claim, not an invented quotation or source screenshot.
+            scene.update(type='evidence',layout='paper',evidence_text=text[:420],camera='still')
         if not scene.get('asset') and preset=='music':
             scene.update(type='visualizer',text='',camera='still')
         if transitions and not cinematic and preset=='music' and len(scenes) and not (scene['type']=='visualizer' and scenes[-1]['type']=='visualizer'):
@@ -214,7 +223,7 @@ def make_plan(lines: list[dict], duration: float, assets: list[dict], preset: st
         scenes.append(scene)
         cursor = end
     plan={'version': VERSION, 'preset': preset, 'fps': fps, 'duration': duration, 'frames': total,
-            'scenes': scenes, 'director': 'local', 'audio_start':audio_start, 'silent':silent,
+            'scenes': scenes, 'director': 'local', 'editorial_style':editorial_style, 'audio_start':audio_start, 'silent':silent,
             'cinematic_finish':cinematic,'title_motion':bool(cinematic and title_motion),'crossfades':bool(cinematic and transitions),'caption_repairs':repairs, 'warnings': ([] if assets or preset=='music' else ['No visual assets supplied: transcript-based text cards will be used.'])}
     if preset=='music':
         plan.update(beat_confidence=(analysis or {}).get('confidence',0), bpm=(analysis or {}).get('bpm',0), beat_aligned=bool(rhythm))
@@ -247,7 +256,13 @@ def artwork(scene: dict, preset: str, w: int, h: int, asset: Path | None, base: 
     if asset and asset.suffix in IMAGE_EXT:
         with Image.open(asset) as original:
             image = ImageOps.exif_transpose(original).convert('RGB')
-            if scene['type']=='ui_demo' and scene.get('cinematic_finish') and w/h>=1.5:
+            if scene.get('layout')=='full_ui':
+                tile=image.copy();tile.thumbnail((round(w*.96),round(h*.76)),Image.Resampling.LANCZOS)
+                # Upscale only if needed to fill the allocated safe region.
+                factor=min(w*.96/image.width,h*.76/image.height)
+                if factor>1:tile=image.resize((round(image.width*factor),round(image.height*factor)),Image.Resampling.LANCZOS)
+                bg.paste(tile,((w-tile.width)//2,round(h*.49)-tile.height//2))
+            elif scene['type']=='ui_demo' and scene.get('cinematic_finish') and w/h>=1.5:
                 # Large intact product screenshot in a dedicated image zone; never crop the UI.
                 # Scale both ways, including smaller native captures; Pillow contain does not enlarge on all versions.
                 ix,iy,tw,th=walk.panel_geometry(w,h,image.width,image.height)
@@ -325,6 +340,9 @@ def artwork(scene: dict, preset: str, w: int, h: int, asset: Path | None, base: 
         draw.line((int(w*.08),cy,int(w*.92),cy),fill='#41634a',width=max(1,h//400))
         centered_text(draw,'SKELLYMOTION',w,int(h*.13),max(15,min(w//18,h//30)),'#a0f58c')
         centered_text(draw,'AUDIO REACTIVE',w,int(h*.19),max(10,min(w//30,h//42)),'#91a99b')
+    elif scene['type']=='evidence':
+        from studio_editorial import evidence_card
+        bg=evidence_card(scene,w,h,font)
     elif scene['type']=='proof':
         draw=ImageDraw.Draw(bg)
         centered_text(draw,'LISTEN TO THE ACTUAL AUDIO',w,int(h*.22),max(16,h//36),look['accent'])
@@ -338,11 +356,11 @@ def artwork(scene: dict, preset: str, w: int, h: int, asset: Path | None, base: 
         draw.rectangle((int(w*.43),int(h*.60),int(w*.57),int(h*.605)), fill=look['accent'])
     bg.save(base)
     layer = Image.new('RGBA',(w,h),(0,0,0,0)); d = ImageDraw.Draw(layer)
-    if scene['type'] == 'ui_demo' and not (scene.get('cinematic_finish') and asset and asset.suffix in IMAGE_EXT and w/h>=1.5):
+    if scene['type'] == 'ui_demo' and (scene.get('layout')=='full_ui' or not (scene.get('cinematic_finish') and asset and asset.suffix in IMAGE_EXT and w/h>=1.5)):
         d.rectangle((0,0,w,int(h*.13)), fill=(10,14,12,230))
         if not scene.get('title_motion'): centered_text(d, scene['text'].upper(), w, int(h*.068), max(18,h//20), look['accent'])
         if scene.get('recorded_demo'):
-            d.text((int(w*.04),int(h*.16)),'ACTUAL SCREEN RECORDING',font=font(max(13,h//38),True),fill='#a0f58c')
+            d.text((int(w*.04),int(h*.105)) if scene.get('layout')=='full_ui' else (int(w*.04),int(h*.16)),'ACTUAL SCREEN RECORDING',font=font(max(12,h//50),True),fill='#a0f58c')
     # Caption contrast remains predictable on arbitrary user footage.
     if scene['captions']:
         for y in range(int(h*.75),h):
@@ -357,7 +375,7 @@ def artwork(scene: dict, preset: str, w: int, h: int, asset: Path | None, base: 
         width = min(w-x,int(d.textlength(label,font=f))+2*padding)
         d.rounded_rectangle((x,y,x+width,y+int(h*.06)),radius=max(3,h//100),fill=(10,14,12,220))
         d.text((x+padding,y+int(h*.03)), label, font=f, fill="#e8f5e8",anchor="lm")
-    if scene.get('claim_sources'):
+    if scene.get('claim_sources') and scene['type']!='evidence':
         from urllib.parse import urlsplit
         hosts=list(dict.fromkeys(urlsplit(url).hostname or '' for url in scene['claim_sources']))
         label='SOURCE PROVIDED: '+', '.join(hosts)
@@ -439,7 +457,8 @@ def render(plan: dict, audio: Path, assets_folder: Path, work: Path, output: Pat
                     else:
                         cmd+=['-stream_loop','-1','-ss',str(scene.get('asset_start',0)),'-i',str(asset)]
                     if scene['type']=='ui_demo':
-                        vf=f"fps={fps},scale={int(w*.92)//2*2}:{int(h*.65)//2*2}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:{int(h*.46)}-ih/2:color=0x101216,setsar=1"
+                        ratio_w,ratio_h,center=(.96,.76,.49) if scene.get('layout')=='full_ui' else (.92,.65,.46)
+                        vf=f"fps={fps},scale={int(w*ratio_w)//2*2}:{int(h*ratio_h)//2*2}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:{int(h*center)}-ih/2:color=0x101216,setsar=1"
                         if scene.get('recorded_demo'): vf+=f',trim=duration={scene["recorded_seconds"]:.6f},setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration={seconds:.6f}'
                     else:
                         focus=scene.get('features',{}).get('focus',[.5,.5]);fx,fy=(max(0.,min(1.,float(v))) for v in focus)

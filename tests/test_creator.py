@@ -98,3 +98,22 @@ def test_proof_scene_clock():
     assert all(not s['captions'] for s in proof)
     assert cinema.transition_frames(proof[0],proof[1],24)==0
     assert sum(s['frames'] for s in plan['scenes'])==408
+
+
+def test_reference_editorial_layouts():
+    rows=[{'text':'An author confirmed finding','start':0,'end':4,'source_url':'https://example.org/report'}]
+    plan=director.make_plan(rows,4,[],'doc',editorial_style='reference')
+    assert plan['scenes'][0]['type']=='evidence'
+    assert plan['scenes'][0]['evidence_text']==rows[0]['text']
+    assets=[{'id':'a'*32+'.png','name':'Spacer','kind':'image'}]
+    plan=director.make_plan([{'text':'Spacer','start':0,'end':4}],4,assets,'plugin',editorial_style='reference')
+    assert plan['scenes'][0]['layout']=='full_ui'
+    assert director.make_plan(rows,4,[],'doc')['scenes'][0]['type']!='evidence'
+
+
+def test_spectral_and_width_diagrams_are_animated():
+    from studio_effect_visuals import render_frame
+    for name in ('Spectral ducking','Stereo width'):
+        a,b=render_frame(name,0),render_frame(name,1)
+        assert a.size==b.size==(960,540)
+        assert a.tobytes()!=b.tobytes()

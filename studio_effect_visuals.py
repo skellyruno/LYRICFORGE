@@ -10,7 +10,7 @@ from functools import lru_cache
 import numpy as np
 from PIL import Image, ImageDraw
 
-KINDS={'Equalization','Limiter','Saturation','Delay','Reverb'}
+KINDS={'Equalization','Limiter','Saturation','Delay','Reverb','Spectral ducking','Stereo width'}
 
 
 def bell_response(freq, center=1000., gain=6., q=.9, rate=48000.):
@@ -59,6 +59,9 @@ def render_frame(kind,t):
     text(d,(40,25),kind.upper(),31,GREEN,True);text(d,(920,37),'ILLUSTRATIVE SIGNAL SIMULATION',12,MUTED,True,anchor='rm')
     d.rounded_rectangle((40,82,920,397),14,fill=PANEL,outline=GRID,width=2)
     text(d,(60,101),'INPUT / REFERENCE',13,BLUE,True);text(d,(285,101),'PROCESSED RESPONSE',13,GREEN,True)
+    if kind in ('Spectral ducking','Stereo width'):
+        from studio_editorial import technical_frame
+        return technical_frame(kind,t)
     if kind=='Equalization':
         f=np.geomspace(20,20000,300);center=350*10**(.5+.45*math.sin(t*.9));gain=8*math.sin(t*.72);response=bell_response(f,center,gain)
         xy=chart(d,(100,142,680,340),-12,12,[-12,-6,0,6,12]);d.line([xy(j/299,0) for j in range(300)],fill=BLUE,width=2);d.line([xy(j/299,v) for j,v in enumerate(response)],fill=GREEN,width=3)

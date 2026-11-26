@@ -100,6 +100,8 @@ def diversity(a: dict, b: dict) -> float:
 
 def diagram_kind(text: str) -> str | None:
     t=set(re.findall(r'[a-z]+',text.lower()))
+    if t & {'ducking','ducker','spacer'} and t & {'sidechain','spectral','frequency','frequencies','ducking','ducker'}:return 'Spectral ducking'
+    if t & {'stereo','mid','side'} and t & {'width','depth','mono','spatial'}:return 'Stereo width'
     if 'piano' in t or ('key' in t and 'scale' in t): return 'Note selection'
     if ('gain' in t and 'reduction' in t) or ('attack' in t and 'release' in t): return 'Compression'
     for keys,name in [({'limiter','limiting','ceiling'},'Limiter'),({'saturation','saturator','waveshaping','harmonics'},'Saturation'),({'compressor','compression','threshold','ratio'},'Compression'),({'equalizer','eq','frequency','filter'},'Equalization'),({'delay','echo','feedback'},'Delay'),({'reverb','reverberation'},'Reverb'),({'pitch','formant','autotune','retune'},'Pitch processing')]:

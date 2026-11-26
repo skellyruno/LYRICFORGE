@@ -48,7 +48,7 @@ def write_kinetic_ass(plan, width, height, target):
             if not text:continue
             a=float(scene['start']);b=float(scene['end']);ms=round((b-a)*1000)
             if ms<180:continue
-            split=scene['type']=='ui_demo' and not scene.get('recorded_demo') and width/height>=1.5
+            split=scene['type']=='ui_demo' and scene.get('layout')!='full_ui' and not scene.get('recorded_demo') and width/height>=1.5
             # Video-backed demos use the top bar, not the screenshot's title column.
             if scene.get('asset','').lower().endswith(('.mp4','.mov','.webm','.mkv','.m4v')):split=False
             if split:

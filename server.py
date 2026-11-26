@@ -4409,6 +4409,7 @@ class DirectorAssetEdit(BaseModel):
 
 class DirectorRequest(BaseModel):
     title_motion: bool = False
+    editorial_style: str = "standard"
     title_style: str = "slide"
     guided_replay: bool = False
     transition_style: str = "dissolve"
@@ -4562,15 +4563,15 @@ def run_creator(project_id,job_id,body,script,voice):
             result=creator.narration(script,p/'voice.wav',voice,body.speed,lambda:check_cancel(job_id),progress,delivery=body.delivery,pronunciation=body.pronunciation)
         check_cancel(job_id)
         if (p/'proof_before').is_file() and (p/'proof_after').is_file():
-            import studio_proof
-            result=studio_proof.append_proof(p/'voice.wav',p/'proof_before',p/'proof_after',result,body.proof_start,body.proof_seconds,creator.run_checked,lambda:check_cancel(job_id))
+            import studio_audio_proof
+            result=studio_audio_proof.append_proof(p/'voice.wav',p/'proof_before',p/'proof_after',result,body.proof_start,body.proof_seconds,creator.run_checked,lambda:check_cancel(job_id))
         lines=validate_lines(result['lines'],result['duration'])
         with project_write_lock:
             data=read_project(project_id)
             data.update(status='editor',duration=result['duration'],lines=lines,original_words=[w for line in lines for w in line['words']],creator_metadata={k:v for k,v in result.items() if k!='lines'},creator_cues=[{'id':r['id'],'text':r['text'],'chapter_title':r['chapter_title'],'visual_hint':r['visual_hint'],**({'source_url':r['source_url']} if r.get('source_url') else {})} for r in result['lines']])
             save_project(p,data)
         if body.auto_render:
-            _,settings,plan=prepare_director(project_id,DirectorRequest(preset='doc' if body.production_mode=='research' else 'plugin',brand=body.product,preview=body.preview,output_format=body.format,cinematic_finish=True,guided_replay=True,transition_style='auto',transition_seconds=.44,sound_design=body.sound_design,title_motion=body.title_motion,title_style=body.title_style))
+            _,settings,plan=prepare_director(project_id,DirectorRequest(preset='doc' if body.production_mode=='research' else 'plugin',brand=body.product,preview=body.preview,output_format=body.format,cinematic_finish=True,guided_replay=True,editorial_style='reference',caption_style='clean',caption_scale=.85,transition_style='cut',transition_seconds=.24,sound_design=body.sound_design,title_motion=body.title_motion,title_style=body.title_style))
             run_director(project_id,job_id,plan,settings,body.preview)
             with job_lock: jobs[job_id]['project_id']=project_id
         else:
@@ -4690,6 +4691,7 @@ def prepare_director(project_id: str, body: DirectorRequest):
     if data.get("kind") == "clip_source":
         raise HTTPException(400, "Open a voiceover or song project in the lyric editor")
     if body.title_style not in cinema_finish.TITLE_STYLES:raise HTTPException(400,"Unknown title style")
+    if body.editorial_style not in ('standard','reference'):raise HTTPException(400,'Unknown editorial style')
     if body.transition_style not in walk.TRANSITIONS or body.caption_style not in walk.CAPTIONS or body.voice_style not in walk.VOICE:
         raise HTTPException(400,'Unknown Director finishing option')
     if body.output_format not in director_intel.FORMATS:
@@ -4727,7 +4729,7 @@ def prepare_director(project_id: str, body: DirectorRequest):
         analysis=director_intel.beat_info(project_dir(project_id)/data['audio_file'],duration,start) if body.preset=='music' else None
         plan = director.make_plan(lines,duration,director.assets_for(director_folder(project_id)),
                                   body.preset, body.brand.strip() or "SKELLYMOTION", fps=settings["fps"], preview=body.preview,
-                                  analysis=analysis,intensity=body.intensity,diagrams=body.diagrams,motion=body.motion,transitions=body.transitions,audio_start=start,silent=silent,cinematic=body.cinematic_finish,guided_replay=body.guided_replay,title_motion=body.title_motion)
+                                  analysis=analysis,intensity=body.intensity,diagrams=body.diagrams,motion=body.motion,transitions=body.transitions,audio_start=start,silent=silent,cinematic=body.cinematic_finish,guided_replay=body.guided_replay,title_motion=body.title_motion,editorial_style=body.editorial_style)
         for scene in plan['scenes']:
             if scene['type']=='diagram' and scene['text']=='Compression':
                 scene['compressor_demo']=body.compressor_demo.model_dump()

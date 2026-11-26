@@ -1,6 +1,6 @@
 import shutil,subprocess,wave
 import pytest
-import studio_proof as proof
+import studio_audio_proof as proof
 
 
 @pytest.mark.skipif(not shutil.which('ffmpeg'),reason='FFmpeg required')

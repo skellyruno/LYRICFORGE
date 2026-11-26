@@ -1,66 +1,107 @@
-"""Explicit matched-timestamp audio evidence for Creator; no independent source identity claim."""
+"""Transcript proofreading: surface the words Whisper was unsure about, and apply corrections safely.
+
+Corrections keep the original timing (a split word shares its slot), so cuts, captions and clip suggestions
+stay in sync with the audio.
+"""
 from __future__ import annotations
-import hashlib, math, os, tempfile, uuid, wave
-from pathlib import Path
 
-RATE=48000
-CHANNELS=2
-WIDTH=3
-FRAME=CHANNELS*WIDTH
+import re
+from typing import Any
+
+import studio_clips as clips
+
+MAX_EDITS, MAX_REPLACEMENTS, MAX_WORD = 500, 50, 80
+_CONTROL = re.compile(r"[\x00-\x1f\x7f]+")
 
 
-def append_proof(voice, before, after, result, start, seconds, run_checked, check_cancel=lambda:None):
-    """Append equal playback-gain dry/wet excerpts; retain original uploaded bytes.
+def clean_text(value: Any, limit: int = MAX_WORD) -> str:
+    return re.sub(r"\s+", " ", _CONTROL.sub(" ", str(value or ""))).strip()[:limit]
 
-    Caller must use the same source take and compensate any plugin latency.
-    Decode both to stereo PCM24 at a fixed clock, without normalization or mixing.
-    Video labels and audio intervals share the same exact sample clock.
+
+def uncertain_words(words: list[dict], threshold: float = .6, limit: int = 60, context: int = 4) -> list[dict]:
+    """The lowest-confidence words with surrounding context, in transcript order."""
+    scored = []
+    for i, w in enumerate(words):
+        prob = w.get("probability")
+        text = str(w.get("text", ""))
+        if isinstance(prob, (int, float)) and prob < threshold and re.search(r"[A-Za-z0-9]", text) and not w.get("edited"):
+            scored.append((float(prob), i))
+    rows = []
+    for prob, i in sorted(scored)[:limit]:
+        rows.append({"i": i, "text": str(words[i]["text"]).strip(), "prob": round(prob, 2),
+                     "start": round(clips._clean_float(words[i].get("start")), 2),
+                     "before": " ".join(str(w["text"]).strip() for w in words[max(0, i - context):i]),
+                     "after": " ".join(str(w["text"]).strip() for w in words[i + 1:i + 1 + context])})
+    return sorted(rows, key=lambda r: r["i"])
+
+
+def _tokens(text: str) -> list[str]:
+    return [t for t in clean_text(text).split(" ") if t]
+
+
+def _spread(start: float, end: float, tokens: list[str], base: dict) -> list[dict]:
+    """New words sharing the timing slot [start, end] in proportion to their length."""
+    total = sum(len(t) for t in tokens) or 1
+    out, cursor = [], start
+    for k, token in enumerate(tokens):
+        span = (end - start) * len(token) / total
+        out.append({**base, "text": token, "start": round(cursor, 3),
+                    "end": round(end if k == len(tokens) - 1 else cursor + span, 3), "probability": 1.0, "edited": True})
+        cursor += span
+    return out
+
+
+def apply_edits(words: list[dict], edits: list[dict] | None = None,
+                replacements: list[dict] | None = None) -> tuple[list[dict], int]:
+    """Return (corrected words, number of words changed). Never mutates the input.
+
+    edits: [{"i": index, "text": new text}]. Empty text deletes the word; several words split its time slot.
+    replacements: [{"find": "scaly tune", "with": "SkellyTune", "case": False}] across the whole transcript;
+    `find` may be several words. Punctuation after the last matched word is kept.
     """
-    voice,before,after=map(Path,(voice,before,after))
-    if not math.isfinite(start) or not 0<=start<=1800 or not math.isfinite(seconds) or not 2<=seconds<=10:
-        raise ValueError('Listening comparison needs a nonnegative start and 2–10 seconds per version')
-    if len(result['lines'])>498:raise ValueError('Leave room for two listening clips')
-    if result['duration']+2*seconds+.5>1800:raise ValueError('Creator audio exceeds 30 minutes')
-    if any(p.is_symlink() or not p.is_file() or p.stat().st_size>150*1024*1024 for p in (before,after)):
-        raise ValueError('Missing or oversized comparison source')
-    def digest(path):
-        with path.open('rb') as src:return hashlib.file_digest(src,'sha256').hexdigest()
-    hashes=[digest(p) for p in (before,after)]
-    if hashes[0]==hashes[1]:raise ValueError('Before and after files must differ')
-    # 8000 samples = 1/6s, common boundary for both supported video frame clocks.
-    count=round(seconds*6)*8000;offset=round(start*RATE)
-    with tempfile.TemporaryDirectory(prefix='proof-',dir=voice.parent) as name:
-        root=Path(name);staged=root/'combined.wav'
-        # FFmpeg raw PCM avoids dependence on WAVE_FORMAT_EXTENSIBLE parsing.
-        def raw(source,target,extra=()):
-            run_checked(['ffmpeg','-v','error','-nostdin','-y','-threads','1','-i',str(source),*extra,'-vn','-ac','2','-ar',str(RATE),'-f','s24le',str(target)],check_cancel=check_cancel,timeout=180)
-        base=root/'narration.pcm';raw(voice,base,('-t','1801'))
-        if base.stat().st_size%FRAME:raise RuntimeError('Invalid narration PCM')
-        n=base.stat().st_size//FRAME
-        if not 0<n<=RATE*1800:raise ValueError('Invalid narration duration')
-        # Half-second breath before the listening demonstration; round to 1/6s.
-        cursor=((n+RATE//2+7999)//8000)*8000
-        if cursor+2*count>RATE*1800:raise ValueError('Creator audio exceeds 30 minutes')
-        clips=[]
-        for i,source in enumerate((before,after)):
-            check_cancel();path=root/f'proof-{i}.pcm'
-            raw(source,path,('-ss',f'{offset/RATE:.9f}','-t',f'{count/RATE:.9f}'))
-            if path.stat().st_size!=count*FRAME:raise ValueError('Both source files must cover the complete comparison excerpt')
-            clips.append(path)
-        def copy_pcm(path,out):
-            with path.open('rb') as src:
-                while True:
-                    check_cancel();buf=src.read(FRAME*RATE)
-                    if not buf:break
-                    out.writeframesraw(buf)
-        rows=[]
-        with wave.open(str(staged),'wb') as out:
-            out.setparams((CHANNELS,WIDTH,RATE,0,'NONE','not compressed'))
-            copy_pcm(base,out);out.writeframesraw(bytes((cursor-n)*FRAME))
-            for label,path in zip(('DRY / BEFORE','PROCESSED / AFTER'),clips):
-                a=cursor/RATE;copy_pcm(path,out);cursor+=count;b=cursor/RATE
-                rows.append({'id':uuid.uuid4().hex[:12],'text':label,'start':a,'end':b,'words':[], 'chapter_title':label,'visual_hint':'Actual supplied audio comparison','proof_label':label})
-        check_cancel();os.replace(staged,voice)
-    return {**result,'duration':cursor/RATE,'lines':[ *result['lines'],*rows],
-            'audio_proof':{'source_sha256':hashes,'source_start':offset/RATE,'seconds_each':count/RATE,'sample_rate':RATE,'channels':2,'playback_gain':'unchanged','alignment':'same requested timestamps; source identity and latency must be verified by author','segments':[{k:r[k] for k in ('id','text','start','end','proof_label')} for r in rows]},
-            'warnings':[ *result.get('warnings',[]),'Comparison uses unchanged playback gain and same requested timestamps; verify source identity and plugin latency.']}
+    result = [dict(w) for w in words]
+    changed = 0
+    usable = []
+    for e in (edits or [])[:MAX_EDITS]:
+        if isinstance(e, dict) and isinstance(e.get("i"), int) and 0 <= e["i"] < len(result):
+            usable.append((e["i"], clean_text(e.get("text"))))
+    seen = set()
+    for i, text in sorted(usable, reverse=True):  # later indexes first so earlier ones do not shift
+        if i in seen:
+            continue
+        seen.add(i)
+        w = result[i]
+        if text == str(w.get("text", "")).strip():
+            continue
+        s, e_ = clips._clean_float(w.get("start")), clips._clean_float(w.get("end"))
+        result[i:i + 1] = _spread(s, e_, _tokens(text), {k: v for k, v in w.items() if k not in ("text", "start", "end")})
+        changed += 1
+    for rule in (replacements or [])[:MAX_REPLACEMENTS]:
+        if not isinstance(rule, dict):
+            continue
+        find, new = _tokens(rule.get("find")), _tokens(rule.get("with"))
+        if not find:
+            continue
+        key = (lambda t: t) if rule.get("case") else (lambda t: t.lower())
+        norm = [key(re.sub(r"^[^\w]+|[^\w]+$", "", t)) for t in find]
+        out: list[dict] = []
+        i = 0
+        while i < len(result):
+            window = result[i:i + len(find)]
+            same = len(window) == len(find) and all(
+                key(re.sub(r"^[^\w]+|[^\w]+$", "", str(w.get("text", "")))) == n for w, n in zip(window, norm))
+            if not same:
+                out.append(result[i])
+                i += 1
+                continue
+            tail = re.search(r"[.,!?;:]+$", str(window[-1].get("text", "")))
+            tokens = list(new)
+            if tokens and tail:
+                tokens[-1] += tail.group(0)
+            if tokens:
+                base = {k: v for k, v in window[0].items() if k not in ("text", "start", "end")}
+                out += _spread(clips._clean_float(window[0].get("start")), clips._clean_float(window[-1].get("end")), tokens, base)
+            changed += 1
+            i += len(find)
+        result = out
+    return result, changed
