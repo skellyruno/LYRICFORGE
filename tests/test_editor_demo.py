@@ -87,3 +87,19 @@ def test_spacer_rejects_inactive_sidechain(tmp_path):
     with wave.open(str(root/'sidechain.wav'),'wb') as w:
         w.setparams((1,2,48000,0,'NONE','not compressed'));w.writeframes(bytes(48000*2))
     with pytest.raises(ValueError,match='active sidechain'):demo.seal(root)
+
+
+@pytest.mark.parametrize('fps',[24,60])
+def test_spacer_capture_clock_and_controls(fps):
+    meta=dict(fps=fps,frame_count=16*fps,sample_rate=48000,samples=768000,
+              width=1100,height=900,control_trace=True)
+    assert demo.capture_clock(meta,True)==(fps,16*fps,48000,768000,1100,900,True)
+    controls=[dict(frame=str(t*fps),sample=str(t*48000),control=c,value=str(v))
+              for t,c,v in [(8,'power',0),(10,'power',1),(12,'listen',1),(14,'listen',0)]]
+    demo.check_control_trace(controls,fps,48000)
+    controls[0]['sample']='1'
+    with pytest.raises(ValueError,match='clock'):demo.check_control_trace(controls,fps,48000)
+    with pytest.raises(ValueError,match='clock'):demo.capture_clock(dict(meta,samples=767999),True)
+    if fps==60:
+        with pytest.raises(ValueError,match='trace'):demo.capture_clock(dict(meta,control_trace=False),True)
+        with pytest.raises(ValueError,match='clock'):demo.capture_clock(dict(meta,width=480,height=330),False)

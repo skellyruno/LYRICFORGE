@@ -16,6 +16,27 @@ from studio_demo import safe, digest, read_json, pcm, table
 FIELDS = ('frame','sample','parameter','normalized','actual','input_rms','output_rms','input_peak','output_peak')
 
 
+def capture_clock(meta, spacer):
+    dimensions=((1100,900),) if spacer else ((480,330),(960,660))
+    fps,count,rate,samples,w,h=(meta.get(k) for k in ('fps','frame_count','sample_rate','samples','width','height'))
+    if (any(type(v) != int for v in (fps,count,rate,samples,w,h))
+            or fps not in ((24,60) if spacer else (24,)) or rate != 48000
+            or not fps <= count <= 30*fps or samples != count*(rate//fps) or (w,h) not in dimensions):
+        raise ValueError('Invalid capture clock or dimensions')
+    has_controls=spacer and meta.get('control_trace') is True
+    if (fps==60 and not has_controls) or (has_controls and count!=16*fps):
+        raise ValueError('Unexpected Spacer control trace duration or missing trace')
+    return fps,count,rate,samples,w,h,has_controls
+
+
+def check_control_trace(controls, fps, rate):
+    expected=[(8*fps,'power',0.),(10*fps,'power',1.),(12*fps,'listen',1.),(14*fps,'listen',0.)]
+    if len(controls)!=len(expected):raise ValueError('Incomplete Spacer control trace')
+    for row,(frame,control,value) in zip(controls,expected):
+        if int(row['frame'])!=frame or int(row['sample'])!=frame*(rate//fps) or row['control']!=control or float(row['value'])!=value:
+            raise ValueError('Spacer control trace clock or readback mismatch')
+
+
 def validate(root, sealed=True):
     root = Path(root)
     if root.is_symlink() or not root.is_dir():
@@ -30,14 +51,8 @@ def validate(root, sealed=True):
     if spacer and (meta.get('source_kind')!='synthetic_test_signal' or type(meta.get('latency_samples')) is not int or meta['latency_samples']!=0):
         raise ValueError('Unsupported Spacer capture source or latency')
     parameter=meta['parameter'];maximum=100. if spacer else 2.
-    dimensions=((1100,900),) if spacer else ((480,330),(960,660))
-    fps, count, rate, samples, w, h = (meta.get(k) for k in ('fps','frame_count','sample_rate','samples','width','height'))
-    if (any(type(v) != int for v in (fps,count,rate,samples,w,h)) or fps != 24 or rate != 48000
-            or not 24 <= count <= 720 or samples != count * (rate//fps) or (w,h) not in dimensions):
-        raise ValueError('Invalid capture clock or dimensions')
+    fps,count,rate,samples,w,h,has_controls=capture_clock(meta,spacer)
     frame_names=[f'frame_{i:06}.png' for i in range(count)]
-    has_controls=spacer and meta.get('control_trace') is True
-    if has_controls and count!=384:raise ValueError('Unexpected Spacer control trace duration')
     names=['capture.json','editor.csv','dry.wav','processed.wav']+(['sidechain.wav'] if spacer else [])+(['controls.csv'] if has_controls else [])+frame_names
     files = {name: safe(root,name,4*1024*1024 if name.endswith('.png') else 32*1024*1024) for name in names}
     if sum(p.stat().st_size for p in files.values()) > (400 if w>=960 else 200)*1024*1024:
@@ -64,11 +79,7 @@ def validate(root, sealed=True):
     controls=[]
     if has_controls:
         controls=table(files['controls.csv'],('frame','sample','control','value'),4)
-        expected=[(192,'power',0.),(240,'power',1.),(288,'listen',1.),(336,'listen',0.)]
-        if len(controls)!=len(expected):raise ValueError('Incomplete Spacer control trace')
-        for row,(frame,control,value) in zip(controls,expected):
-            if int(row['frame'])!=frame or int(row['sample'])!=frame*(rate//fps) or row['control']!=control or float(row['value'])!=value:
-                raise ValueError('Spacer control trace clock or readback mismatch')
+        check_control_trace(controls,fps,rate)
     rows=table(files['editor.csv'],FIELDS,count)
     if len(rows)!=count: raise ValueError('Incomplete editor trace')
     n=rate//fps;values=[];max_meter_error=0.
@@ -103,7 +114,7 @@ def render(root,out):
     # Native capture is the full picture. No reconstructed widgets or artificial cursor.
     width,height=(1920,1080) if meta['width']>=960 else (1280,720)
     panel_width=round(height*meta['width']/meta['height']/2)*2
-    args=['ffmpeg','-hide_banner','-loglevel','error','-nostdin','-filter_threads','1','-threads','1','-framerate','24','-start_number','0','-i',str(root/'frame_%06d.png'),'-i',str(root/'processed.wav'),'-map','0:v:0','-map','1:a:0','-vf',f'scale={panel_width}:{height}:flags=lanczos,pad={width}:{height}:(ow-iw)/2:0:color=0x0d1412,setsar=1','-frames:v',str(meta['frame_count']),'-t',str(meta['frame_count']/24),'-c:v','libx264','-threads','2','-preset','fast','-crf','18','-pix_fmt','yuv420p','-c:a','aac','-b:a','192k','-movflags','+faststart',str(video)]
+    args=['ffmpeg','-hide_banner','-loglevel','error','-nostdin','-filter_threads','1','-threads','1','-framerate',str(meta['fps']),'-start_number','0','-i',str(root/'frame_%06d.png'),'-i',str(root/'processed.wav'),'-map','0:v:0','-map','1:a:0','-vf',f'scale={panel_width}:{height}:flags=lanczos,pad={width}:{height}:(ow-iw)/2:0:color=0x0d1412,setsar=1','-frames:v',str(meta['frame_count']),'-t',str(meta['frame_count']/meta['fps']),'-c:v','libx264','-threads','2','-preset','fast','-crf','18','-pix_fmt','yuv420p','-c:a','aac','-b:a','192k','-movflags','+faststart',str(video)]
     try:
         subprocess.run(args,check=True,capture_output=True,timeout=180)
         if not video.is_file() or video.stat().st_size<1024:raise RuntimeError('Missing rendered editor clip')
