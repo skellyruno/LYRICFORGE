@@ -36,6 +36,7 @@ import studio_post as posts_lib
 import studio_viz as viz_lib
 import studio_proof as proof
 import studio_edit as edit
+import studio_director as director
 
 ROOT = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
 DATA = Path(os.environ.get("LYRICFORGE_DATA", ROOT / "workspace")).resolve()
@@ -608,6 +609,7 @@ class ConfirmRequest(BaseModel):
 class SaveRequest(BaseModel):
     lines: list[dict]
     settings: dict
+    draft_lyrics: str | None = Field(default=None, max_length=60000)
 
 
 class RecoveryRequest(BaseModel):
@@ -697,7 +699,7 @@ def store_recovery(project_id: str, body: RecoveryRequest):
     path = recovery_file(project_id)
     previous = perf.read_cache(path)
     values = {
-        "lines": validate_lines(body.lines, data["duration"]),
+        "lines": validate_lines(body.lines, data["duration"], allow_empty=True),
         "settings": sanitize_settings(body.settings),
         "draft_lyrics": body.draft_lyrics[:60000],
         "updated_at": time.time(),
@@ -981,8 +983,10 @@ def confirm(project_id: str, body: ConfirmRequest):
 @app.put("/api/projects/{project_id}")
 def save_edit(project_id: str, body: SaveRequest):
     d = read_project(project_id)
-    d["lines"] = validate_lines(body.lines, d["duration"])
+    d["lines"] = validate_lines(body.lines, d["duration"], allow_empty=True)
     d["settings"] = sanitize_settings(body.settings)
+    if body.draft_lyrics is not None and d.get("status") != "transcribing":
+        d["draft_lyrics"] = body.draft_lyrics
     staging = perf.read_cache(recovery_file(project_id))
     pending = staging.get("pending_background")
     if isinstance(pending, str) and re.fullmatch(r"background-pending-[0-9a-f]{32}\.(?:jpg|jpeg|png|webp|mp4|mov|webm)", pending):
@@ -1059,7 +1063,7 @@ def sanitize_settings(d: dict) -> dict:
     }
 
 
-def validate_lines(lines: list[dict], duration: float) -> list[dict]:
+def validate_lines(lines: list[dict], duration: float, *, allow_empty: bool = False) -> list[dict]:
     if len(lines) > 500:
         raise HTTPException(400, "Too many lyric clips (max 500)")
     cleaned = []
@@ -1104,7 +1108,7 @@ def validate_lines(lines: list[dict], duration: float) -> list[dict]:
                 cleaned_row[coordinate] = clamp(row[coordinate], 8, 92, 50 if coordinate == "x" else 55)
         cleaned.append(cleaned_row)
     cleaned.sort(key=lambda ln: ln["start"])
-    if not cleaned:
+    if not cleaned and not allow_empty:
         raise HTTPException(400, "No lyrics to export")
     return cleaned
 
@@ -1294,6 +1298,14 @@ def ffmpeg_seconds(value: str) -> float:
         return 0.0
 
 
+def check_cancel(job_id: str) -> None:
+    with job_lock:
+        item = jobs.get(job_id, {})
+        parent = jobs.get(item.get("parent") or "", {})
+        if item.get("cancel") or parent.get("cancel"):
+            raise RuntimeError("Cancelled by you.")
+
+
 def render_with_progress(args: list[str], folder: Path, job_id: str, duration: float) -> None:
     """Read incremental FFmpeg progress, keeping stderr diagnostics and no CMD popups."""
     with job_lock:
@@ -1313,6 +1325,7 @@ def render_with_progress(args: list[str], folder: Path, job_id: str, duration: f
     try:
         assert process.stdout is not None
         for line in process.stdout:
+            check_cancel(job_id)
             row = line.strip()
             if row.startswith("out_time="):
                 progress_seconds = ffmpeg_seconds(row.partition("=")[2])
@@ -1347,6 +1360,10 @@ def render_with_progress(args: list[str], folder: Path, job_id: str, duration: f
         watchdog.cancel()
         if process.poll() is None:
             process.kill()
+            try:
+                process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                pass
         if process.stdout:
             process.stdout.close()
 
@@ -1483,6 +1500,20 @@ def get_job(job_id: str):
 
 
 
+@app.post("/api/jobs/{job_id}/cancel")
+def cancel_director_job(job_id: str):
+    with job_lock:
+        item = jobs.get(job_id)
+        if not item:
+            raise HTTPException(404, "Unknown render job")
+        if item.get("kind") != "director":
+            raise HTTPException(409, "This job does not support cancellation")
+        if item.get("status") != "rendering":
+            return {"cancelled": False, "status": item.get("status")}
+        item["cancel"] = True
+    return {"cancelled": True, "status": "rendering"}
+
+
 def derived_files(keep_project_id: str | None = None) -> list[Path]:
     """Only generated files, never uploads, saved edits, or AI models."""
     if not DATA.exists():
@@ -1499,6 +1530,13 @@ def derived_files(keep_project_id: str | None = None) -> list[Path]:
             candidate = directory / filename
             if candidate.is_file() and not candidate.is_symlink():
                 results.append(candidate)
+        for name in ("director.mp4", "director_preview.mp4", "director_plan.json", "director_preview_plan.json"):
+            path = directory / name
+            if path.is_file() and not path.is_symlink():
+                results.append(path)
+        cache = directory / "director_cache" / "scenes"
+        if cache.is_dir() and not cache.is_symlink() and not cache.parent.is_symlink():
+            results.extend(path for path in cache.glob("*.mp4") if path.is_file() and not path.is_symlink())
     return results
 
 
@@ -1516,7 +1554,7 @@ def storage_overview(keep_project_id: str | None = None) -> dict:
                 if path.is_file() and not path.is_symlink():
                     size = path.stat().st_size
                     workspace_bytes += size
-                    if path.name in {"lyric_video.mp4", "lyric_preview.mp4"}:
+                    if path.name in {"lyric_video.mp4", "lyric_preview.mp4", "director.mp4", "director_preview.mp4"}:
                         exports_bytes += size
     candidates = derived_files(keep_project_id)
     return {"projects": project_count, "workspace_bytes": workspace_bytes,
@@ -3057,7 +3095,7 @@ class AutoEditRequest(BaseModel):
     broll: bool = True  # cut in clips from your B-roll library when you say their keywords
 
 
-FILE_NAME = re.compile(r"autoedit\.mp4|thumbnail\.jpg|youtube\.txt|posts\.txt|ab\.mp4|visualizer\.mp4|captions(\.[a-z]{2})?\.(srt|vtt)")
+FILE_NAME = re.compile(r"director(?:_preview)?\.mp4|director(?:_preview)?_plan\.json|autoedit\.mp4|thumbnail\.jpg|youtube\.txt|posts\.txt|ab\.mp4|visualizer\.mp4|captions(\.[a-z]{2})?\.(srt|vtt)")
 FILE_TYPES = {".mp4": "video/mp4", ".jpg": "image/jpeg", ".txt": "text/plain; charset=utf-8",
               ".srt": "application/x-subrip", ".vtt": "text/vtt; charset=utf-8"}
 
@@ -3087,7 +3125,143 @@ def download_generated_file(project_id: str, name: str):
     f = project_dir(project_id) / name
     if not f.is_file():
         raise HTTPException(404, "That file has not been created yet")
-    return FileResponse(f, media_type=FILE_TYPES[f.suffix], filename=f"SkellyMotion-{name}")
+    return FileResponse(f, media_type="application/json" if f.suffix == ".json" else FILE_TYPES[f.suffix], filename=f"SkellyMotion-{name}")
+
+
+# ---- Local autonomous scene director (voiceover and lyric projects) ----
+class DirectorRequest(BaseModel):
+    preset: str = "plugin"
+    preview: bool = True
+    music: bool = False
+    brand: str = Field(default="SKELLYMOTION", max_length=80)
+    lines: list[dict] | None = None
+    settings: dict = Field(default_factory=dict)
+
+
+def director_folder(project_id: str) -> Path:
+    folder = project_dir(project_id) / "director_assets"
+    if folder.is_symlink():
+        raise HTTPException(400, "Linked asset folders are not supported")
+    return folder
+
+
+@app.get("/api/projects/{project_id}/director/assets")
+def list_director_assets(project_id: str):
+    return {"assets": director.assets_for(director_folder(project_id))}
+
+
+@app.post("/api/projects/{project_id}/director/assets")
+async def add_director_asset(project_id: str, file: UploadFile = File(...), description: str = Form("")):
+    folder = director_folder(project_id)
+    ext = Path(file.filename or "").suffix.lower()
+    if ext not in director.IMAGE_EXT | director.VIDEO_EXT:
+        raise HTTPException(400, "Choose PNG, JPG, WebP, MP4, MOV, MKV or WebM")
+    with job_lock:
+        reject_if_busy(project_id)
+    folder.mkdir(exist_ok=True)
+    index = perf.read_cache(folder / "index.json")
+    if len(index) >= 40:
+        raise HTTPException(400, "Director supports up to 40 assets per project")
+    name = uuid.uuid4().hex + ext
+    target = folder / name
+    try:
+        await save_upload(file, target, 80 * 1024 * 1024)
+        if ext in director.IMAGE_EXT:
+            from PIL import Image
+            with Image.open(target) as im:
+                if im.width * im.height > 24000000:
+                    raise ValueError("Image exceeds 24 megapixels")
+                im.verify()
+        else:
+            info = clips.probe_media(target)
+            if not info["has_video"] or info["duration"] <= 0 or not info["width"]:
+                raise ValueError("No readable video stream")
+        index = perf.read_cache(folder / "index.json")
+        if len(index) >= 40:
+            raise ValueError("Director supports up to 40 assets per project")
+        index[name] = {"name": Path(file.filename or "visual").name[:120], "description": description[:300]}
+        perf.atomic_write_json(folder / "index.json", index)
+    except HTTPException:
+        target.unlink(missing_ok=True)
+        raise
+    except Exception as exc:
+        target.unlink(missing_ok=True)
+        raise HTTPException(400, "Could not import visual: " + str(exc)[:200]) from exc
+    return {"assets": director.assets_for(folder)}
+
+
+def prepare_director(project_id: str, body: DirectorRequest):
+    data = read_project(project_id)
+    if data.get("status") == "transcribing":
+        raise HTTPException(409, "Finish transcription before planning scenes")
+    if data.get("kind") == "clip_source":
+        raise HTTPException(400, "Open a voiceover or song project in the lyric editor")
+    settings = sanitize_settings({**(data.get("settings") or {}), **body.settings, "aspect": "landscape",
+                                  "resolution": "540p" if body.preview else "1080p",
+                                  "mode": "line", "animation": "fade", "position": 89,
+                                  "fontSize": 42, "upper": False, "textColor": "#FFFFFF"})
+    lines = validate_lines(body.lines if body.lines else song_lines_for(data), data["duration"], allow_empty=True)
+    if not lines:
+        raise HTTPException(400, "Confirm lyrics or finish voiceover transcription first")
+    try:
+        plan = director.make_plan(lines, float(data["duration"]), director.assets_for(director_folder(project_id)),
+                                  body.preset, body.brand.strip() or "SKELLYMOTION", fps=settings["fps"], preview=body.preview)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return data, settings, plan
+
+
+@app.post("/api/projects/{project_id}/director/plan")
+def preview_director_plan(project_id: str, body: DirectorRequest):
+    _, _, plan = prepare_director(project_id, body)
+    return plan
+
+
+@app.post("/api/projects/{project_id}/director/render")
+def start_director(project_id: str, body: DirectorRequest):
+    data, settings, plan = prepare_director(project_id, body)
+    music = brand_asset("music") if body.music else None
+    if body.music and music is None:
+        raise HTTPException(400, "Add background music in Brand Kit first")
+    job_id = register_job(project_id, "director", settings)
+    executor.submit(run_director, project_id, job_id, plan, settings, body.preview, music)
+    return {"job_id": job_id, "plan": plan}
+
+
+def run_director(project_id: str, job_id: str, plan: dict, settings: dict, preview: bool, music: Path | None = None):
+    started = time.monotonic()
+    p = project_dir(project_id)
+    try:
+        data = read_project(project_id)
+        w, h = output_size(settings)
+        def make_ass(rows, target):
+            create_ass(rows, settings, w, h, target)
+        def encode(args, cwd, length, stage, base, span):
+            check_cancel(job_id)
+            with job_lock:
+                jobs[job_id].update(stage=stage, progress=base)
+            child = new_child_job(job_id, project_id, settings, base, span)
+            try:
+                threads = str(perf.profile_config(settings["performanceMode"])["threads"])
+                render_with_progress([*args[:-1], "-threads", threads, args[-1]], cwd, child, length)
+                finish_child(child)
+            except Exception as exc:
+                fail_job(child, exc, started)
+                raise
+        def progress(done, total, made, reused):
+            with job_lock:
+                jobs[job_id].update(stage=f"director_scene_{done}_of_{total}", progress=int(5+80*done/total),
+                                    rendered_scenes=made, cached_scenes=reused)
+        filename = "director_preview.mp4" if preview else "director.mp4"
+        stats = director.render(plan, p / data["audio_file"], director_folder(project_id), p / "director_cache",
+                                p / filename, settings, (w,h), make_ass, encode, lambda: check_cancel(job_id), progress, music)
+        plan_file = "director_preview_plan.json" if preview else "director_plan.json"
+        perf.atomic_write_json(p / plan_file, plan, ensure_ascii=False, indent=2)
+        with job_lock:
+            jobs[job_id].update(status="done", stage="complete", progress=100, outputs={"video": file_url(project_id, filename),
+                                "plan": file_url(project_id, plan_file), **stats})
+    except Exception as exc:
+        fail_job(job_id, exc, started)
 
 
 @app.post("/api/projects/{project_id}/autoedit")

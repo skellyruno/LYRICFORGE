@@ -335,14 +335,24 @@ class DesktopFilePicker:
         self.active_project = False
         self.allow_close = False
         self._saving_video = threading.Lock()
+        self._close_pending = threading.Lock()
         self._selected_audio = None
 
     def session_active(self, active):
         self.active_project = bool(active)
         return {"active": self.active_project}
 
+    def cancel_close(self):
+        if self._close_pending.locked():
+            try:
+                self._close_pending.release()
+            except RuntimeError:
+                pass
+        return True
+
     def approve_close(self):
         self.allow_close = True
+        self.cancel_close()
         if self._window is not None:
             self._window.destroy()
         return True
@@ -509,12 +519,27 @@ def run_desktop(home: Path, safe_mode: bool = False,
                 # Never block the native UI thread waiting for JavaScript.
                 if picker.allow_close or smoke_test or not picker.active_project:
                     return True
+                if not picker._close_pending.acquire(blocking=False):
+                    return False
                 def request_decision():
                     try:
-                        window.evaluate_js(
-                            "window.dispatchEvent(new Event('skellymotion-close-request'))")
+                        delivered = window.evaluate_js(
+                            "Boolean(window.SkellyBridge) && window.dispatchEvent(new Event('skellymotion-close-request'))")
+                        if delivered is not True:
+                            raise RuntimeError("Editor close bridge is not ready")
                     except Exception as exc:
                         log_stage("Could not show Save / Don't Save / Cancel: " + str(exc))
+                        try:
+                            import ctypes
+                            answer = ctypes.windll.user32.MessageBoxW(
+                                None, "The editor could not open its Save dialog. Close and keep the last stored recovery? Recent unflushed edits may be lost.",
+                                "SkellyMotion — close", 0x04 | 0x30 | 0x40000)
+                            if answer == 6:
+                                picker.approve_close()
+                        except Exception as fallback_error:
+                            log_stage("Native close dialog unavailable: " + str(fallback_error))
+                        finally:
+                            picker.cancel_close()
                 threading.Thread(target=request_decision, daemon=True).start()
                 return False
             window.events.closing += on_closing
@@ -567,10 +592,14 @@ def run_desktop(home: Path, safe_mode: bool = False,
                                         "const app=document.querySelector('.app');"
                                         "const timeline=document.getElementById('timelineScroll');"
                                         "const welcome=document.getElementById('welcome');"
-                                        "if(!app||!timeline||!welcome)return false;"
-                                        "const b=app.getBoundingClientRect();"
+                                        "const shell=document.getElementById('studioShell');"
+                                        "const exp=document.getElementById('topExport');"
+                                        "if(!app||!timeline||!welcome||!shell||!exp)return false;"
+                                        "const e=exp.getBoundingClientRect(),b=app.getBoundingClientRect();"
                                         "return Number.isFinite(b.width)&&Number.isFinite(b.height)"
                                         "&&b.width>200&&b.height>160"
+                                        "&&Math.abs(b.width-innerWidth)<4&&Math.abs(b.height-innerHeight)<4"
+                                        "&&e.right<=innerWidth+2&&e.left>=0&&e.top>=0"
                                         "&&timeline.getBoundingClientRect().height>20"
                                         "&&getComputedStyle(welcome).overflowY!=='hidden';"
                                         "})()")
@@ -656,8 +685,11 @@ def run_desktop(home: Path, safe_mode: bool = False,
                 name="SkellyMotionUIHangMonitor", daemon=True)
             monitor_worker.start()
         log_stage("native window created; initializing WebView2")
+        from inspect import signature
+        icon = runtime_dir() / "static" / "skull.ico"
+        options = {"icon": str(icon)} if icon.is_file() and "icon" in signature(webview.start).parameters else {}
         webview.start(gui="edgechromium", debug=False, private_mode=False,
-                      storage_path=str(profile))
+                      storage_path=str(profile), **options)
     finally:
         monitor_stop.set()
         if watchdog is not None:

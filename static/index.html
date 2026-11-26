@@ -4,20 +4,23 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>SkellyMotion — Lyric video studio</title>
+  <link rel="icon" href="/static/skull.svg" type="image/svg+xml" />
   <script>if(new URLSearchParams(location.search).get('desktop')==='1')document.documentElement.classList.add('desktop-mode');</script>
   <link rel="stylesheet" href="/static/style.css" />
   <link rel="stylesheet" href="/static/autoclip.css" />
 </head>
 <body>
+<div id="studioShell">
   <div id="app" class="app">
     <header class="topbar">
-      <div class="brand"><div class="brand-symbol"><span>✳</span></div><span class="brand-name">SKELLY<span>MOTION</span></span><span class="brand-pill">STUDIO</span></div>
+      <div class="brand"><div class="brand-symbol"><img src="/static/skull.svg" alt="" /></div><span class="brand-name">SKELLY<span>MOTION</span></span><span class="brand-pill">STUDIO</span></div>
       <div class="top-middle"><span id="projectTitle" class="song-title">Untitled project</span><span class="top-separator">/</span><span id="projectStatus" class="project-status">Ready to create</span></div>
       <div class="top-actions">
         <button id="newBtn" class="ghost-btn" title="Start a new song">＋ New</button>
         <button id="undoBtn" class="ghost-btn icon-action" title="Undo (Ctrl+Z)" aria-label="Undo" disabled>↶</button>
         <button id="redoBtn" class="ghost-btn icon-action" title="Redo (Ctrl+Y)" aria-label="Redo" disabled>↷</button>
         <button id="saveBtn" class="ghost-btn" title="Save this project permanently" disabled>Save</button>
+        <select id="studioZoom" class="studio-zoom" title="Whole studio zoom" aria-label="Whole studio zoom"><option value="fit">Fit</option><option value="0.75">75%</option><option value="0.9">90%</option><option value="1">100%</option><option value="1.1">110%</option></select>
         <button id="exitBtn" class="ghost-btn" title="Close the project with Save / Don't Save / Cancel">Exit</button>
         <button id="topExport" class="primary-btn" title="Export video" aria-label="Export video" disabled><span>↗</span> Export video</button>
       </div>
@@ -199,6 +202,21 @@
             <label class="toggle-line"><span>Hook card on Shorts<small>First line shown at the top for 1.5 s</small></span><input id="autoHooks" type="checkbox" checked /><i class="switch"></i></label>
             <button id="autoRunBtn" class="primary-btn render-btn" type="button">✦ Run autopilot</button>
             <div id="autoStatus" class="render-status hidden" role="status" aria-live="polite"></div>
+            <section class="director-section" aria-label="Autonomous scene director">
+              <div class="control-head after-gap">SCENE DIRECTOR <span class="director-local">LOCAL</span></div>
+              <p class="motion-hint">Turn voiceovers or songs into edited videos with matching visuals and timed captions.</p>
+              <div class="control-group"><label for="directorPreset">Visual direction</label><select id="directorPreset"><option value="plugin">Plugin walkthrough</option><option value="doc">Documentary / explainer</option></select></div>
+              <div class="control-group"><label for="directorBrand">Brand / closing card</label><input id="directorBrand" type="text" value="SKELLYMOTION" maxlength="80" /></div>
+              <label class="wide-ghost director-upload">＋ Add screenshots / video footage<input id="directorAssets" type="file" multiple accept="image/png,image/jpeg,image/webp,video/mp4,video/quicktime,video/webm,.mkv,.m4v" /></label>
+              <div class="control-group"><label for="directorAssetDescription">Asset description (optional)</label><input id="directorAssetDescription" type="text" maxlength="300" placeholder="e.g. EQ depth control, main plugin window" /></div>
+              <div id="directorAssetsList" class="director-list" aria-live="polite"></div>
+              <label class="toggle-line"><span>15-second proof<small>Fast preview before the full export</small></span><input id="directorPreview" type="checkbox" checked /><i class="switch"></i></label>
+              <label class="toggle-line"><span>Brand Kit music<small>Duck the bed under your voice</small></span><input id="directorMusic" type="checkbox" /><i class="switch"></i></label>
+              <button id="directorPlan" class="wide-ghost" type="button">Preview scene plan</button>
+              <button id="directorRun" class="primary-btn render-btn" type="button">✦ Direct &amp; render</button>
+              <div id="directorStatus" class="render-status hidden" role="status" aria-live="polite"></div>
+              <div id="directorScenes" class="director-list"></div><div id="directorResult" class="auto-results"></div>
+            </section>
             <div class="control-head after-gap">SHORTS ONLY</div>
             <button id="autoFindShorts" class="wide-ghost" type="button">Find the best Shorts in this song</button>
             <div id="autoShortList" class="auto-cards"></div>
@@ -380,6 +398,7 @@
         <p id="saveDecisionText">Choose what to do with this project's unsaved changes.</p>
         <div class="decision-actions">
           <button id="decisionSave" class="primary-btn" type="button">Save project</button>
+          <button id="decisionKeep" class="ghost-btn" type="button">Keep recovery &amp; close</button>
           <button id="decisionDiscard" type="button" class="danger-ghost">Don't Save</button>
           <button id="decisionCancel" class="ghost-btn" type="button">Cancel</button>
         </div>
@@ -487,6 +506,7 @@
       <div class="brand-actions"><button id="brandSave" class="primary-btn" type="button">Save</button><button id="brandCancel" class="ghost-btn" type="button">Close</button></div>
     </div>
   </div>
+</div>
   <script src="/static/app.js"></script>
   <script src="/static/autoclip.js"></script>
 </body>

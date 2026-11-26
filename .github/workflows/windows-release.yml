@@ -133,7 +133,10 @@ jobs:
           # FFprobe is needed only on the CI runner for the source archive
           # test. The portable app uses the already-bundled PyAV to probe
           # durations and image/video streams, eliminating ~100 MB extracted.
+          python studio_icon.py
+          if ($LASTEXITCODE -ne 0) { throw 'Skull icon generation failed' }
           pyinstaller --noconfirm --clean --onedir --windowed --name SkellyMotion `
+            --icon "static/skull.ico" `
             --add-data "static;static" `
             --add-binary "vendor/ffmpeg/ffmpeg.exe;tools" `
             --hidden-import clr `
