@@ -3,19 +3,30 @@ The older source snapshot is only a comparison ancestor, not a proven Git merge 
 Divergent text may be cleanly merged for review, never auto-promoted to a branch.
 """
 from __future__ import annotations
-import argparse,hashlib,json,shutil,subprocess,tempfile,zipfile
+import argparse,hashlib,json,stat,subprocess,tempfile,zipfile
 from pathlib import Path,PurePosixPath
 
 
 def digest(data):return hashlib.sha256(data).hexdigest()
 
-def archive_files(archive):
+LEGACY_EVIDENCE = frozenset({
+    "verification/python-tests.log", "verification/v5-integration.log",
+    "verification/demo-plan.json", "verification/demo-result.json",
+    "verification/render-contact.jpg",
+})
+
+
+def archive_files(archive, *, legacy_evidence=False):
     out={}
     with zipfile.ZipFile(archive) as z:
         for member in z.infolist():
-            if member.is_dir():continue
             p=PurePosixPath(member.filename)
-            if p.is_absolute() or '..' in p.parts or '\\' in member.filename or len(p.parts)<2 or p.parts[0]!='LYRICFORGE-main':raise ValueError('Unsafe archive path')
+            if p.is_absolute() or '..' in p.parts or '\\' in member.filename or ':' in member.filename or stat.S_ISLNK(member.external_attr >> 16):
+                raise ValueError('Unsafe archive path')
+            if member.is_dir():continue
+            if legacy_evidence and member.filename in LEGACY_EVIDENCE:
+                continue  # evidence stays in the original, hash-pinned archive
+            if len(p.parts)<2 or p.parts[0]!='LYRICFORGE-main':raise ValueError('Unexpected archive root: '+member.filename)
             key='/'.join(p.parts[1:])
             if key in out:raise ValueError('Duplicate archive path')
             out[key]=z.read(member)
@@ -59,12 +70,12 @@ def main():
     if a.destination.exists():raise FileExistsError(a.destination)
     files=subprocess.run(['git','-C',str(a.creator),'ls-files','-z'],capture_output=True,check=True).stdout.decode('utf-8').split('\x00')
     creator={n:(a.creator/n).read_bytes() for n in files if n and not n.startswith('field-notes/candidates/') and not (a.creator/n).is_symlink()}
-    output,rows,conflicts=propose(creator,archive_files(a.base),archive_files(a.incoming));a.destination.mkdir(parents=True)
+    output,rows,conflicts=propose(creator,archive_files(a.base,legacy_evidence=True),archive_files(a.incoming));a.destination.mkdir(parents=True)
     for dirname,data in [('proposal',output),('unresolved-editorial',conflicts)]:
         for path,content in data.items():
             p=a.destination/dirname/path;p.parent.mkdir(parents=True,exist_ok=True);p.write_bytes(content)
     counts={}
     for r in rows:counts[r['status']]=counts.get(r['status'],0)+1
-    (a.destination/'report.json').write_text(json.dumps({'policy':'Comparison snapshot is not a proven Git merge base. Clean proposals require code review and exact-commit tests. No automatic promotion.','counts':counts,'paths':rows},indent=2))
+    (a.destination/'report.json').write_text(json.dumps({'policy':'Comparison snapshot is not a proven Git merge base. Clean proposals require code review and exact-commit tests. No automatic promotion.','counts':counts,'paths':rows,'legacy_evidence_policy':'Recognized comparison-only verification files remain in the preserved source ZIP.'},indent=2))
     print(json.dumps(counts,indent=2))
 if __name__=='__main__':main()

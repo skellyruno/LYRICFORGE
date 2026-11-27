@@ -5,6 +5,7 @@ on:
     paths:
       - 'field-notes/candidates/SkellyMotion-Editorial-V20-Source-Candidate.zip'
       - '.github/workflows/field-notes-narration.yml'
+      - 'field-notes/v20-staging/examples/frequency_narration.py'
   workflow_dispatch:
 permissions:
   contents: read
@@ -48,7 +49,7 @@ jobs:
             fi
           done
           sha256sum -c SHA256SUMS
-      - name: Synthesize new Field Notes 06 script and assemble exact chapter clock
+      - name: Synthesize new Field Notes 06 script and allocate speech-led chapter clock
         env:
           OMP_NUM_THREADS: '2'
           OPENBLAS_NUM_THREADS: '1'

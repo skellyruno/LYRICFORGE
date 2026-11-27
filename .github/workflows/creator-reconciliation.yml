@@ -5,6 +5,7 @@ on:
     paths:
       - 'field-notes/candidates/SkellyMotion-Editorial-V20-Source-Candidate.zip'
       - '.github/workflows/creator-reconciliation.yml'
+      - 'field-notes/v20-staging/tools/reconcile_creator.py'
   workflow_dispatch:
 permissions:
   contents: read
