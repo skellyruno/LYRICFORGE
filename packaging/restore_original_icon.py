@@ -23,8 +23,8 @@ def pe(data):
     u32=lambda o:struct.unpack_from("<I",data,o)[0]
     if data[:2]!=b"MZ":raise ValueError("Not PE")
     p=u32(60);opt=p+24
-    if data[p:p+4]!=b"PE\0\0" or u16(opt)!=0x20b:raise ValueError("Not x64 PE")
-    n=u16(p+6);st=opt+u16(p+20);dirs=opt+112
+    if data[p:p+4]!=b"PE\0\0" or u16(opt) not in (0x10b,0x20b):raise ValueError("Not PE32 or PE32+")
+    n=u16(p+6);st=opt+u16(p+20);dirs=opt+(112 if u16(opt)==0x20b else 96)
     if u32(dirs+32) or u32(dirs+36):raise ValueError("Refuse to alter signed PE")
     sections={}
     spans=[]
