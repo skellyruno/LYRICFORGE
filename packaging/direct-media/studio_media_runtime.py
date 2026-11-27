@@ -90,13 +90,12 @@ def aac_trim(path):
             if d:
                 if i!=len(packets)-1 or discard or not 0<d<=65536:raise ValueError("Unsupported AAC discard")
                 discard=d
-    end=None
-    if discard:
-        frames=probe_json(path,["-select_streams","a:0","-show_frames","-show_entries","frame=nb_samples"]).get("frames",[])
-        count=sum(int(f["nb_samples"]) for f in frames if "nb_samples" in f)
-        if count<=0:raise ValueError("Missing decoded AAC count")
-        end=skip+count
-    return skip,end
+    # PyAV 18.1.1 on FFmpeg 8.1.3 emits the complete last decoded
+    # AAC frame in ISO-BMFF. FFmpeg 9 adds discard metadata to honor
+    # the container edit duration. Do not impose that newer trimming law
+    # on the Whisper input. This is the exact prior held-out parity mode.
+    # Keep the discard validation above, but only remove initial priming.
+    return skip
 
 def decode_audio(input_file,sampling_rate=16000,split_stereo=False):
     if not isinstance(sampling_rate,int) or not 1<=sampling_rate<=384000:raise ValueError("Invalid sampling rate")
@@ -108,8 +107,8 @@ def decode_audio(input_file,sampling_rate=16000,split_stereo=False):
         pre=[];filters=["asetpts=N/SR/TB"]
         names=set(info.get("format",{}).get("format_name","").split(","))
         if stream.get("codec_name")=="aac" and names.intersection({"mov","mp4","m4a","3gp","3g2","mj2"}):
-            skip,end=aac_trim(path);pre=["-flags2","+skip_manual"]
-            filters.insert(0,f"atrim=start_sample={skip}"+(f":end_sample={end}" if end is not None else ""))
+            skip=aac_trim(path);pre=["-flags2","+skip_manual"]
+            filters.insert(0,f"atrim=start_sample={skip}")
         try:
             raw=execute(ffmpeg,["-hide_banner","-nostdin","-v","error",*pre,"-i",str(path),"-map","0:a:0",
                 "-vn","-sn","-dn","-af",",".join(filters),"-ac",str(channels),"-ar",str(sampling_rate),
