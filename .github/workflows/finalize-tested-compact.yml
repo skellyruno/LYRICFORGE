@@ -5,6 +5,7 @@ on:
     paths:
       - 'packaging/finalize-tested-compact.ps1'
       - 'packaging/restore_original_icon.py'
+      - 'packaging/append_icon_resources.py'
       - 'studio_icon.py'
       - '.github/workflows/finalize-tested-compact.yml'
   workflow_dispatch:

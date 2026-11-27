@@ -4,14 +4,13 @@ Windows resource APIs operate on the PE stub, never on the PyInstaller
 archive. Prove the archive and all executable sections remain unchanged.
 """
 import argparse
-import ctypes
-from ctypes import wintypes
 import hashlib
 import json
 from pathlib import Path
 import struct
 import tempfile
 from payload_integrity import manifest
+from append_icon_resources import append_resources
 
 ICON_SHA = "c472c19bbf94f3fdac172c1eeff7322d5e7dc2093e98cc095f2380a3e9bd82bb"
 MAGIC = b"MEI\x0c\x0b\x0a\x0b\x0e"
@@ -92,37 +91,21 @@ def patch_exe(path,asset):
     if struct.unpack_from("<H",old,4)[0]!=len(items):raise ValueError("Icon count changed")
     ids=[struct.unpack_from("<H",old,6+14*i+12)[0] for i in range(len(items))]
     if len(set(ids))!=len(items):raise ValueError("Duplicate icon IDs")
-    k32=ctypes.WinDLL("kernel32",use_last_error=True)
-    begin=k32.BeginUpdateResourceW;begin.argtypes=[wintypes.LPCWSTR,wintypes.BOOL];begin.restype=wintypes.HANDLE
-    update=k32.UpdateResourceW;update.argtypes=[wintypes.HANDLE,ctypes.c_void_p,ctypes.c_void_p,wintypes.WORD,ctypes.c_void_p,wintypes.DWORD];update.restype=wintypes.BOOL
-    finish=k32.EndUpdateResourceW;finish.argtypes=[wintypes.HANDLE,wintypes.BOOL];finish.restype=wintypes.BOOL
-    def checked(ok):
-        if not ok:raise ctypes.WinError(ctypes.get_last_error())
+    expected=dict(rs)
+    group=old[:6]
+    for (entry,image),rid in zip(items,ids):
+        expected[(3,rid,0)]=image
+        group+=entry+struct.pack("<H",rid)
+    expected[key]=group
+    final=append_resources(original,expected,end)
+    new_sections,new_rs,new_overlay,_=pe(final)
+    if set(new_sections)!=set(sections)|{b".skicon"}:raise ValueError("Unexpected section layout")
+    if any(new_sections[k]!=v for k,v in sections.items()):raise ValueError("Original executable section changed")
+    if new_rs!=expected:raise ValueError("Unrelated resource or icon image changed")
+    if new_overlay!=overlay:raise ValueError("Frozen Python archive changed")
     with tempfile.TemporaryDirectory(dir=path.parent) as td:
-        stub=Path(td)/"stub.exe";stub.write_bytes(original[:end])
-        handle=begin(str(stub),False);checked(handle)
-        def put(kind,rid,data):
-            buf=ctypes.create_string_buffer(data)
-            checked(update(handle,kind,rid,0,buf,len(data)))
-        try:
-            group=old[:6]
-            for (entry,image),rid in zip(items,ids):
-                put(3,rid,image)
-                group+=entry+struct.pack("<H",rid)
-            put(14,1,group)
-        except BaseException:
-            finish(handle,True)
-            raise
-        checked(finish(handle,False))
-        patched=stub.read_bytes();new_sections,new_rs,extra,_=pe(patched)
-        if extra and any(extra):raise ValueError("Unexpected data after modified stub")
-        if {k:v for k,v in sections.items() if k!=b".rsrc"}!={k:v for k,v in new_sections.items() if k!=b".rsrc"}:
-            raise ValueError("Non-resource executable section changed")
-        if {k:v for k,v in rs.items() if k[0] not in (3,14)}!={k:v for k,v in new_rs.items() if k[0] not in (3,14)}:
-            raise ValueError("Unrelated resource changed")
-        final=patched+overlay
-        if pe(final)[2]!=overlay:raise ValueError("Frozen Python archive changed")
-        stub.write_bytes(final);verify_icon(stub,asset)
+        stub=Path(td)/"SkellyMotion.exe";stub.write_bytes(final)
+        verify_icon(stub,asset)
         stub.replace(path)
     return {"original_exe_sha256":sha(original),"patched_exe_sha256":sha(final),"frozen_archive_sha256":sha(overlay),"frozen_archive_bytes":len(overlay),"non_resource_sections_identical":True,"unrelated_resources_identical":True}
 
