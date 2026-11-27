@@ -87,20 +87,20 @@ def orbit(w,h,t,font):
     """Schematic periodic motion with a continuous phase clock."""
     im=Image.new('RGBA',(w,h));d=ImageDraw.Draw(im);cx=w*.50;cy=h*.50;rad=min(h*.46,w*.29);phase=t*math.pi/3
     for j in range(3):
-        rr=rad*(.53+.23*j);d.ellipse((cx-rr,cy-rr,cx+rr,cy+rr),outline='#40585c',width=1)
+        rr=rad*(.53+.23*j);d.ellipse((cx-rr,cy-rr,cx+rr,cy+rr),outline='#40585c',width=max(2,h//150))
         for k in range(12):
-            a=k*math.pi/6;x=cx+rr*math.cos(a);y=cy+rr*math.sin(a);d.ellipse((x-1,y-1,x+1,y+1),fill='#78908c')
+            a=k*math.pi/6;x=cx+rr*math.cos(a);y=cy+rr*math.sin(a);r=max(1.5,h*.009);d.ellipse((x-r,y-r,x+r,y+r),fill='#78908c')
         a=phase*(j+1)+j*1.2;coords=[(cx+rr*math.cos(a-q),cy+rr*math.sin(a-q)) for q in np.linspace(.85,0,42)];d.line(coords,fill=['#e9cd83','#7ed7c2','#7fa6de'][j],width=max(2,h//100));x,y=coords[-1];sz=max(3,h//40);d.ellipse((x-sz,y-sz,x+sz,y+sz),fill=['#e9cd83','#7ed7c2','#7fa6de'][j])
-    d.ellipse((cx-3,cy-3,cx+3,cy+3),fill='#e9cd83');return im
+    r=max(3,h*.018);d.ellipse((cx-r,cy-r,cx+r,cy+r),fill='#e9cd83');return im
 
 
 def timeline(w,h,t,font):
     """24 and 60 Hz sampling of the same continuous trajectory, one-second window."""
     im=Image.new('RGBA',(w,h));d=ImageDraw.Draw(im);f=font(max(12,round(h*.08)),False);x0=w*.18;x1=w*.95
     for row,n in enumerate((24,60)):
-        y=h*(.33+.42*row);amp=h*.115;xs=np.linspace(0,1,240);ys=np.sin(2*np.pi*(xs-t*.17));d.line([(x0+(x1-x0)*x,y-amp*z) for x,z in zip(xs,ys)],fill='#3b5e61',width=1)
+        y=h*(.33+.42*row);amp=h*.115;xs=np.linspace(0,1,240);ys=np.sin(2*np.pi*(xs-t*.17));d.line([(x0+(x1-x0)*x,y-amp*z) for x,z in zip(xs,ys)],fill='#3b5e61',width=max(2,h//160))
         for x in np.arange(n)/n:
-            X=x0+(x1-x0)*x;Y=y-amp*math.sin(2*math.pi*(x-t*.17));d.line((X,y,X,Y),fill='#293c42');r=max(1.4,h*.009);d.ellipse((X-r,Y-r,X+r,Y+r),fill='#efce77' if row==0 else '#7ed7c2')
+            X=x0+(x1-x0)*x;Y=y-amp*math.sin(2*math.pi*(x-t*.17));d.line((X,y,X,Y),fill='#293c42',width=max(2,h//200));r=max(2,h*.009);d.ellipse((X-r,Y-r,X+r,Y+r),fill='#efce77' if row==0 else '#7ed7c2')
         d.text((w*.035,y),f'{n} fps',font=f,fill='#f2eee3',anchor='lm')
     return im
 
@@ -108,8 +108,8 @@ def timeline(w,h,t,font):
 def trajectory(w,h,t,font):
     """A bounded Lissajous trajectory from two oscillations, with a moving trail."""
     im=Image.new('RGBA',(w,h));d=ImageDraw.Draw(im);cx=w*.5;cy=h*.5;rx=w*.39;ry=h*.40
-    for x in np.linspace(-1,1,9):d.line((cx+x*rx,cy-ry,cx+x*rx,cy+ry),fill='#23353a',width=1)
-    for y in np.linspace(-1,1,5):d.line((cx-rx,cy+y*ry,cx+rx,cy+y*ry),fill='#23353a',width=1)
+    for x in np.linspace(-1,1,9):d.line((cx+x*rx,cy-ry,cx+x*rx,cy+ry),fill='#23353a',width=max(2,h//200))
+    for y in np.linspace(-1,1,5):d.line((cx-rx,cy+y*ry,cx+rx,cy+y*ry),fill='#23353a',width=max(2,h//200))
     phase=t*.72; q=np.linspace(phase-2*math.pi,phase,360);x=cx+rx*np.sin(2*q);y=cy-ry*np.sin(3*q+.6)
     for i in range(1,len(q)):
         a=i/len(q);color=(int(33+197*a),int(65+140*a),int(79+50*a),int(55+200*a));d.line((x[i-1],y[i-1],x[i],y[i]),fill=color,width=max(1,int(h*.011)))

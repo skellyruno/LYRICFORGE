@@ -1,0 +1,20 @@
+{
+  "Field-Notes-01-The-Shape-of-Sound.mp4": {
+    "frames": 2700,
+    "duration": 45.0,
+    "fps": 60,
+    "video_and_audio_packet_payloads_identical": true
+  },
+  "Field-Notes-02-The-Anatomy-of-an-Image.mp4": {
+    "frames": 3273,
+    "duration": 54.55,
+    "fps": 60,
+    "video_and_audio_packet_payloads_identical": true
+  },
+  "Field-Notes-03-The-Architecture-of-Silence.mp4": {
+    "frames": 1636,
+    "duration": 27.266666666666666,
+    "fps": 60,
+    "video_and_audio_packet_payloads_identical": true
+  }
+}

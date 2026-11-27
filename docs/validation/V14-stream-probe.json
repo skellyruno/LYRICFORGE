@@ -1,0 +1,24 @@
+{
+    "programs": [
+
+    ],
+    "stream_groups": [
+
+    ],
+    "streams": [
+        {
+            "codec_type": "video",
+            "width": 960,
+            "height": 540,
+            "r_frame_rate": "60/1",
+            "duration": "54.571333",
+            "nb_read_frames": "3273"
+        },
+        {
+            "codec_type": "audio",
+            "r_frame_rate": "0/0",
+            "duration": "54.571333",
+            "nb_read_frames": "2559"
+        }
+    ]
+}

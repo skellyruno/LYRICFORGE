@@ -1,0 +1,99 @@
+{
+  "version": 10,
+  "preset": "plugin",
+  "fps": 30,
+  "duration": 13.391428571428573,
+  "frames": 402,
+  "scenes": [
+    {
+      "start": 0.0,
+      "end": 9.0,
+      "frames": 270,
+      "type": "diagram",
+      "text": "Compression",
+      "captions": [
+        {
+          "text": "A compressor turns down loud signals above its",
+          "start": 0.0,
+          "end": 2.88,
+          "words": []
+        },
+        {
+          "text": "threshold. Watch the blue input and the green",
+          "start": 2.88,
+          "end": 5.76,
+          "words": []
+        },
+        {
+          "text": "output.",
+          "start": 5.76,
+          "end": 6.12,
+          "words": []
+        },
+        {
+          "text": "The gain reduction meter responds to the",
+          "start": 6.42,
+          "end": 9.0,
+          "words": []
+        }
+      ],
+      "camera": "still",
+      "compressor_demo": {
+        "threshold": -18.0,
+        "ratio": 4.0,
+        "attack_ms": 30.0,
+        "release_ms": 200.0
+      }
+    },
+    {
+      "start": 9.0,
+      "end": 13.4,
+      "frames": 132,
+      "type": "diagram",
+      "text": "Compression",
+      "captions": [
+        {
+          "text": "signal, with attack controlling the onset and",
+          "start": 0.16699999999999982,
+          "end": 2.9139999999999997,
+          "words": []
+        },
+        {
+          "text": "release controlling recovery.",
+          "start": 2.9139999999999997,
+          "end": 4.090999999999999,
+          "words": []
+        }
+      ],
+      "camera": "still",
+      "compressor_demo": {
+        "threshold": -18.0,
+        "ratio": 4.0,
+        "attack_ms": 30.0,
+        "release_ms": 200.0
+      }
+    }
+  ],
+  "director": "local",
+  "audio_start": 0.0,
+  "silent": false,
+  "caption_repairs": 0,
+  "warnings": [
+    "No visual assets supplied: transcript-based text cards will be used."
+  ],
+  "review": {
+    "errors": 0,
+    "warnings": 0,
+    "caption_overlaps": 0,
+    "repeated_shots": 0,
+    "issues": []
+  },
+  "local_ai": false,
+  "semantic_vision": false,
+  "visual_sources": {
+    "downloaded": 0,
+    "cached": 0,
+    "queries": 0,
+    "remaining_cards": 0
+  }
+}

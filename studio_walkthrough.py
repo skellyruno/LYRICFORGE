@@ -139,7 +139,8 @@ def caption_vtt(plan,target):
     def clock(t):
         ms=max(0,round(float(t)*1000));return f'{ms//3600000:02d}:{ms//60000%60:02d}:{ms//1000%60:02d}.{ms%1000:03d}'
     lines=['WEBVTT',''];last=0.
-    for scene in plan['scenes']:
+    caption_scenes=[{'start':0.,'captions':plan['caption_track']}] if plan.get('caption_style')=='marker' and plan.get('caption_track') is not None else plan['scenes']
+    for scene in caption_scenes:
         for row in scene.get('captions',[]):
             a=max(last,float(scene['start'])+float(row['start']));b=min(float(plan['duration']),float(scene['start'])+float(row['end']))
             if b<=a:continue
@@ -191,3 +192,5 @@ def reconcile_words(tokens, words):
     for token,part in zip(tokens,b):
         out.append({'text':token,'start':timing[pos][0],'end':timing[pos+len(part)-1][1]});pos+=len(part)
     return out
+
+CAPTIONS.update({'marker','auto'})

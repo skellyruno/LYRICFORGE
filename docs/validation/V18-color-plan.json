@@ -1,0 +1,1856 @@
+{
+  "version": 25,
+  "preset": "doc",
+  "fps": 60,
+  "duration": 40.916666666666664,
+  "frames": 2455,
+  "scenes": [
+    {
+      "type": "big_text",
+      "text": "The Science of Color",
+      "start": 0.0,
+      "end": 8.183333333333334,
+      "frames": 491,
+      "captions": [],
+      "camera": "still",
+      "cinematic_finish": true,
+      "brand": "SKELLYMOTION",
+      "chapter": 1,
+      "editorial": "graphic",
+      "editorial_look": "midnight",
+      "graphic": {
+        "kind": "composition",
+        "title": "The Science of Color",
+        "source": "FIELD NOTES / ORIGINAL COMPUTED FLOW \u00b7 STYLIZED DYE, NOT AN OPTICAL EXPERIMENT",
+        "camera": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            0.5,
+            0.0,
+            0.0,
+            1.025
+          ],
+          [
+            1.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "layers": [
+          {
+            "id": "dye",
+            "type": "fluid",
+            "color": "white",
+            "depth": 0.5,
+            "width": 0.92,
+            "height": 0.78,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.52,
+                1.05,
+                0.85
+              ],
+              [
+                0.48,
+                0.5,
+                0.52,
+                1.1130000000000002,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.52,
+                1.05,
+                1.0
+              ]
+            ],
+            "curve": "continuous",
+            "seed": 39
+          },
+          {
+            "id": "tag",
+            "type": "text",
+            "color": "gold",
+            "depth": 0.0,
+            "width": 0.84,
+            "height": 0.07,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.125,
+                1.0,
+                0.0
+              ],
+              [
+                0.0001,
+                0.5,
+                0.125,
+                1.0,
+                0.0
+              ],
+              [
+                0.14,
+                0.5,
+                0.1,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.1,
+                1.0,
+                1.0
+              ]
+            ],
+            "text": "FIELD NOTES   /   04",
+            "size": 0.033,
+            "face": "mono",
+            "align": "center"
+          },
+          {
+            "id": "opening",
+            "type": "text",
+            "color": "white",
+            "depth": 0.0,
+            "width": 0.82,
+            "height": 0.22,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.375,
+                1.0,
+                0.0
+              ],
+              [
+                0.05,
+                0.5,
+                0.375,
+                1.0,
+                0.0
+              ],
+              [
+                0.25,
+                0.5,
+                0.35,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.35,
+                1.0,
+                1.0
+              ]
+            ],
+            "curve": "continuous",
+            "text": "The Science of Color",
+            "size": 0.1,
+            "face": "serif",
+            "align": "center"
+          },
+          {
+            "id": "sub",
+            "type": "text",
+            "color": "white",
+            "depth": 0.0,
+            "width": 0.82,
+            "height": 0.12,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.845,
+                1.0,
+                0.0
+              ],
+              [
+                0.3,
+                0.5,
+                0.845,
+                1.0,
+                0.0
+              ],
+              [
+                0.48,
+                0.5,
+                0.82,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.82,
+                1.0,
+                1.0
+              ]
+            ],
+            "curve": "continuous",
+            "text": "Light becomes information.",
+            "size": 0.052,
+            "face": "serif",
+            "align": "center"
+          }
+        ]
+      }
+    },
+    {
+      "type": "big_text",
+      "text": "Different wavelengths",
+      "start": 8.183333333333334,
+      "end": 16.366666666666667,
+      "frames": 491,
+      "captions": [],
+      "camera": "still",
+      "cinematic_finish": true,
+      "brand": "SKELLYMOTION",
+      "chapter": 2,
+      "editorial": "graphic",
+      "editorial_look": "midnight",
+      "graphic": {
+        "kind": "composition",
+        "title": "Different wavelengths",
+        "source": "SCHEMATIC WAVELENGTH COMPARISON / APPROXIMATE DISPLAY COLORS, NOT CALIBRATED",
+        "camera": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            0.5,
+            0.0,
+            0.0,
+            1.025
+          ],
+          [
+            1.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "layers": [
+          {
+            "id": "tag",
+            "type": "text",
+            "color": "gold",
+            "depth": 0.0,
+            "width": 0.84,
+            "height": 0.07,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.125,
+                1.0,
+                0.0
+              ],
+              [
+                0.0001,
+                0.5,
+                0.125,
+                1.0,
+                0.0
+              ],
+              [
+                0.14,
+                0.5,
+                0.1,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.1,
+                1.0,
+                1.0
+              ]
+            ],
+            "text": "01  /  LIGHT",
+            "size": 0.033,
+            "face": "mono",
+            "align": "center"
+          },
+          {
+            "id": "h",
+            "type": "text",
+            "color": "white",
+            "depth": 0.0,
+            "width": 0.82,
+            "height": 0.15,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.255,
+                1.0,
+                0.0
+              ],
+              [
+                0.02,
+                0.5,
+                0.255,
+                1.0,
+                0.0
+              ],
+              [
+                0.2,
+                0.5,
+                0.23,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.23,
+                1.0,
+                1.0
+              ]
+            ],
+            "curve": "continuous",
+            "text": "Color starts with light.",
+            "size": 0.067,
+            "face": "serif",
+            "align": "center"
+          },
+          {
+            "id": "bands",
+            "type": "light_waves",
+            "color": "white",
+            "depth": 0.4,
+            "width": 0.86,
+            "height": 0.43,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.555,
+                1.0,
+                0.0
+              ],
+              [
+                0.05,
+                0.5,
+                0.555,
+                1.0,
+                0.0
+              ],
+              [
+                0.22,
+                0.5,
+                0.53,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.53,
+                1.0,
+                1.0
+              ]
+            ]
+          },
+          {
+            "id": "f",
+            "type": "text",
+            "color": "white",
+            "depth": 0.0,
+            "width": 0.82,
+            "height": 0.13,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.845,
+                1.0,
+                0.0
+              ],
+              [
+                0.3,
+                0.5,
+                0.845,
+                1.0,
+                0.0
+              ],
+              [
+                0.55,
+                0.5,
+                0.82,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.82,
+                1.0,
+                1.0
+              ]
+            ],
+            "curve": "continuous",
+            "text": "Different wavelengths can produce different color sensations.",
+            "size": 0.045,
+            "face": "serif",
+            "align": "center"
+          }
+        ]
+      },
+      "editorial_bridge_scene": {
+        "start": 0.0,
+        "end": 8.183333333333334,
+        "graphic": {
+          "kind": "composition",
+          "title": "The Science of Color",
+          "source": "FIELD NOTES / ORIGINAL COMPUTED FLOW \u00b7 STYLIZED DYE, NOT AN OPTICAL EXPERIMENT",
+          "camera": [
+            [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ],
+            [
+              0.5,
+              0.0,
+              0.0,
+              1.025
+            ],
+            [
+              1.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "layers": [
+            {
+              "id": "dye",
+              "type": "fluid",
+              "color": "white",
+              "depth": 0.5,
+              "width": 0.92,
+              "height": 0.78,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.52,
+                  1.05,
+                  0.85
+                ],
+                [
+                  0.48,
+                  0.5,
+                  0.52,
+                  1.1130000000000002,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.52,
+                  1.05,
+                  1.0
+                ]
+              ],
+              "curve": "continuous",
+              "seed": 39
+            },
+            {
+              "id": "tag",
+              "type": "text",
+              "color": "gold",
+              "depth": 0.0,
+              "width": 0.84,
+              "height": 0.07,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.125,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.0001,
+                  0.5,
+                  0.125,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.14,
+                  0.5,
+                  0.1,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.1,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "text": "FIELD NOTES   /   04",
+              "size": 0.033,
+              "face": "mono",
+              "align": "center"
+            },
+            {
+              "id": "opening",
+              "type": "text",
+              "color": "white",
+              "depth": 0.0,
+              "width": 0.82,
+              "height": 0.22,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.375,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.05,
+                  0.5,
+                  0.375,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.25,
+                  0.5,
+                  0.35,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.35,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "curve": "continuous",
+              "text": "The Science of Color",
+              "size": 0.1,
+              "face": "serif",
+              "align": "center"
+            },
+            {
+              "id": "sub",
+              "type": "text",
+              "color": "white",
+              "depth": 0.0,
+              "width": 0.82,
+              "height": 0.12,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.845,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.3,
+                  0.5,
+                  0.845,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.48,
+                  0.5,
+                  0.82,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.82,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "curve": "continuous",
+              "text": "Light becomes information.",
+              "size": 0.052,
+              "face": "serif",
+              "align": "center"
+            }
+          ]
+        },
+        "editorial": "graphic",
+        "editorial_look": "midnight",
+        "text": "The Science of Color",
+        "chapter": 1
+      },
+      "editorial_bridge_seconds": 0.9
+    },
+    {
+      "type": "big_text",
+      "text": "Three channels",
+      "start": 16.366666666666667,
+      "end": 24.55,
+      "frames": 491,
+      "captions": [],
+      "camera": "still",
+      "cinematic_finish": true,
+      "brand": "SKELLYMOTION",
+      "chapter": 3,
+      "editorial": "graphic",
+      "editorial_look": "midnight",
+      "graphic": {
+        "kind": "composition",
+        "title": "Three channels",
+        "source": "IDEAL ADDITIVE RGB MODEL / NOT SUBTRACTIVE PIGMENT MIXING",
+        "camera": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            0.5,
+            0.0,
+            0.0,
+            1.025
+          ],
+          [
+            1.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "layers": [
+          {
+            "id": "tag",
+            "type": "text",
+            "color": "gold",
+            "depth": 0.0,
+            "width": 0.84,
+            "height": 0.07,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.125,
+                1.0,
+                0.0
+              ],
+              [
+                0.0001,
+                0.5,
+                0.125,
+                1.0,
+                0.0
+              ],
+              [
+                0.14,
+                0.5,
+                0.1,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.1,
+                1.0,
+                1.0
+              ]
+            ],
+            "text": "02  /  ADDITIVE LIGHT",
+            "size": 0.033,
+            "face": "mono",
+            "align": "center"
+          },
+          {
+            "id": "h",
+            "type": "text",
+            "color": "white",
+            "depth": 0.0,
+            "width": 0.82,
+            "height": 0.14,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.245,
+                1.0,
+                0.0
+              ],
+              [
+                0.02,
+                0.5,
+                0.245,
+                1.0,
+                0.0
+              ],
+              [
+                0.18,
+                0.5,
+                0.22,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.22,
+                1.0,
+                1.0
+              ]
+            ],
+            "curve": "continuous",
+            "text": "Three channels. Many colors.",
+            "size": 0.065,
+            "face": "serif",
+            "align": "center"
+          },
+          {
+            "id": "mix",
+            "type": "additive",
+            "color": "white",
+            "depth": 0.0,
+            "width": 0.71,
+            "height": 0.48,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.5650000000000001,
+                1.0,
+                0.0
+              ],
+              [
+                0.04,
+                0.5,
+                0.5650000000000001,
+                1.0,
+                0.0
+              ],
+              [
+                0.18,
+                0.5,
+                0.54,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.54,
+                1.0,
+                1.0
+              ]
+            ]
+          },
+          {
+            "id": "f",
+            "type": "text",
+            "color": "white",
+            "depth": 0.0,
+            "width": 0.82,
+            "height": 0.1,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.855,
+                1.0,
+                0.0
+              ],
+              [
+                0.34,
+                0.5,
+                0.855,
+                1.0,
+                0.0
+              ],
+              [
+                0.55,
+                0.5,
+                0.83,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.83,
+                1.0,
+                1.0
+              ]
+            ],
+            "curve": "continuous",
+            "text": "Red, green and blue light combine.",
+            "size": 0.049,
+            "face": "serif",
+            "align": "center"
+          }
+        ]
+      },
+      "editorial_bridge_scene": {
+        "start": 8.183333333333334,
+        "end": 16.366666666666667,
+        "graphic": {
+          "kind": "composition",
+          "title": "Different wavelengths",
+          "source": "SCHEMATIC WAVELENGTH COMPARISON / APPROXIMATE DISPLAY COLORS, NOT CALIBRATED",
+          "camera": [
+            [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ],
+            [
+              0.5,
+              0.0,
+              0.0,
+              1.025
+            ],
+            [
+              1.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "layers": [
+            {
+              "id": "tag",
+              "type": "text",
+              "color": "gold",
+              "depth": 0.0,
+              "width": 0.84,
+              "height": 0.07,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.125,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.0001,
+                  0.5,
+                  0.125,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.14,
+                  0.5,
+                  0.1,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.1,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "text": "01  /  LIGHT",
+              "size": 0.033,
+              "face": "mono",
+              "align": "center"
+            },
+            {
+              "id": "h",
+              "type": "text",
+              "color": "white",
+              "depth": 0.0,
+              "width": 0.82,
+              "height": 0.15,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.255,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.02,
+                  0.5,
+                  0.255,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.2,
+                  0.5,
+                  0.23,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.23,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "curve": "continuous",
+              "text": "Color starts with light.",
+              "size": 0.067,
+              "face": "serif",
+              "align": "center"
+            },
+            {
+              "id": "bands",
+              "type": "light_waves",
+              "color": "white",
+              "depth": 0.4,
+              "width": 0.86,
+              "height": 0.43,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.555,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.05,
+                  0.5,
+                  0.555,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.22,
+                  0.5,
+                  0.53,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.53,
+                  1.0,
+                  1.0
+                ]
+              ]
+            },
+            {
+              "id": "f",
+              "type": "text",
+              "color": "white",
+              "depth": 0.0,
+              "width": 0.82,
+              "height": 0.13,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.845,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.3,
+                  0.5,
+                  0.845,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.55,
+                  0.5,
+                  0.82,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.82,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "curve": "continuous",
+              "text": "Different wavelengths can produce different color sensations.",
+              "size": 0.045,
+              "face": "serif",
+              "align": "center"
+            }
+          ]
+        },
+        "editorial": "graphic",
+        "editorial_look": "midnight",
+        "text": "Different wavelengths",
+        "chapter": 2
+      },
+      "editorial_bridge_seconds": 0.9
+    },
+    {
+      "type": "big_text",
+      "text": "Equal light",
+      "start": 24.55,
+      "end": 32.733333333333334,
+      "frames": 491,
+      "captions": [],
+      "camera": "still",
+      "cinematic_finish": true,
+      "brand": "SKELLYMOTION",
+      "chapter": 4,
+      "editorial": "graphic",
+      "editorial_look": "midnight",
+      "graphic": {
+        "kind": "composition",
+        "title": "Equal light",
+        "source": "IDEAL RGB / EQUAL FULL INTENSITY IN EACH CHANNEL",
+        "camera": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            0.5,
+            0.0,
+            0.0,
+            1.025
+          ],
+          [
+            1.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "layers": [
+          {
+            "id": "tag",
+            "type": "text",
+            "color": "gold",
+            "depth": 0.0,
+            "width": 0.84,
+            "height": 0.07,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.125,
+                1.0,
+                0.0
+              ],
+              [
+                0.0001,
+                0.5,
+                0.125,
+                1.0,
+                0.0
+              ],
+              [
+                0.14,
+                0.5,
+                0.1,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.1,
+                1.0,
+                1.0
+              ]
+            ],
+            "text": "03  /  THE MIX",
+            "size": 0.033,
+            "face": "mono",
+            "align": "center"
+          },
+          {
+            "id": "h",
+            "type": "text",
+            "color": "white",
+            "depth": 0.0,
+            "width": 0.82,
+            "height": 0.14,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.255,
+                1.0,
+                0.0
+              ],
+              [
+                0.02,
+                0.5,
+                0.255,
+                1.0,
+                0.0
+              ],
+              [
+                0.2,
+                0.5,
+                0.23,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.23,
+                1.0,
+                1.0
+              ]
+            ],
+            "curve": "continuous",
+            "text": "Together, they can make white.",
+            "size": 0.064,
+            "face": "serif",
+            "align": "center"
+          },
+          {
+            "id": "mix-channels",
+            "type": "light_channels",
+            "color": "white",
+            "depth": 0.0,
+            "width": 0.84,
+            "height": 0.48,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.5650000000000001,
+                1.0,
+                0.0
+              ],
+              [
+                0.02,
+                0.5,
+                0.5650000000000001,
+                1.0,
+                0.0
+              ],
+              [
+                0.19,
+                0.5,
+                0.54,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.54,
+                1.0,
+                1.0
+              ]
+            ]
+          },
+          {
+            "id": "f",
+            "type": "text",
+            "color": "white",
+            "depth": 0.0,
+            "width": 0.82,
+            "height": 0.09,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.885,
+                1.0,
+                0.0
+              ],
+              [
+                0.44,
+                0.5,
+                0.885,
+                1.0,
+                0.0
+              ],
+              [
+                0.64,
+                0.5,
+                0.86,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.86,
+                1.0,
+                1.0
+              ]
+            ],
+            "curve": "continuous",
+            "text": "That is the principle behind RGB displays.",
+            "size": 0.043,
+            "face": "serif",
+            "align": "center"
+          }
+        ]
+      },
+      "editorial_bridge_scene": {
+        "start": 16.366666666666667,
+        "end": 24.55,
+        "graphic": {
+          "kind": "composition",
+          "title": "Three channels",
+          "source": "IDEAL ADDITIVE RGB MODEL / NOT SUBTRACTIVE PIGMENT MIXING",
+          "camera": [
+            [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ],
+            [
+              0.5,
+              0.0,
+              0.0,
+              1.025
+            ],
+            [
+              1.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "layers": [
+            {
+              "id": "tag",
+              "type": "text",
+              "color": "gold",
+              "depth": 0.0,
+              "width": 0.84,
+              "height": 0.07,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.125,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.0001,
+                  0.5,
+                  0.125,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.14,
+                  0.5,
+                  0.1,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.1,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "text": "02  /  ADDITIVE LIGHT",
+              "size": 0.033,
+              "face": "mono",
+              "align": "center"
+            },
+            {
+              "id": "h",
+              "type": "text",
+              "color": "white",
+              "depth": 0.0,
+              "width": 0.82,
+              "height": 0.14,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.245,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.02,
+                  0.5,
+                  0.245,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.18,
+                  0.5,
+                  0.22,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.22,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "curve": "continuous",
+              "text": "Three channels. Many colors.",
+              "size": 0.065,
+              "face": "serif",
+              "align": "center"
+            },
+            {
+              "id": "mix",
+              "type": "additive",
+              "color": "white",
+              "depth": 0.0,
+              "width": 0.71,
+              "height": 0.48,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.5650000000000001,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.04,
+                  0.5,
+                  0.5650000000000001,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.18,
+                  0.5,
+                  0.54,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.54,
+                  1.0,
+                  1.0
+                ]
+              ]
+            },
+            {
+              "id": "f",
+              "type": "text",
+              "color": "white",
+              "depth": 0.0,
+              "width": 0.82,
+              "height": 0.1,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.855,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.34,
+                  0.5,
+                  0.855,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.55,
+                  0.5,
+                  0.83,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.83,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "curve": "continuous",
+              "text": "Red, green and blue light combine.",
+              "size": 0.049,
+              "face": "serif",
+              "align": "center"
+            }
+          ]
+        },
+        "editorial": "graphic",
+        "editorial_look": "midnight",
+        "text": "Three channels",
+        "chapter": 3
+      },
+      "editorial_bridge_seconds": 0.9
+    },
+    {
+      "type": "big_text",
+      "text": "Light becomes an image",
+      "start": 32.733333333333334,
+      "end": 40.916666666666664,
+      "frames": 491,
+      "captions": [],
+      "camera": "still",
+      "cinematic_finish": true,
+      "brand": "SKELLYMOTION",
+      "chapter": 5,
+      "editorial": "graphic",
+      "editorial_look": "midnight",
+      "graphic": {
+        "kind": "composition",
+        "title": "Light becomes an image",
+        "source": "FIELD NOTES / ORIGINAL COMPUTED FLOW \u00b7 ARTISTIC VISUALIZATION",
+        "camera": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            0.5,
+            0.0,
+            0.0,
+            1.025
+          ],
+          [
+            1.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "layers": [
+          {
+            "id": "dye",
+            "type": "fluid",
+            "color": "white",
+            "depth": 0.5,
+            "width": 0.92,
+            "height": 0.78,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.52,
+                1.03,
+                0.85
+              ],
+              [
+                0.48,
+                0.5,
+                0.52,
+                1.0918,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.52,
+                1.03,
+                1.0
+              ]
+            ],
+            "curve": "continuous",
+            "seed": 39
+          },
+          {
+            "id": "tag",
+            "type": "text",
+            "color": "gold",
+            "depth": 0.0,
+            "width": 0.84,
+            "height": 0.07,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.125,
+                1.0,
+                0.0
+              ],
+              [
+                0.0001,
+                0.5,
+                0.125,
+                1.0,
+                0.0
+              ],
+              [
+                0.14,
+                0.5,
+                0.1,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.1,
+                1.0,
+                1.0
+              ]
+            ],
+            "text": "04  /  THE IMAGE",
+            "size": 0.033,
+            "face": "mono",
+            "align": "center"
+          },
+          {
+            "id": "end",
+            "type": "text",
+            "color": "white",
+            "depth": 0.0,
+            "width": 0.82,
+            "height": 0.2,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.375,
+                1.0,
+                0.0
+              ],
+              [
+                0.12,
+                0.5,
+                0.375,
+                1.0,
+                0.0
+              ],
+              [
+                0.32,
+                0.5,
+                0.35,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.35,
+                1.0,
+                1.0
+              ]
+            ],
+            "curve": "continuous",
+            "text": "A world made of light.",
+            "size": 0.085,
+            "face": "serif",
+            "align": "center"
+          },
+          {
+            "id": "credit",
+            "type": "text",
+            "color": "gold",
+            "depth": 0.0,
+            "width": 0.76,
+            "height": 0.07,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.855,
+                1.0,
+                0.0
+              ],
+              [
+                0.52,
+                0.5,
+                0.855,
+                1.0,
+                0.0
+              ],
+              [
+                0.72,
+                0.5,
+                0.83,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.83,
+                1.0,
+                1.0
+              ]
+            ],
+            "text": "SKELLYMOTION   /   FIELD NOTES",
+            "size": 0.033,
+            "face": "mono",
+            "align": "center"
+          }
+        ]
+      },
+      "editorial_bridge_scene": {
+        "start": 24.55,
+        "end": 32.733333333333334,
+        "graphic": {
+          "kind": "composition",
+          "title": "Equal light",
+          "source": "IDEAL RGB / EQUAL FULL INTENSITY IN EACH CHANNEL",
+          "camera": [
+            [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ],
+            [
+              0.5,
+              0.0,
+              0.0,
+              1.025
+            ],
+            [
+              1.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "layers": [
+            {
+              "id": "tag",
+              "type": "text",
+              "color": "gold",
+              "depth": 0.0,
+              "width": 0.84,
+              "height": 0.07,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.125,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.0001,
+                  0.5,
+                  0.125,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.14,
+                  0.5,
+                  0.1,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.1,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "text": "03  /  THE MIX",
+              "size": 0.033,
+              "face": "mono",
+              "align": "center"
+            },
+            {
+              "id": "h",
+              "type": "text",
+              "color": "white",
+              "depth": 0.0,
+              "width": 0.82,
+              "height": 0.14,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.255,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.02,
+                  0.5,
+                  0.255,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.2,
+                  0.5,
+                  0.23,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.23,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "curve": "continuous",
+              "text": "Together, they can make white.",
+              "size": 0.064,
+              "face": "serif",
+              "align": "center"
+            },
+            {
+              "id": "mix-channels",
+              "type": "light_channels",
+              "color": "white",
+              "depth": 0.0,
+              "width": 0.84,
+              "height": 0.48,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.5650000000000001,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.02,
+                  0.5,
+                  0.5650000000000001,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.19,
+                  0.5,
+                  0.54,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.54,
+                  1.0,
+                  1.0
+                ]
+              ]
+            },
+            {
+              "id": "f",
+              "type": "text",
+              "color": "white",
+              "depth": 0.0,
+              "width": 0.82,
+              "height": 0.09,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.885,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.44,
+                  0.5,
+                  0.885,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.64,
+                  0.5,
+                  0.86,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.86,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "curve": "continuous",
+              "text": "That is the principle behind RGB displays.",
+              "size": 0.043,
+              "face": "serif",
+              "align": "center"
+            }
+          ]
+        },
+        "editorial": "graphic",
+        "editorial_look": "midnight",
+        "text": "Equal light",
+        "chapter": 4
+      },
+      "editorial_bridge_seconds": 0.9
+    }
+  ],
+  "director": "local",
+  "audio_start": 0.0,
+  "silent": false,
+  "cinematic_finish": true,
+  "caption_style": "off",
+  "caption_track": [],
+  "crossfades": false,
+  "sound_design": true,
+  "music_gain": 1.75,
+  "cue_gain": 0.0,
+  "voice_style": "off",
+  "score_arc": "chromatic",
+  "score_rests": [
+    [
+      0.0,
+      0.32,
+      0.15
+    ]
+  ],
+  "auto_repair_layout": true
+}

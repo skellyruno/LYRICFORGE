@@ -1,0 +1,3 @@
+A compressor turns down loud signals above its threshold. Watch the blue input and the green output.
+
+The gain reduction meter responds to the signal, with attack controlling the onset and release controlling recovery.

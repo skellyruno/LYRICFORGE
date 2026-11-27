@@ -1,0 +1,96 @@
+/* SkellyMotion UI chrome only. No video/caption/export color changes.
+   Default Neon; three dark StudioUI-derived skins. No imported light theme. */
+:root, :root[data-studio-theme="neon"] {
+  color-scheme:dark;
+  --bg:#090d0c;--panel:#121816;--surface:#1a221e;--rail:#0d1210;
+  --line:#303d36;--dim:#91a098;--muted:#b1beb7;--text:#eef5ef;
+  --accent:#94ff73;--accent-dark:#203527;--accent-ink:#102511;
+  --raised:#202b24;--chrome:#0c100e;--hero-bg:#111d15;
+}
+:root[data-studio-theme="obsidian"] {
+  --bg:#111315;--panel:#202326;--surface:#303337;--rail:#17191b;
+  --line:#555a5b;--dim:#b0b4b4;--muted:#c6c9c8;--text:#efefed;
+  --accent:#61cf84;--accent-dark:#234431;--accent-ink:#101d14;
+  --raised:#292d2f;--chrome:#111315;--hero-bg:#171d1d;
+}
+:root[data-studio-theme="amethyst"] {
+  --bg:#17131e;--panel:#292331;--surface:#3b3344;--rail:#211a29;
+  --line:#65586b;--dim:#bdb1c5;--muted:#d0c4d7;--text:#f1eaf4;
+  --accent:#b58cdb;--accent-dark:#443052;--accent-ink:#1a1028;
+  --raised:#342b40;--chrome:#1c1624;--hero-bg:#231a31;
+}
+:root[data-studio-theme="crimson"] {
+  --bg:#1b1416;--panel:#2e2427;--surface:#413235;--rail:#241b1d;
+  --line:#705656;--dim:#c7afaa;--muted:#dbc5c0;--text:#f4e9e6;
+  --accent:#d47b78;--accent-dark:#502f30;--accent-ink:#250e11;
+  --raised:#37272b;--chrome:#201719;--hero-bg:#2a1c20;
+}
+/* Only inexpensive color and opacity transitions. No blur/backdrop animation. */
+.topbar,.workspace-bar,.timeline-top,.panel-footer,.section-top{background:var(--chrome);border-color:var(--line)}
+.brand-symbol{background:var(--surface);border:1px solid var(--line);border-radius:10px;clip-path:none;padding:3px;cursor:pointer;color:var(--accent);transition:background-color .14s,border-color .14s,transform .14s}
+.brand-symbol:hover{border-color:var(--accent);background:var(--raised);transform:translateY(-1px)}
+.brand-symbol:active{transform:scale(.93)}
+.brand-symbol img{display:block;width:100%;height:100%}
+.brand-pill{border-color:var(--line);color:var(--accent)}
+.project-status,.top-separator,.section-top p,.helper,.motion-hint,.clip-fine,.control-head,.empty-caption,.welcome-content>p{color:var(--dim)}
+.song-title,.top-middle,.empty-caption strong{color:var(--text)}
+.rail-item{color:var(--dim);transition:background-color .14s,border-color .14s,color .14s}
+.rail-item:hover,.rail-item.active{background:var(--accent-dark);border-color:var(--line);color:var(--accent)}
+.rail-bottom,.rail-bottom span{color:var(--dim)}
+.ghost-btn,.wide-ghost,.studio-zoom,.timeline-toggle,.timeline-controls button,.mode-grid button,.animation-list button,.aspect-pills button,.clip-motion-actions button,.demo-btn{background:var(--surface);border-color:var(--line);color:var(--text)}
+.ghost-btn:hover:not(:disabled),.wide-ghost:hover:not(:disabled),.timeline-controls button:hover,.demo-btn:hover{background:var(--raised);border-color:var(--accent);color:var(--text)}
+.primary-btn{background:var(--accent);color:var(--accent-ink);box-shadow:none;transition:filter .14s,transform .14s}
+.primary-btn:hover:not(:disabled){background:var(--accent);filter:brightness(1.10)}
+.primary-btn:active:not(:disabled){transform:translateY(1px)}
+.settings-panel,.panel-content,.clip-motion-inspector,.director-finish-settings,.director-asset-card,.clip-context-menu{background:var(--panel);border-color:var(--line)}
+.control-group label,.color-row label,.toggle-line,.recognition-controls label,.director-finish-settings summary,.director-asset-card summary{color:var(--text)}
+.control-group select,.control-group input:not([type=range]):not([type=color]):not([type=checkbox]):not([type=file]),.control-group textarea,.recognition-controls select,.recognition-controls textarea,.color-field,.clip-modal input:not([type=checkbox]):not([type=file]),.clip-modal select,.clip-modal textarea,.review-modal textarea{background:var(--surface);color:var(--text);border-color:var(--line);border-radius:7px}
+.control-group input::placeholder,.control-group textarea::placeholder,.recognition-controls textarea::placeholder{color:var(--dim)}
+input[type=range],input[type=checkbox]{accent-color:var(--accent)}
+.mode-grid button.selected,.aspect-pills button.selected,.animation-list button.selected,.toggle-line input:checked+.switch{border-color:var(--accent);background:var(--accent-dark);color:var(--accent)}
+.toggle-line input:checked+.switch{background:var(--accent)}
+.toggle-line input:checked+.switch:after{background:var(--accent-ink)}
+.panel-content,.welcome-overlay,.timeline-scroller,.clip-modal{scrollbar-color:var(--line) transparent;scrollbar-width:thin;overscroll-behavior:contain}
+.lyric-row.selected,.lyric-clip.selected,.effects-clip.selected{border-color:var(--accent);color:var(--accent)}
+.lyric-clip{background:var(--accent-dark);border-color:var(--line);color:var(--text)}
+.timeline-pane,.timeline-scroller,.ruler,.track-tag{background:var(--rail);border-color:var(--line)}
+.tick,.track-tag{color:var(--dim)}
+.playhead{background:var(--accent)}
+.playhead-top{border-top-color:var(--accent)}
+.review-modal,.clip-modal,.shortcuts-modal,.save-decision-modal{background:var(--panel);border-color:var(--line);color:var(--text)}
+/* Welcome: real Hub mark in a reserved column, not a floating decoration over controls. */
+.welcome-overlay,html.desktop-mode .welcome-overlay{
+ display:grid;grid-template-columns:minmax(0,600px) minmax(150px,300px);gap:clamp(18px,4vw,60px);
+ align-items:center;align-content:safe center;justify-content:center;
+ padding:24px clamp(18px,4vw,60px);background:radial-gradient(ellipse at 86% 40%,var(--hero-bg),var(--bg) 72%);
+}
+.welcome-overlay:before,.welcome-overlay:after{content:none;display:none}
+.welcome-content,html.desktop-mode .welcome-content{width:100%;max-width:600px;margin:0;min-width:0}
+.welcome-content h1,html.desktop-mode .welcome-content h1{font-size:clamp(34px,4.5vw,66px);line-height:.99;letter-spacing:-.055em;margin:12px 0 13px}
+.welcome-content>p,html.desktop-mode .welcome-content>p{font-size:13px;line-height:1.55;margin:0 0 16px;max-width:540px}
+.welcome-art{min-width:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:13px;pointer-events:none;align-self:center}
+.welcome-art img{width:min(100%,280px);height:auto;aspect-ratio:1;opacity:.92;display:block}
+.welcome-art-label{font-size:10px;letter-spacing:.18em;text-align:center;color:var(--muted)}
+.welcome-art-label b{display:block;margin-top:5px;font-size:9px;color:var(--dim);font-weight:500;letter-spacing:.14em}
+.hero-upload,html.desktop-mode .hero-upload{background:var(--panel);border-color:var(--line);color:var(--text);min-height:60px;max-width:none;padding:12px;box-shadow:none}
+.hero-upload:hover,.hero-upload.drag-over{border-color:var(--accent);background:var(--accent-dark)}
+.upload-glyph{background:var(--accent-dark);color:var(--accent)}
+.hero-upload small,.welcome-creator-btn small,.recognition-controls small{color:var(--muted)}
+.welcome-creator-btn{max-width:none;border-color:var(--accent);background:var(--accent-dark);color:var(--accent);border-radius:8px;min-height:44px}
+.welcome-creator-btn:hover{border-color:var(--accent);background:var(--raised)}
+.recognition-controls,html.desktop-mode .recognition-controls{width:100%;gap:8px;margin-top:12px}
+.welcome-secondary-actions,html.desktop-mode .welcome-secondary-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:9px;align-items:stretch}
+.welcome-secondary-actions .demo-btn,html.desktop-mode .welcome-secondary-actions .demo-btn{min-width:0;max-width:none;width:100%;border:1px solid var(--line);border-radius:7px;padding:9px 10px;font-size:11px;line-height:1.35;text-align:left;white-space:normal;gap:8px}
+.welcome-secondary-actions #openProjectsWelcome{color:var(--text)}
+.welcome-features{color:var(--dim);flex-wrap:wrap;gap:10px}
+.creator-panel{border-color:var(--line);background:var(--surface);padding:11px}
+.creator-panel>.control-group{margin-bottom:14px}
+.creator-panel .wide-ghost,.creator-panel .primary-btn{margin:4px 0;min-height:35px;white-space:normal;line-height:1.35}
+.creator-panel textarea{resize:vertical;min-height:56px;max-height:320px}
+.creator-panel summary{font-size:12px;line-height:1.45}
+@media(max-width:720px){
+ .welcome-overlay,html.desktop-mode .welcome-overlay{grid-template-columns:minmax(0,600px);align-content:start;padding:17px;gap:12px}
+ .welcome-art{display:none}
+}
+@media(max-width:420px){.welcome-secondary-actions,html.desktop-mode .welcome-secondary-actions{grid-template-columns:1fr}.welcome-creator-btn{flex-wrap:wrap}}
+@media(prefers-reduced-motion:reduce){.brand-symbol,.primary-btn,.rail-item{transition:none;transform:none!important}}

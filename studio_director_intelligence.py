@@ -188,6 +188,11 @@ def review(plan: dict) -> dict:
             if len(c['text'])>65 or (len(c['text'].split())>2 and c['end']-c['start']<.55):
                 issues.append({'scene':i+1,'severity':'warning','message':'Caption may be difficult to read'})
             last_end=c['end']
+    last_end=0.
+    for c in plan.get('caption_track',[]):
+        if c['start']<last_end-.001 or c['end']>plan['frames']/fps+.02 or c['start']<0 or c['end']<=c['start']:
+            overlap+=1;issues.append({'scene':0,'severity':'error','message':'Independent caption track overlaps or exceeds duration'})
+        last_end=c['end']
     if prev!=plan['frames']: issues.append({'scene':0,'severity':'error','message':'Incorrect total frame count'})
     if plan.get('beat_confidence',1)<beat.LOW_CONFIDENCE: issues.append({'scene':0,'severity':'warning','message':'Low beat confidence; using phrase/timed cuts'})
     return {'errors':sum(i['severity']=='error' for i in issues),'warnings':sum(i['severity']=='warning' for i in issues),'caption_overlaps':overlap,'repeated_shots':repeats,'issues':issues[:100]}
@@ -265,7 +270,7 @@ def apply_semantic(plan, folder, assets):
     """Re-rank B-roll, never replace documentary evidence or plugin UI with unrelated photos."""
     scores=semantic_scores(folder,assets,plan['scenes']); changed=0;previous=None
     for scene in plan['scenes']:
-        if scene['type'] not in ('broll','visualizer','big_text') or plan['preset']=='plugin': continue
+        if scene['type'] not in ('broll','visualizer','big_text') or plan['preset']=='plugin' or scene.get('editorial') in ('chapter','graphic'): continue
         key=' '.join(c['text'] for c in scene['captions'])[:220]; ranking=scores.get(key,{})
         if not ranking or len(ranking)<2: continue
         eligible=[a for a in assets if a['id'] in ranking and not a.get('source') and not a.get('disabled')]
@@ -274,7 +279,10 @@ def apply_semantic(plan, folder, assets):
         if ranking[best['id']]<.6: continue
         changed+=int(scene.get('asset')!=best['id']);previous=best['id']
         scene.update(type='broll',asset=best['id'],asset_name=best['name'],features=best.get('features',{}),camera='push' if best['kind']=='image' else 'still',text='')
-        scene.pop('source',None);scene.pop('asset_start',None)
+        scene.pop('source',None);scene.pop('asset_start',None);scene.pop('editorial',None);scene.pop('editorial_seconds',None)
+        for stale in ('product_motion','spatial_motion','spatial_bridge','bridge_scene','bridge_seconds','asset_role','camera_path','editorial_footage_label','focus_point','editorial_bridge_scene','editorial_bridge_asset','editorial_bridge_seconds'):scene.pop(stale,None)
+        if best.get('role'):scene['asset_role']=best['role']
+        if plan.get('cinematic_finish') and plan['preset']=='doc' and best.get('role')=='plugin_state' and best['kind']=='image':scene['product_motion']=True
     plan['semantic_changes']=changed
     plan['semantic_review']='Local model relative similarity (not verified factual relevance)'
 
@@ -285,7 +293,7 @@ def fill_generated(plan: dict, folder: Path, enabled=False, check_cancel=lambda:
     done=0; warning=False
     if folder.is_symlink(): raise ValueError('Linked asset folder')
     for s in plan['scenes']:
-        if s['type'] not in ('big_text','visualizer') or s.get('asset'): continue
+        if s['type'] not in ('big_text','visualizer') or s.get('asset') or s.get('editorial') in ('chapter','graphic'): continue
         check_cancel(); query=sources.query_for(s)
         if not query: continue
         model=os.getenv('SKELLYMOTION_IMAGE_MODEL','')
@@ -310,6 +318,7 @@ def fill_generated(plan: dict, folder: Path, enabled=False, check_cancel=lambda:
                         except Exception: target.unlink(missing_ok=True);raise
                     done+=1
                 finally: tmp.unlink(missing_ok=True)
+            s.pop('editorial',None)
             s.update(type='broll',asset=key,asset_name=meta['name'],source=meta['source'],camera='push',text='')
         except (ImportError,OSError,ValueError,RuntimeError,subprocess.TimeoutExpired):
             check_cancel();warning=True;break

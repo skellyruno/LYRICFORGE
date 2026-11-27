@@ -52,13 +52,16 @@ def optical_surface(a):
 
 class Fluid:
     """Fixed 30 Hz simulation, interpolated display; cache at most 600 ticks."""
-    def __init__(self,seed=7,grid=128):
+    def __init__(self,seed=7,grid=128,*,obstacle=False):
         if type(seed) is not int or not 0<=seed<2**31 or type(grid) is not int or not 32<=grid<=128:raise ValueError('Invalid fluid budget')
         self.n=grid;self.x,self.y=np.meshgrid(np.arange(grid),np.arange(grid));self.dt=1/30
         self.phase=np.random.default_rng(seed).uniform(0,2*np.pi,3)
         self.u=np.zeros((grid,grid));self.v=self.u.copy();self.dye=np.zeros((grid,grid,3));self.frames=[]
         for i,phi in enumerate(self.phase):
             cx=grid*(.5+.23*np.cos(phi));cy=grid*(.5+.23*np.sin(phi));self.dye[...,i]=.85*np.exp(-((self.x-cx)**2+(self.y-cy)**2)/(grid*.10)**2)
+        self.obstacle=bool(obstacle)
+        self.radius=grid*.14;self.dx=self.x-grid*.50;self.dy=self.y-grid*.50;self.solid=self.dx*self.dx+self.dy*self.dy<self.radius**2
+        if self.obstacle:self.dye[self.solid]=0
         self.frames.append(self._save())
 
     def _save(self):return np.uint8(np.clip(self.dye,0,1)*255+.5)
@@ -72,11 +75,21 @@ class Fluid:
         curl=(np.roll(v,-1,axis=1)-np.roll(v,1,axis=1)-np.roll(u,-1,axis=0)+np.roll(u,1,axis=0))*.5
         gy,gx=np.gradient(abs(curl));norm=np.hypot(gx,gy)+1e-8
         u+=self.dt*1.8*gy/norm*curl;v-=self.dt*1.8*gx/norm*curl
-        self.u,self.v=project(u,v);self.dye=advect_corrected(self.dye,self.u,self.v,self.dt,self.x,self.y)*.998
+        self.u,self.v=project(u,v)
+        if self.obstacle:
+            # Approximate impermeable circular boundary: remove inward normal
+            # velocity in a narrow band and mask the solid interior. Not a
+            # converged pressure-boundary solver.
+            rad=np.hypot(self.dx,self.dy);nx=self.dx/np.maximum(rad,1e-8);ny=self.dy/np.maximum(rad,1e-8);normal=self.u*nx+self.v*ny
+            weight=np.exp(-((rad-self.radius)/2.5)**2)*np.minimum(normal,0)
+            self.u-=weight*nx;self.v-=weight*ny;self.u[self.solid]=0;self.v[self.solid]=0
+        self.dye=advect_corrected(self.dye,self.u,self.v,self.dt,self.x,self.y)*.998
         for i,phase in enumerate(self.phase):
             cx=n*(.5+.27*np.cos(phase+t*.53));cy=n*(.5+.27*np.sin(phase+t*.53));dx=(self.x-cx+n/2)%n-n/2;dy=(self.y-cy+n/2)%n-n/2
             self.dye[...,i]+=self.dt*.48*np.exp(-(dx*dx+dy*dy)/(n*.052)**2)
-        self.dye=np.clip(self.dye,0,1);self.frames.append(self._save())
+        self.dye=np.clip(self.dye,0,1)
+        if self.obstacle:self.dye[self.solid]=0
+        self.frames.append(self._save())
 
     def render(self,w,h,t):
         if not math.isfinite(t) or not 2<=w<=7680 or not 2<=h<=7680:raise ValueError('Invalid fluid render')
@@ -84,6 +97,10 @@ class Fluid:
         while len(self.frames)<=j:self.step()
         a=(self.frames[i].astype(np.float32)*(1-(tick-i))+self.frames[j]*(tick-i))/255
         rgb,alpha=optical_surface(a)
+        if self.obstacle:
+            # Shaded solid boundary for the illustrative fluid-object shot.
+            rr=np.hypot(self.dx,self.dy)/self.radius;z=np.sqrt(np.maximum(0,1-rr**2));lighting=np.clip(.15+.60*z-.22*self.dx/self.radius-.16*self.dy/self.radius,0,1)
+            rgb[self.solid]=lighting[self.solid,None]*np.array([.26,.33,.35]);alpha[self.solid]=1
         yy,xx=np.mgrid[-1:1:complex(self.n),-1:1:complex(self.n)];edge=np.clip((1-np.maximum(abs(xx),abs(yy)))*3.6,0,1);alpha*=edge*edge*(3-2*edge)
         return Image.fromarray(np.uint8(np.concatenate([rgb,alpha[...,None]],2)*255+.5),'RGBA').resize((w,h),Image.Resampling.BICUBIC)
 

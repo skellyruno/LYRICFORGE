@@ -4336,6 +4336,26 @@ def run_quick(project_id: str, job_id: str, opts: dict, settings: dict) -> None:
                 raise
             finish_tool_job(job_id, started, [tool_file(tool.label(opts), project_id, tool.out, tool.kind)])
             return
+        if tool.id == "hold":
+            # Each encoder handles just one stream. Mux packet copies only after
+            # both have completed. Cancellation/failure cleans private scratch;
+            # the previous published output remains intact until atomic replace.
+            with tempfile.TemporaryDirectory(prefix="hold-", dir=p) as scratch:
+                scratch=Path(scratch);picture=scratch/"picture.mp4"
+                run_one_ffmpeg(project_id, job_id, "hold_picture", quick2_lib.hold_build(paths,opts,picture,False),picture,opts["seconds"])
+                check_cancel(job_id)
+                final=picture
+                if opts["has_audio"]:
+                    audio=scratch/"audio.m4a";final=scratch/"muxed.mp4"
+                    run_one_ffmpeg(project_id,job_id,"hold_audio",quick2_lib.hold_audio_build(paths,opts,audio),audio,opts["seconds"])
+                    check_cancel(job_id)
+                    run_one_ffmpeg(project_id,job_id,"hold_mux",quick2_lib.hold_mux_build(picture,audio,final),final,opts["seconds"])
+                check_cancel(job_id)
+                if not final.is_file() or not final.stat().st_size:
+                    raise RuntimeError("Hold encoder produced no output")
+                perf.publish_staged_file(final,out)
+            finish_tool_job(job_id,started,[tool_file(tool.label(opts),project_id,tool.out,tool.kind)],seconds=round(opts["seconds"],2))
+            return
         try:
             run_one_ffmpeg(project_id, job_id, "quick_render", tool.build(paths, opts, out, False), out, opts["seconds"])
         except JobCancelled:
@@ -4474,6 +4494,7 @@ class CreatorBrief(BaseModel):
 
 
 class CreatorRequest(CreatorBrief):
+    script_text: str = Field(default="",max_length=60000)
     output_fps: Literal[24,30,60] | None = None
     visual_theme: str = "clean"
     skell_terminology: bool = False
@@ -4531,6 +4552,8 @@ async def create_video_request(payload: str = Form(...), files: list[UploadFile]
     try:
         if len(payload)>256*1024: raise ValueError('Creator request exceeds 256 KiB')
         body=CreatorRequest.model_validate_json(payload)
+        if body.story=='documentary' and body.production_mode!='research' and 'visual_theme' not in body.model_fields_set:
+            body=body.model_copy(update={'visual_theme':'legacy'})
         import studio_theme
         studio_theme.validate(body.visual_theme)
         if body.title_style not in cinema_finish.TITLE_STYLES:raise ValueError("Unknown title style")
@@ -4546,13 +4569,20 @@ async def create_video_request(payload: str = Form(...), files: list[UploadFile]
         voice_studio.dictionary(body.pronunciation)
         if body.voice=='recorded':
             if recording is None:raise ValueError('Choose or record your narration first')
-            if not body.chapters:raise ValueError('Provide the script you actually recorded')
+            if body.chapter_starts and not (body.chapters or body.script_text.strip()):raise ValueError('Manual timestamps require the written script')
             if Path(recording.filename or '').suffix.lower() not in {'.wav','.mp3','.m4a','.aac','.flac','.ogg','.opus','.webm','.mp4'}:raise ValueError('Unsupported recording format')
             voice='recorded'
         else:
             if recording is not None:raise ValueError('Select recorded narration to use the uploaded voice')
             voice=creator.resolve_voice(body.voice)
-        script=creator.validate_script(body.chapters,body.production_mode) if body.chapters else creator.draft_script(body.product,body.brief,body.facts,body.target_seconds,body.story,body.production_mode)['chapters']
+        if body.production_mode=='research' and not body.chapters and (body.script_text.strip() or voice=='recorded'):
+            raise ValueError('Research narration requires source-linked chapters; add a source to each claim first')
+        if body.chapters and body.script_text.strip():raise ValueError('Choose either written prose or explicit chapters')
+        if len(files)>40 or len(body.visual_roles)>len(files): raise ValueError('At most 40 visual uploads; metadata must match files')
+        from studio_media_layers import bind_uploads
+        suffixes=[Path(f.filename or '').suffix.lower() for f in files]
+        preflight=bind_uploads(body.chapters,suffixes) if body.chapters else []
+        script=(creator.validate_script(preflight,body.production_mode) if body.chapters else creator.chapters_from_text(body.script_text) if body.script_text.strip() else [] if voice=='recorded' else creator.draft_script(body.product,body.brief,body.facts,body.target_seconds,body.story,body.production_mode)['chapters'])
         if body.format not in director_intel.FORMATS or body.format=='canvas': raise ValueError('Select a narrated video format')
         if len(files)>40 or len(body.visual_roles)>len(files): raise ValueError('At most 40 visual uploads; metadata must match files')
         for meta in body.visual_roles:
@@ -4561,7 +4591,7 @@ async def create_video_request(payload: str = Form(...), files: list[UploadFile]
     except (ValueError,TypeError) as exc: raise HTTPException(400,str(exc)[:500]) from exc
     project_id=uuid.uuid4().hex;p=DATA/project_id;p.mkdir()
     settings=sanitize_settings({'fps':24,'performanceMode':request_perf_mode.get()})
-    data={'id':project_id,'title':body.product.strip(),'duration':0.,'status':'creator_pending','save_state':'draft','settings':settings,'lines':[],'audio_file':'voice.wav','creator_script':script,'creator_brief':body.brief,'creator_production_mode':body.production_mode,'creator_visual_theme':body.visual_theme,'creator_skell_terminology':body.skell_terminology}
+    data={'id':project_id,'title':body.product.strip(),'duration':0.,'status':'creator_pending','save_state':'draft','settings':settings,'lines':[],'audio_file':'voice.wav','creator_script':[] if body.chapters else script,'creator_brief':body.brief,'creator_production_mode':body.production_mode,'creator_visual_theme':body.visual_theme,'creator_skell_terminology':body.skell_terminology}
     save_project(p,data)
     try:
         if recording is not None:
@@ -4569,17 +4599,55 @@ async def create_video_request(payload: str = Form(...), files: list[UploadFile]
         if proof_before is not None:
             await save_upload(proof_before,p/'proof_before',150*1024*1024)
             await save_upload(proof_after,p/'proof_after',150*1024*1024)
+        actual_ids=[]
         for i,file in enumerate(files):
             meta=body.visual_roles[i] if i<len(body.visual_roles) else {}
             role=str(meta.get('role','auto'));group=str(meta.get('group',''));order=int(meta.get('order',0))
             desc=str(meta.get('description',Path(file.filename or 'visual').stem))[:300]
-            await add_director_asset(project_id,file,desc,role,group,order,meta.get('focus_x'),meta.get('focus_y'),meta.get('trim_start',0),meta.get('trim_end',0))
+            added=await add_director_asset(project_id,file,desc,role,group,order,meta.get('focus_x'),meta.get('focus_y'),meta.get('trim_start',0),meta.get('trim_end',0))
+            actual_ids.append(added['asset_id'])
+        if body.chapters:
+            script=creator.validate_script(bind_uploads(body.chapters,suffixes,actual_ids),body.production_mode)
+            data['creator_script']=script
+            save_project(p,data)
         job_id=register_job(project_id,'creator',settings)
+    except (ValueError,TypeError) as exc:
+        shutil.rmtree(p,ignore_errors=True)
+        raise HTTPException(400,str(exc)[:500]) from exc
     except Exception:
         # Only remove the newly allocated, unpublished project, never existing user files.
         shutil.rmtree(p,ignore_errors=True);raise
     executor.submit(run_creator,project_id,job_id,body,script,voice)
     return {'project_id':project_id,'job_id':job_id,'voice_provider':voice}
+
+
+def recognize_creator_recording(path,duration,check_cancel):
+    """Use the existing local Whisper provider, retaining measured speech timestamps."""
+    check_cancel()
+    prior=getattr(model_request,'profile','balanced')
+    model_request.profile='balanced'
+    try:model=load_model()
+    finally:model_request.profile=prior
+    check_cancel()
+    segs,_=model.transcribe(str(path),word_timestamps=True,beam_size=3,best_of=1,temperature=0,vad_filter=False,condition_on_previous_text=False)
+    rows=[]
+    for seg in segs:
+        check_cancel();words=[]
+        for word in seg.words or []:
+            text=word.word.strip();start=float(word.start);end=float(word.end)
+            if not text or not math.isfinite(start) or not math.isfinite(end):continue
+            start=max(0,min(duration,start));end=max(start,min(duration,end))
+            if end<=start:continue
+            w={'text':text,'start':start,'end':end}
+            probability=getattr(word,'probability',None)
+            if isinstance(probability,(int,float)) and math.isfinite(probability):w['probability']=float(probability)
+            words.append(w)
+        for k in range(0,len(words),12):
+            group=words[k:k+12];text=' '.join(w['text'] for w in group)
+            rows.append({'id':uuid.uuid4().hex[:12],'text':text,'start':group[0]['start'],'end':group[-1]['end'],'words':group,'chapter_title':' '.join(text.split()[:5]),'visual_hint':text[:200]})
+            if len(rows)>500:raise ValueError('Recording exceeds 500 speech clips; divide it into shorter sections')
+    if not rows:raise ValueError('No usable speech recognized; supply a clearer recording or written script')
+    return rows
 
 
 def run_creator(project_id,job_id,body,script,voice):
@@ -4588,7 +4656,7 @@ def run_creator(project_id,job_id,body,script,voice):
         def progress(i,n):
             with job_lock: jobs[job_id].update(stage='narration',progress=int((4 if body.auto_render else 100)*i/max(n,1)))
         if voice=='recorded':
-            result=voice_studio.prepare_recording(p/'narration_source',p/'voice.wav',script,body.chapter_starts,creator.run_checked,creator.split_phrases,lambda:check_cancel(job_id))
+            result=voice_studio.prepare_recording(p/'narration_source',p/'voice.wav',script,body.chapter_starts,creator.run_checked,creator.split_phrases,lambda:check_cancel(job_id),transcriber=recognize_creator_recording)
         else:
             result=creator.narration(script,p/'voice.wav',voice,body.speed,lambda:check_cancel(job_id),progress,delivery=body.delivery,pronunciation=body.pronunciation)
         check_cancel(job_id)
@@ -4598,10 +4666,12 @@ def run_creator(project_id,job_id,body,script,voice):
         lines=validate_lines(result['lines'],result['duration'])
         with project_write_lock:
             data=read_project(project_id)
-            data.update(status='editor',duration=result['duration'],lines=lines,original_words=[w for line in lines for w in line['words']],creator_metadata={k:v for k,v in result.items() if k!='lines'},creator_cues=[{'id':r['id'],'text':r['text'],'chapter_title':r['chapter_title'],'visual_hint':r['visual_hint'],**({'source_url':r['source_url']} if r.get('source_url') else {})} for r in result['lines']])
+            if voice=='recorded' and not script:data['creator_script']=[{'title':r['chapter_title'],'narration':r['text'],'visual_hint':r['visual_hint']} for r in result['lines']]
+            data.update(status='editor',duration=result['duration'],lines=lines,original_words=[w for line in lines for w in line['words']],creator_metadata={k:v for k,v in result.items() if k!='lines'},creator_cues=[{'id':r['id'],'text':r['text'],'chapter_title':r['chapter_title'],'visual_hint':r['visual_hint'],**({'source_url':r['source_url']} if r.get('source_url') else {}),**({'graphic':r['graphic']} if r.get('graphic') else {})} for r in result['lines']])
             save_project(p,data)
         if body.auto_render:
-            _,settings,plan=prepare_director(project_id,DirectorRequest(output_fps=body.output_fps,preset='doc' if body.production_mode=='research' else 'plugin',brand=body.product,preview=body.preview,output_format=body.format,cinematic_finish=True,guided_replay=True,editorial_style='reference',visual_theme=body.visual_theme,skell_terminology=body.skell_terminology,caption_style='clean',caption_scale=.85,transition_style='auto',transition_seconds=.28,sound_design=body.sound_design,title_motion=body.title_motion,title_style=body.title_style))
+            legacy_documentary=body.story=='documentary' and body.production_mode!='research'
+            _,settings,plan=prepare_director(project_id,DirectorRequest(output_fps=body.output_fps,preset='doc' if body.production_mode=='research' or body.story=='documentary' else 'plugin',brand=body.product,preview=body.preview,output_format=body.format,cinematic_finish=True,guided_replay=True,editorial_style='standard' if legacy_documentary else 'reference',visual_theme=body.visual_theme,skell_terminology=body.skell_terminology,caption_style='marker' if legacy_documentary else 'clean',caption_scale=.85,transition_style='cut' if legacy_documentary else 'auto',transition_seconds=.28,sound_design=body.sound_design,title_motion=body.title_motion,title_style=body.title_style))
             run_director(project_id,job_id,plan,settings,body.preview)
             with job_lock: jobs[job_id]['project_id']=project_id
         else:
@@ -4701,7 +4771,7 @@ async def add_director_asset(project_id: str, file: UploadFile = File(...), desc
             for key,old in index.items():
                 if isinstance(old,dict) and old.get('sha256')==digest and not old.get('source') and director.asset_path(folder,key) and all(old.get(k)==v for k,v in meta.items()):
                     target.unlink(missing_ok=True)
-                    return {'assets':director.assets_for(folder,include_disabled=True),'duplicate':True}
+                    return {'assets':director.assets_for(folder,include_disabled=True),'duplicate':True,'asset_id':key}
             if len(index)>=40: raise ValueError("Director supports up to 40 assets per project")
             index[name] = {"name": Path(file.filename or "visual").name[:120], "description": description[:300], "features":features, 'sha256':digest, **meta}
             perf.atomic_write_json(folder / "index.json", index)
@@ -4711,7 +4781,7 @@ async def add_director_asset(project_id: str, file: UploadFile = File(...), desc
     except Exception as exc:
         target.unlink(missing_ok=True)
         raise HTTPException(400, "Could not import visual: " + str(exc)[:200]) from exc
-    return {"assets": director.assets_for(folder,include_disabled=True)}
+    return {"assets": director.assets_for(folder,include_disabled=True),'asset_id':name}
 
 
 def prepare_director(project_id: str, body: DirectorRequest):
@@ -4745,6 +4815,7 @@ def prepare_director(project_id: str, body: DirectorRequest):
         cue=creator_cues.get(row['id'],{})
         if cue.get('text')==row['text']:
             row.update(chapter_title=cue.get('chapter_title',''),visual_hint=cue.get('visual_hint',''),source_url=cue.get('source_url',''))
+            if cue.get('graphic'):row['graphic']=cue['graphic']
     audio_proof=data.get('creator_metadata',{}).get('audio_proof')
     if audio_proof:
         # Labels must follow the immutable audio proof clock, even after
@@ -4765,7 +4836,7 @@ def prepare_director(project_id: str, body: DirectorRequest):
         for scene in plan['scenes']:
             if scene['type']=='diagram' and scene['text']=='Compression':
                 scene['compressor_demo']=body.compressor_demo.model_dump()
-        plan.update(title_style=body.title_style,transition_style=body.transition_style,transition_seconds=body.transition_seconds,caption_style=body.caption_style,caption_scale=body.caption_scale,voice_style=body.voice_style,music_gain=body.music_gain,cue_gain=body.cue_gain)
+        plan.update(title_style=body.title_style,transition_style=body.transition_style,transition_seconds=body.transition_seconds,caption_style=('marker' if plan.get('editorial_engine')=='v20' else 'clean') if body.caption_style=='auto' else body.caption_style,caption_scale=body.caption_scale,voice_style=body.voice_style,music_gain=body.music_gain,cue_gain=body.cue_gain)
         plan['sound_design']=body.sound_design and body.preset!='music'
         plan['local_ai']=body.local_ai
         plan['semantic_vision']=body.semantic_vision

@@ -1,0 +1,2688 @@
+{
+  "version": 22,
+  "preset": "doc",
+  "fps": 60,
+  "duration": 54.55,
+  "frames": 3273,
+  "scenes": [
+    {
+      "type": "big_text",
+      "text": "Every image is a signal",
+      "start": 0.0,
+      "end": 8.183333333333334,
+      "frames": 491,
+      "captions": [],
+      "camera": "still",
+      "cinematic_finish": true,
+      "brand": "SKELLYMOTION",
+      "chapter": 1,
+      "editorial": "graphic",
+      "editorial_look": "midnight",
+      "graphic": {
+        "kind": "composition",
+        "title": "Every image is a signal",
+        "source": "ORIGINAL VISUAL STUDY  /  SOURCE-DERIVED, DISPLAY-LIFTED COLOR TEXTURE",
+        "camera": [
+          [
+            0.0,
+            -0.015,
+            0.0,
+            1.02
+          ],
+          [
+            1.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "layers": [
+          {
+            "id": "halo",
+            "type": "rings",
+            "color": "gold",
+            "depth": 1.5,
+            "width": 0.72,
+            "height": 0.76,
+            "track": [
+              [
+                0.0,
+                0.64,
+                0.43,
+                1.0,
+                0.72
+              ],
+              [
+                1.0,
+                0.64,
+                0.43,
+                1.13,
+                0.42
+              ]
+            ],
+            "harmonics": 0.0
+          },
+          {
+            "id": "orb",
+            "type": "sphere",
+            "color": "white",
+            "depth": 0.25,
+            "width": 0.61,
+            "height": 0.68,
+            "track": [
+              [
+                0.0,
+                0.73,
+                0.47,
+                0.85,
+                0.0
+              ],
+              [
+                0.14,
+                0.71,
+                0.44,
+                1.0,
+                1.0
+              ],
+              [
+                0.7,
+                0.71,
+                0.44,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.76,
+                0.45,
+                0.75,
+                0.72
+              ]
+            ],
+            "asset": "dddddddddddddddddddddddddddddddd.png",
+            "fit": "contain",
+            "spin": 0.45,
+            "roughness": 0.32
+          },
+          {
+            "id": "episode",
+            "type": "text",
+            "color": "gold",
+            "depth": -0.4,
+            "width": 0.4,
+            "height": 0.09,
+            "track": [
+              [
+                0.0,
+                0.25,
+                0.195,
+                1.0,
+                0.0
+              ],
+              [
+                0.08,
+                0.25,
+                0.195,
+                1.0,
+                0.0
+              ],
+              [
+                0.22,
+                0.25,
+                0.17,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.25,
+                0.17,
+                1.0,
+                1.0
+              ]
+            ],
+            "text": "FIELD NOTES  /  02",
+            "size": 0.032,
+            "face": "mono",
+            "align": "left"
+          },
+          {
+            "id": "hero",
+            "type": "text",
+            "color": "white",
+            "depth": -0.4,
+            "width": 0.4,
+            "height": 0.35,
+            "track": [
+              [
+                0.0,
+                0.25,
+                0.41500000000000004,
+                1.0,
+                0.0
+              ],
+              [
+                0.08,
+                0.25,
+                0.41500000000000004,
+                1.0,
+                0.0
+              ],
+              [
+                0.23,
+                0.25,
+                0.39,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.25,
+                0.39,
+                1.0,
+                1.0
+              ]
+            ],
+            "text": "The anatomy of an image",
+            "size": 0.081,
+            "face": "serif",
+            "align": "left"
+          },
+          {
+            "id": "hook",
+            "type": "text",
+            "color": "white",
+            "depth": -0.4,
+            "width": 0.4,
+            "height": 0.17,
+            "track": [
+              [
+                0.0,
+                0.25,
+                0.735,
+                1.0,
+                0.0
+              ],
+              [
+                0.32,
+                0.25,
+                0.735,
+                1.0,
+                0.0
+              ],
+              [
+                0.48,
+                0.25,
+                0.71,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.25,
+                0.71,
+                1.0,
+                1.0
+              ]
+            ],
+            "text": "Light becomes information.",
+            "size": 0.043,
+            "face": "sans",
+            "align": "left"
+          }
+        ]
+      }
+    },
+    {
+      "type": "big_text",
+      "text": "From capture to picture",
+      "start": 8.183333333333334,
+      "end": 16.366666666666667,
+      "frames": 491,
+      "captions": [],
+      "camera": "still",
+      "cinematic_finish": true,
+      "brand": "SKELLYMOTION",
+      "chapter": 2,
+      "editorial": "graphic",
+      "editorial_look": "midnight",
+      "graphic": {
+        "kind": "composition",
+        "title": "From capture to picture",
+        "source": "ACTUAL PREVIOUS SKELLYMOTION PRODUCTION EXCERPT  /  SOURCE FOOTAGE, NOT A LIVE DEMONSTRATION",
+        "camera": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            1.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "layers": [
+          {
+            "id": "orb",
+            "type": "sphere",
+            "color": "white",
+            "depth": 0.25,
+            "width": 0.68,
+            "height": 0.75,
+            "track": [
+              [
+                0.0,
+                0.76,
+                0.45,
+                0.75,
+                0.72
+              ],
+              [
+                0.28,
+                1.0,
+                0.46,
+                0.5,
+                0.0
+              ],
+              [
+                1.0,
+                1.0,
+                0.46,
+                0.5,
+                0.0
+              ]
+            ],
+            "asset": "dddddddddddddddddddddddddddddddd.png",
+            "fit": "contain",
+            "spin": 0.45,
+            "roughness": 0.32
+          },
+          {
+            "id": "moving",
+            "type": "footage",
+            "color": "white",
+            "depth": 0.4,
+            "width": 0.71,
+            "height": 0.68,
+            "track": [
+              [
+                0.0,
+                0.7,
+                0.52,
+                0.88,
+                0.0
+              ],
+              [
+                0.16,
+                0.67,
+                0.49,
+                0.96,
+                1.0
+              ],
+              [
+                0.8,
+                0.67,
+                0.49,
+                0.96,
+                1.0
+              ],
+              [
+                1.0,
+                0.62,
+                0.49,
+                0.83,
+                1.0
+              ]
+            ],
+            "asset": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.mp4",
+            "fit": "contain",
+            "trim": [
+              0.0,
+              8.0
+            ],
+            "delay": 0.0
+          },
+          {
+            "id": "capture-label",
+            "type": "text",
+            "color": "gold",
+            "depth": -0.4,
+            "width": 0.34,
+            "height": 0.09,
+            "track": [
+              [
+                0.0,
+                0.21,
+                0.175,
+                1.0,
+                0.0
+              ],
+              [
+                0.08,
+                0.21,
+                0.175,
+                1.0,
+                0.0
+              ],
+              [
+                0.22,
+                0.21,
+                0.15,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.21,
+                0.15,
+                1.0,
+                1.0
+              ]
+            ],
+            "text": "01  /  CAPTURE",
+            "size": 0.032,
+            "face": "mono",
+            "align": "left"
+          },
+          {
+            "id": "capture-title",
+            "type": "text",
+            "color": "white",
+            "depth": -0.4,
+            "width": 0.3,
+            "height": 0.45,
+            "track": [
+              [
+                0.0,
+                0.205,
+                0.445,
+                1.0,
+                0.0
+              ],
+              [
+                0.15,
+                0.205,
+                0.445,
+                1.0,
+                0.0
+              ],
+              [
+                0.34,
+                0.205,
+                0.42,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.205,
+                0.42,
+                1.0,
+                1.0
+              ]
+            ],
+            "text": "A moving picture is a sequence of images.",
+            "size": 0.064,
+            "face": "serif",
+            "align": "left"
+          },
+          {
+            "id": "capture-sub",
+            "type": "text",
+            "color": "white",
+            "depth": -0.4,
+            "width": 0.31,
+            "height": 0.14,
+            "track": [
+              [
+                0.0,
+                0.19,
+                0.755,
+                1.0,
+                0.0
+              ],
+              [
+                0.38,
+                0.19,
+                0.755,
+                1.0,
+                0.0
+              ],
+              [
+                0.53,
+                0.19,
+                0.73,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.19,
+                0.73,
+                1.0,
+                1.0
+              ]
+            ],
+            "text": "Every frame can be inspected.",
+            "size": 0.035,
+            "face": "sans",
+            "align": "left"
+          }
+        ]
+      },
+      "editorial_bridge_scene": {
+        "start": 0.0,
+        "end": 8.183333333333334,
+        "graphic": {
+          "kind": "composition",
+          "title": "Every image is a signal",
+          "source": "ORIGINAL VISUAL STUDY  /  SOURCE-DERIVED, DISPLAY-LIFTED COLOR TEXTURE",
+          "camera": [
+            [
+              0.0,
+              -0.015,
+              0.0,
+              1.02
+            ],
+            [
+              1.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "layers": [
+            {
+              "id": "halo",
+              "type": "rings",
+              "color": "gold",
+              "depth": 1.5,
+              "width": 0.72,
+              "height": 0.76,
+              "track": [
+                [
+                  0.0,
+                  0.64,
+                  0.43,
+                  1.0,
+                  0.72
+                ],
+                [
+                  1.0,
+                  0.64,
+                  0.43,
+                  1.13,
+                  0.42
+                ]
+              ],
+              "harmonics": 0.0
+            },
+            {
+              "id": "orb",
+              "type": "sphere",
+              "color": "white",
+              "depth": 0.25,
+              "width": 0.61,
+              "height": 0.68,
+              "track": [
+                [
+                  0.0,
+                  0.73,
+                  0.47,
+                  0.85,
+                  0.0
+                ],
+                [
+                  0.14,
+                  0.71,
+                  0.44,
+                  1.0,
+                  1.0
+                ],
+                [
+                  0.7,
+                  0.71,
+                  0.44,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.76,
+                  0.45,
+                  0.75,
+                  0.72
+                ]
+              ],
+              "asset": "dddddddddddddddddddddddddddddddd.png",
+              "fit": "contain",
+              "spin": 0.45,
+              "roughness": 0.32
+            },
+            {
+              "id": "episode",
+              "type": "text",
+              "color": "gold",
+              "depth": -0.4,
+              "width": 0.4,
+              "height": 0.09,
+              "track": [
+                [
+                  0.0,
+                  0.25,
+                  0.195,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.08,
+                  0.25,
+                  0.195,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.22,
+                  0.25,
+                  0.17,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.25,
+                  0.17,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "text": "FIELD NOTES  /  02",
+              "size": 0.032,
+              "face": "mono",
+              "align": "left"
+            },
+            {
+              "id": "hero",
+              "type": "text",
+              "color": "white",
+              "depth": -0.4,
+              "width": 0.4,
+              "height": 0.35,
+              "track": [
+                [
+                  0.0,
+                  0.25,
+                  0.41500000000000004,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.08,
+                  0.25,
+                  0.41500000000000004,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.23,
+                  0.25,
+                  0.39,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.25,
+                  0.39,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "text": "The anatomy of an image",
+              "size": 0.081,
+              "face": "serif",
+              "align": "left"
+            },
+            {
+              "id": "hook",
+              "type": "text",
+              "color": "white",
+              "depth": -0.4,
+              "width": 0.4,
+              "height": 0.17,
+              "track": [
+                [
+                  0.0,
+                  0.25,
+                  0.735,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.32,
+                  0.25,
+                  0.735,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.48,
+                  0.25,
+                  0.71,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.25,
+                  0.71,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "text": "Light becomes information.",
+              "size": 0.043,
+              "face": "sans",
+              "align": "left"
+            }
+          ]
+        },
+        "editorial": "graphic",
+        "editorial_look": "midnight",
+        "text": "Every image is a signal",
+        "chapter": 1
+      },
+      "editorial_bridge_seconds": 0.9
+    },
+    {
+      "type": "big_text",
+      "text": "The pixel grid",
+      "start": 16.366666666666667,
+      "end": 25.916666666666668,
+      "frames": 573,
+      "captions": [],
+      "camera": "still",
+      "cinematic_finish": true,
+      "brand": "SKELLYMOTION",
+      "chapter": 3,
+      "editorial": "graphic",
+      "editorial_look": "midnight",
+      "graphic": {
+        "kind": "composition",
+        "title": "The pixel grid",
+        "source": "ACTUAL SCREEN CAPTURE  /  ORIGINAL SOURCE DIMENSIONS",
+        "camera": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            1.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "layers": [
+          {
+            "id": "still",
+            "type": "image",
+            "color": "white",
+            "depth": 0.4,
+            "width": 0.53,
+            "height": 0.65,
+            "track": [
+              [
+                0.0,
+                0.61,
+                0.48,
+                0.84,
+                0.0
+              ],
+              [
+                0.25,
+                0.31,
+                0.48,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.31,
+                0.48,
+                1.0,
+                1.0
+              ]
+            ],
+            "asset": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.png",
+            "fit": "contain"
+          },
+          {
+            "id": "sample-label",
+            "type": "text",
+            "color": "gold",
+            "depth": -0.4,
+            "width": 0.32,
+            "height": 0.09,
+            "track": [
+              [
+                0.0,
+                0.8,
+                0.175,
+                1.0,
+                0.0
+              ],
+              [
+                0.08,
+                0.8,
+                0.175,
+                1.0,
+                0.0
+              ],
+              [
+                0.22,
+                0.8,
+                0.15,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.8,
+                0.15,
+                1.0,
+                1.0
+              ]
+            ],
+            "text": "02  /  INSPECT",
+            "size": 0.032,
+            "face": "mono",
+            "align": "left"
+          },
+          {
+            "id": "sample-title",
+            "type": "text",
+            "color": "white",
+            "depth": -0.4,
+            "width": 0.35,
+            "height": 0.28,
+            "track": [
+              [
+                0.0,
+                0.77,
+                0.35500000000000004,
+                1.0,
+                0.0
+              ],
+              [
+                0.13,
+                0.77,
+                0.35500000000000004,
+                1.0,
+                0.0
+              ],
+              [
+                0.27,
+                0.77,
+                0.33,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.77,
+                0.33,
+                1.0,
+                1.0
+              ]
+            ],
+            "text": "An image is a grid of samples.",
+            "size": 0.055,
+            "face": "serif",
+            "align": "left"
+          },
+          {
+            "id": "dimensions",
+            "type": "text",
+            "color": "mint",
+            "depth": -0.4,
+            "width": 0.35,
+            "height": 0.13,
+            "track": [
+              [
+                0.0,
+                0.77,
+                0.605,
+                1.0,
+                0.0
+              ],
+              [
+                0.36,
+                0.77,
+                0.605,
+                1.0,
+                0.0
+              ],
+              [
+                0.52,
+                0.77,
+                0.58,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.77,
+                0.58,
+                1.0,
+                1.0
+              ]
+            ],
+            "text": "1440 \u00d7 900",
+            "size": 0.053,
+            "face": "mono",
+            "align": "left"
+          },
+          {
+            "id": "sample-sub",
+            "type": "text",
+            "color": "white",
+            "depth": -0.4,
+            "width": 0.35,
+            "height": 0.13,
+            "track": [
+              [
+                0.0,
+                0.77,
+                0.765,
+                1.0,
+                0.0
+              ],
+              [
+                0.53,
+                0.77,
+                0.765,
+                1.0,
+                0.0
+              ],
+              [
+                0.68,
+                0.77,
+                0.74,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.77,
+                0.74,
+                1.0,
+                1.0
+              ]
+            ],
+            "text": "1,296,000 pixels in this capture.",
+            "size": 0.031,
+            "face": "sans",
+            "align": "left"
+          }
+        ]
+      },
+      "editorial_bridge_scene": {
+        "start": 8.183333333333334,
+        "end": 16.366666666666667,
+        "graphic": {
+          "kind": "composition",
+          "title": "From capture to picture",
+          "source": "ACTUAL PREVIOUS SKELLYMOTION PRODUCTION EXCERPT  /  SOURCE FOOTAGE, NOT A LIVE DEMONSTRATION",
+          "camera": [
+            [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ],
+            [
+              1.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "layers": [
+            {
+              "id": "orb",
+              "type": "sphere",
+              "color": "white",
+              "depth": 0.25,
+              "width": 0.68,
+              "height": 0.75,
+              "track": [
+                [
+                  0.0,
+                  0.76,
+                  0.45,
+                  0.75,
+                  0.72
+                ],
+                [
+                  0.28,
+                  1.0,
+                  0.46,
+                  0.5,
+                  0.0
+                ],
+                [
+                  1.0,
+                  1.0,
+                  0.46,
+                  0.5,
+                  0.0
+                ]
+              ],
+              "asset": "dddddddddddddddddddddddddddddddd.png",
+              "fit": "contain",
+              "spin": 0.45,
+              "roughness": 0.32
+            },
+            {
+              "id": "moving",
+              "type": "footage",
+              "color": "white",
+              "depth": 0.4,
+              "width": 0.71,
+              "height": 0.68,
+              "track": [
+                [
+                  0.0,
+                  0.7,
+                  0.52,
+                  0.88,
+                  0.0
+                ],
+                [
+                  0.16,
+                  0.67,
+                  0.49,
+                  0.96,
+                  1.0
+                ],
+                [
+                  0.8,
+                  0.67,
+                  0.49,
+                  0.96,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.62,
+                  0.49,
+                  0.83,
+                  1.0
+                ]
+              ],
+              "asset": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.mp4",
+              "fit": "contain",
+              "trim": [
+                0.0,
+                8.0
+              ],
+              "delay": 0.0
+            },
+            {
+              "id": "capture-label",
+              "type": "text",
+              "color": "gold",
+              "depth": -0.4,
+              "width": 0.34,
+              "height": 0.09,
+              "track": [
+                [
+                  0.0,
+                  0.21,
+                  0.175,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.08,
+                  0.21,
+                  0.175,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.22,
+                  0.21,
+                  0.15,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.21,
+                  0.15,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "text": "01  /  CAPTURE",
+              "size": 0.032,
+              "face": "mono",
+              "align": "left"
+            },
+            {
+              "id": "capture-title",
+              "type": "text",
+              "color": "white",
+              "depth": -0.4,
+              "width": 0.3,
+              "height": 0.45,
+              "track": [
+                [
+                  0.0,
+                  0.205,
+                  0.445,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.15,
+                  0.205,
+                  0.445,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.34,
+                  0.205,
+                  0.42,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.205,
+                  0.42,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "text": "A moving picture is a sequence of images.",
+              "size": 0.064,
+              "face": "serif",
+              "align": "left"
+            },
+            {
+              "id": "capture-sub",
+              "type": "text",
+              "color": "white",
+              "depth": -0.4,
+              "width": 0.31,
+              "height": 0.14,
+              "track": [
+                [
+                  0.0,
+                  0.19,
+                  0.755,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.38,
+                  0.19,
+                  0.755,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.53,
+                  0.19,
+                  0.73,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.19,
+                  0.73,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "text": "Every frame can be inspected.",
+              "size": 0.035,
+              "face": "sans",
+              "align": "left"
+            }
+          ]
+        },
+        "editorial": "graphic",
+        "editorial_look": "midnight",
+        "text": "From capture to picture",
+        "chapter": 2
+      },
+      "editorial_bridge_seconds": 0.9
+    },
+    {
+      "type": "big_text",
+      "text": "Measurement, not decoration",
+      "start": 25.916666666666668,
+      "end": 35.45,
+      "frames": 572,
+      "captions": [],
+      "camera": "still",
+      "cinematic_finish": true,
+      "brand": "SKELLYMOTION",
+      "chapter": 4,
+      "editorial": "graphic",
+      "editorial_look": "midnight",
+      "graphic": {
+        "kind": "composition",
+        "title": "Measurement, not decoration",
+        "source": "ACTUAL SCREEN CAPTURE + COMPUTED IMAGE ANALYSIS DOCUMENT",
+        "camera": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            1.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "layers": [
+          {
+            "id": "still",
+            "type": "image",
+            "color": "white",
+            "depth": 0.4,
+            "width": 0.53,
+            "height": 0.65,
+            "track": [
+              [
+                0.0,
+                0.31,
+                0.48,
+                1.0,
+                1.0
+              ],
+              [
+                0.35,
+                0.26,
+                0.36,
+                0.7,
+                1.0
+              ],
+              [
+                1.0,
+                0.26,
+                0.36,
+                0.7,
+                1.0
+              ]
+            ],
+            "asset": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.png",
+            "fit": "contain"
+          },
+          {
+            "id": "report",
+            "type": "document",
+            "color": "white",
+            "depth": -0.05,
+            "width": 0.43,
+            "height": 0.7,
+            "track": [
+              [
+                0.0,
+                0.76,
+                0.58,
+                0.88,
+                0.0
+              ],
+              [
+                0.24,
+                0.74,
+                0.48,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.74,
+                0.48,
+                1.0,
+                1.0
+              ]
+            ],
+            "asset": "cccccccccccccccccccccccccccccccc.png",
+            "fit": "contain"
+          },
+          {
+            "id": "evidence-label",
+            "type": "text",
+            "color": "gold",
+            "depth": -0.4,
+            "width": 0.4,
+            "height": 0.09,
+            "track": [
+              [
+                0.0,
+                0.28,
+                0.155,
+                1.0,
+                0.0
+              ],
+              [
+                0.08,
+                0.28,
+                0.155,
+                1.0,
+                0.0
+              ],
+              [
+                0.22,
+                0.28,
+                0.13,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.28,
+                0.13,
+                1.0,
+                1.0
+              ]
+            ],
+            "text": "03  /  EVIDENCE",
+            "size": 0.032,
+            "face": "mono",
+            "align": "left"
+          },
+          {
+            "id": "report-title",
+            "type": "text",
+            "color": "white",
+            "depth": -0.4,
+            "width": 0.4,
+            "height": 0.18,
+            "track": [
+              [
+                0.0,
+                0.28,
+                0.675,
+                1.0,
+                0.0
+              ],
+              [
+                0.18,
+                0.28,
+                0.675,
+                1.0,
+                0.0
+              ],
+              [
+                0.39,
+                0.28,
+                0.65,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.28,
+                0.65,
+                1.0,
+                1.0
+              ]
+            ],
+            "text": "Measure the source.",
+            "size": 0.058,
+            "face": "serif",
+            "align": "left"
+          },
+          {
+            "id": "report-sub",
+            "type": "text",
+            "color": "white",
+            "depth": -0.4,
+            "width": 0.38,
+            "height": 0.16,
+            "track": [
+              [
+                0.0,
+                0.26,
+                0.8150000000000001,
+                1.0,
+                0.0
+              ],
+              [
+                0.38,
+                0.26,
+                0.8150000000000001,
+                1.0,
+                0.0
+              ],
+              [
+                0.58,
+                0.26,
+                0.79,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.26,
+                0.79,
+                1.0,
+                1.0
+              ]
+            ],
+            "text": "Dimensions and color values are computed from the original image.",
+            "size": 0.031,
+            "face": "sans",
+            "align": "left"
+          }
+        ]
+      },
+      "editorial_bridge_scene": {
+        "start": 16.366666666666667,
+        "end": 25.916666666666668,
+        "graphic": {
+          "kind": "composition",
+          "title": "The pixel grid",
+          "source": "ACTUAL SCREEN CAPTURE  /  ORIGINAL SOURCE DIMENSIONS",
+          "camera": [
+            [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ],
+            [
+              1.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "layers": [
+            {
+              "id": "still",
+              "type": "image",
+              "color": "white",
+              "depth": 0.4,
+              "width": 0.53,
+              "height": 0.65,
+              "track": [
+                [
+                  0.0,
+                  0.61,
+                  0.48,
+                  0.84,
+                  0.0
+                ],
+                [
+                  0.25,
+                  0.31,
+                  0.48,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.31,
+                  0.48,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "asset": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.png",
+              "fit": "contain"
+            },
+            {
+              "id": "sample-label",
+              "type": "text",
+              "color": "gold",
+              "depth": -0.4,
+              "width": 0.32,
+              "height": 0.09,
+              "track": [
+                [
+                  0.0,
+                  0.8,
+                  0.175,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.08,
+                  0.8,
+                  0.175,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.22,
+                  0.8,
+                  0.15,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.8,
+                  0.15,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "text": "02  /  INSPECT",
+              "size": 0.032,
+              "face": "mono",
+              "align": "left"
+            },
+            {
+              "id": "sample-title",
+              "type": "text",
+              "color": "white",
+              "depth": -0.4,
+              "width": 0.35,
+              "height": 0.28,
+              "track": [
+                [
+                  0.0,
+                  0.77,
+                  0.35500000000000004,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.13,
+                  0.77,
+                  0.35500000000000004,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.27,
+                  0.77,
+                  0.33,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.77,
+                  0.33,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "text": "An image is a grid of samples.",
+              "size": 0.055,
+              "face": "serif",
+              "align": "left"
+            },
+            {
+              "id": "dimensions",
+              "type": "text",
+              "color": "mint",
+              "depth": -0.4,
+              "width": 0.35,
+              "height": 0.13,
+              "track": [
+                [
+                  0.0,
+                  0.77,
+                  0.605,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.36,
+                  0.77,
+                  0.605,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.52,
+                  0.77,
+                  0.58,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.77,
+                  0.58,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "text": "1440 \u00d7 900",
+              "size": 0.053,
+              "face": "mono",
+              "align": "left"
+            },
+            {
+              "id": "sample-sub",
+              "type": "text",
+              "color": "white",
+              "depth": -0.4,
+              "width": 0.35,
+              "height": 0.13,
+              "track": [
+                [
+                  0.0,
+                  0.77,
+                  0.765,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.53,
+                  0.77,
+                  0.765,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.68,
+                  0.77,
+                  0.74,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.77,
+                  0.74,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "text": "1,296,000 pixels in this capture.",
+              "size": 0.031,
+              "face": "sans",
+              "align": "left"
+            }
+          ]
+        },
+        "editorial": "graphic",
+        "editorial_look": "midnight",
+        "text": "The pixel grid",
+        "chapter": 3
+      },
+      "editorial_bridge_seconds": 0.9
+    },
+    {
+      "type": "big_text",
+      "text": "From pixels to a textured surface",
+      "start": 35.45,
+      "end": 45.0,
+      "frames": 573,
+      "captions": [],
+      "camera": "still",
+      "cinematic_finish": true,
+      "brand": "SKELLYMOTION",
+      "chapter": 5,
+      "editorial": "graphic",
+      "editorial_look": "midnight",
+      "graphic": {
+        "kind": "composition",
+        "title": "From pixels to a textured surface",
+        "source": "24 \u00d7 12 AVERAGED COLORS, DISPLAY GAMMA LIFTED  /  PROJECTED 3D SPHERE",
+        "camera": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            1.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "layers": [
+          {
+            "id": "report",
+            "type": "document",
+            "color": "white",
+            "depth": -0.05,
+            "width": 0.43,
+            "height": 0.7,
+            "track": [
+              [
+                0.0,
+                0.74,
+                0.48,
+                1.0,
+                1.0
+              ],
+              [
+                0.24,
+                0.91,
+                0.39,
+                0.73,
+                0.0
+              ],
+              [
+                1.0,
+                0.91,
+                0.39,
+                0.73,
+                0.0
+              ]
+            ],
+            "asset": "cccccccccccccccccccccccccccccccc.png",
+            "fit": "contain"
+          },
+          {
+            "id": "texture",
+            "type": "image",
+            "color": "white",
+            "depth": 0.4,
+            "width": 0.44,
+            "height": 0.48,
+            "track": [
+              [
+                0.0,
+                0.27,
+                0.48,
+                0.8,
+                0.0
+              ],
+              [
+                0.18,
+                0.27,
+                0.47,
+                1.0,
+                1.0
+              ],
+              [
+                0.75,
+                0.27,
+                0.47,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.27,
+                0.47,
+                0.8,
+                0.0
+              ]
+            ],
+            "asset": "dddddddddddddddddddddddddddddddd.png",
+            "fit": "contain"
+          },
+          {
+            "id": "orb",
+            "type": "sphere",
+            "color": "white",
+            "depth": 0.02,
+            "width": 0.54,
+            "height": 0.59,
+            "track": [
+              [
+                0.0,
+                0.78,
+                0.48,
+                0.8,
+                0.0
+              ],
+              [
+                0.22,
+                0.73,
+                0.45,
+                1.0,
+                1.0
+              ],
+              [
+                0.8,
+                0.73,
+                0.45,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.61,
+                0.48,
+                1.05,
+                1.0
+              ]
+            ],
+            "asset": "dddddddddddddddddddddddddddddddd.png",
+            "fit": "contain",
+            "spin": 0.45,
+            "roughness": 0.32
+          },
+          {
+            "id": "texture-label",
+            "type": "text",
+            "color": "gold",
+            "depth": -0.4,
+            "width": 0.43,
+            "height": 0.09,
+            "track": [
+              [
+                0.0,
+                0.28,
+                0.165,
+                1.0,
+                0.0
+              ],
+              [
+                0.08,
+                0.28,
+                0.165,
+                1.0,
+                0.0
+              ],
+              [
+                0.22,
+                0.28,
+                0.14,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.28,
+                0.14,
+                1.0,
+                1.0
+              ]
+            ],
+            "text": "04  /  RECONSTRUCT",
+            "size": 0.032,
+            "face": "mono",
+            "align": "left"
+          },
+          {
+            "id": "texture-title",
+            "type": "text",
+            "color": "white",
+            "depth": -0.4,
+            "width": 0.42,
+            "height": 0.18,
+            "track": [
+              [
+                0.0,
+                0.28,
+                0.785,
+                1.0,
+                0.0
+              ],
+              [
+                0.25,
+                0.28,
+                0.785,
+                1.0,
+                0.0
+              ],
+              [
+                0.42,
+                0.28,
+                0.76,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.28,
+                0.76,
+                1.0,
+                1.0
+              ]
+            ],
+            "text": "Map color onto geometry.",
+            "size": 0.051,
+            "face": "serif",
+            "align": "left"
+          },
+          {
+            "id": "texture-explain",
+            "type": "text",
+            "color": "white",
+            "depth": -0.4,
+            "width": 0.42,
+            "height": 0.12,
+            "track": [
+              [
+                0.0,
+                0.73,
+                0.855,
+                1.0,
+                0.0
+              ],
+              [
+                0.43,
+                0.73,
+                0.855,
+                1.0,
+                0.0
+              ],
+              [
+                0.6,
+                0.73,
+                0.83,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.73,
+                0.83,
+                1.0,
+                1.0
+              ]
+            ],
+            "text": "The same color data can wrap a curved 3D surface.",
+            "size": 0.032,
+            "face": "sans",
+            "align": "center"
+          }
+        ]
+      },
+      "editorial_bridge_scene": {
+        "start": 25.916666666666668,
+        "end": 35.45,
+        "graphic": {
+          "kind": "composition",
+          "title": "Measurement, not decoration",
+          "source": "ACTUAL SCREEN CAPTURE + COMPUTED IMAGE ANALYSIS DOCUMENT",
+          "camera": [
+            [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ],
+            [
+              1.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "layers": [
+            {
+              "id": "still",
+              "type": "image",
+              "color": "white",
+              "depth": 0.4,
+              "width": 0.53,
+              "height": 0.65,
+              "track": [
+                [
+                  0.0,
+                  0.31,
+                  0.48,
+                  1.0,
+                  1.0
+                ],
+                [
+                  0.35,
+                  0.26,
+                  0.36,
+                  0.7,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.26,
+                  0.36,
+                  0.7,
+                  1.0
+                ]
+              ],
+              "asset": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.png",
+              "fit": "contain"
+            },
+            {
+              "id": "report",
+              "type": "document",
+              "color": "white",
+              "depth": -0.05,
+              "width": 0.43,
+              "height": 0.7,
+              "track": [
+                [
+                  0.0,
+                  0.76,
+                  0.58,
+                  0.88,
+                  0.0
+                ],
+                [
+                  0.24,
+                  0.74,
+                  0.48,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.74,
+                  0.48,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "asset": "cccccccccccccccccccccccccccccccc.png",
+              "fit": "contain"
+            },
+            {
+              "id": "evidence-label",
+              "type": "text",
+              "color": "gold",
+              "depth": -0.4,
+              "width": 0.4,
+              "height": 0.09,
+              "track": [
+                [
+                  0.0,
+                  0.28,
+                  0.155,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.08,
+                  0.28,
+                  0.155,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.22,
+                  0.28,
+                  0.13,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.28,
+                  0.13,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "text": "03  /  EVIDENCE",
+              "size": 0.032,
+              "face": "mono",
+              "align": "left"
+            },
+            {
+              "id": "report-title",
+              "type": "text",
+              "color": "white",
+              "depth": -0.4,
+              "width": 0.4,
+              "height": 0.18,
+              "track": [
+                [
+                  0.0,
+                  0.28,
+                  0.675,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.18,
+                  0.28,
+                  0.675,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.39,
+                  0.28,
+                  0.65,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.28,
+                  0.65,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "text": "Measure the source.",
+              "size": 0.058,
+              "face": "serif",
+              "align": "left"
+            },
+            {
+              "id": "report-sub",
+              "type": "text",
+              "color": "white",
+              "depth": -0.4,
+              "width": 0.38,
+              "height": 0.16,
+              "track": [
+                [
+                  0.0,
+                  0.26,
+                  0.8150000000000001,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.38,
+                  0.26,
+                  0.8150000000000001,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.58,
+                  0.26,
+                  0.79,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.26,
+                  0.79,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "text": "Dimensions and color values are computed from the original image.",
+              "size": 0.031,
+              "face": "sans",
+              "align": "left"
+            }
+          ]
+        },
+        "editorial": "graphic",
+        "editorial_look": "midnight",
+        "text": "Measurement, not decoration",
+        "chapter": 4
+      },
+      "editorial_bridge_seconds": 0.9
+    },
+    {
+      "type": "big_text",
+      "text": "The image becomes a world",
+      "start": 45.0,
+      "end": 54.55,
+      "frames": 573,
+      "captions": [],
+      "camera": "still",
+      "cinematic_finish": true,
+      "brand": "SKELLYMOTION",
+      "chapter": 6,
+      "editorial": "graphic",
+      "editorial_look": "midnight",
+      "graphic": {
+        "kind": "composition",
+        "title": "The image becomes a world",
+        "source": "ORIGINAL ILLUSTRATION  /  SOURCE-DERIVED TEXTURE  \u00b7  SKELLYMOTION",
+        "camera": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            1.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "layers": [
+          {
+            "id": "orb",
+            "type": "sphere",
+            "color": "white",
+            "depth": 0.02,
+            "width": 0.62,
+            "height": 0.68,
+            "track": [
+              [
+                0.0,
+                0.61,
+                0.48,
+                1.05,
+                1.0
+              ],
+              [
+                0.4,
+                0.69,
+                0.43,
+                1.1,
+                1.0
+              ],
+              [
+                0.75,
+                0.69,
+                0.43,
+                1.1,
+                0.6
+              ],
+              [
+                1.0,
+                0.69,
+                0.43,
+                0.9,
+                0.0
+              ]
+            ],
+            "asset": "dddddddddddddddddddddddddddddddd.png",
+            "fit": "contain",
+            "spin": 0.45,
+            "roughness": 0.32
+          },
+          {
+            "id": "rings",
+            "type": "rings",
+            "color": "mint",
+            "depth": 1.2,
+            "width": 0.79,
+            "height": 0.76,
+            "track": [
+              [
+                0.0,
+                0.67,
+                0.43,
+                0.9,
+                0.0
+              ],
+              [
+                0.3,
+                0.67,
+                0.43,
+                1.0,
+                0.75
+              ],
+              [
+                0.75,
+                0.67,
+                0.43,
+                1.2,
+                0.4
+              ],
+              [
+                1.0,
+                0.67,
+                0.43,
+                1.2,
+                0.0
+              ]
+            ],
+            "harmonics": 0.0
+          },
+          {
+            "id": "closing",
+            "type": "text",
+            "color": "white",
+            "depth": -0.4,
+            "width": 0.4,
+            "height": 0.36,
+            "track": [
+              [
+                0.0,
+                0.24,
+                0.46,
+                1.0,
+                0.0
+              ],
+              [
+                0.22,
+                0.24,
+                0.43,
+                1.0,
+                1.0
+              ],
+              [
+                0.66,
+                0.24,
+                0.43,
+                1.0,
+                1.0
+              ],
+              [
+                0.82,
+                0.24,
+                0.4,
+                1.0,
+                0.0
+              ],
+              [
+                1.0,
+                0.24,
+                0.4,
+                1.0,
+                0.0
+              ]
+            ],
+            "text": "Information becomes a world.",
+            "size": 0.071,
+            "face": "serif",
+            "align": "left"
+          },
+          {
+            "id": "endmark",
+            "type": "text",
+            "color": "white",
+            "depth": -0.4,
+            "width": 0.82,
+            "height": 0.23,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.5,
+                1.0,
+                0.0
+              ],
+              [
+                0.68,
+                0.5,
+                0.5,
+                1.0,
+                0.0
+              ],
+              [
+                0.86,
+                0.5,
+                0.48,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.48,
+                1.0,
+                1.0
+              ]
+            ],
+            "text": "SKELLYMOTION",
+            "size": 0.083,
+            "face": "serif",
+            "align": "center"
+          },
+          {
+            "id": "end-sub",
+            "type": "text",
+            "color": "gold",
+            "depth": -0.4,
+            "width": 0.7,
+            "height": 0.09,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.65,
+                1.0,
+                0.0
+              ],
+              [
+                0.8,
+                0.5,
+                0.65,
+                1.0,
+                0.0
+              ],
+              [
+                0.96,
+                0.5,
+                0.65,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.65,
+                1.0,
+                1.0
+              ]
+            ],
+            "text": "THE ART OF INFORMATION",
+            "size": 0.032,
+            "face": "mono",
+            "align": "center"
+          }
+        ]
+      },
+      "editorial_bridge_scene": {
+        "start": 35.45,
+        "end": 45.0,
+        "graphic": {
+          "kind": "composition",
+          "title": "From pixels to a textured surface",
+          "source": "24 \u00d7 12 AVERAGED COLORS, DISPLAY GAMMA LIFTED  /  PROJECTED 3D SPHERE",
+          "camera": [
+            [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ],
+            [
+              1.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "layers": [
+            {
+              "id": "report",
+              "type": "document",
+              "color": "white",
+              "depth": -0.05,
+              "width": 0.43,
+              "height": 0.7,
+              "track": [
+                [
+                  0.0,
+                  0.74,
+                  0.48,
+                  1.0,
+                  1.0
+                ],
+                [
+                  0.24,
+                  0.91,
+                  0.39,
+                  0.73,
+                  0.0
+                ],
+                [
+                  1.0,
+                  0.91,
+                  0.39,
+                  0.73,
+                  0.0
+                ]
+              ],
+              "asset": "cccccccccccccccccccccccccccccccc.png",
+              "fit": "contain"
+            },
+            {
+              "id": "texture",
+              "type": "image",
+              "color": "white",
+              "depth": 0.4,
+              "width": 0.44,
+              "height": 0.48,
+              "track": [
+                [
+                  0.0,
+                  0.27,
+                  0.48,
+                  0.8,
+                  0.0
+                ],
+                [
+                  0.18,
+                  0.27,
+                  0.47,
+                  1.0,
+                  1.0
+                ],
+                [
+                  0.75,
+                  0.27,
+                  0.47,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.27,
+                  0.47,
+                  0.8,
+                  0.0
+                ]
+              ],
+              "asset": "dddddddddddddddddddddddddddddddd.png",
+              "fit": "contain"
+            },
+            {
+              "id": "orb",
+              "type": "sphere",
+              "color": "white",
+              "depth": 0.02,
+              "width": 0.54,
+              "height": 0.59,
+              "track": [
+                [
+                  0.0,
+                  0.78,
+                  0.48,
+                  0.8,
+                  0.0
+                ],
+                [
+                  0.22,
+                  0.73,
+                  0.45,
+                  1.0,
+                  1.0
+                ],
+                [
+                  0.8,
+                  0.73,
+                  0.45,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.61,
+                  0.48,
+                  1.05,
+                  1.0
+                ]
+              ],
+              "asset": "dddddddddddddddddddddddddddddddd.png",
+              "fit": "contain",
+              "spin": 0.45,
+              "roughness": 0.32
+            },
+            {
+              "id": "texture-label",
+              "type": "text",
+              "color": "gold",
+              "depth": -0.4,
+              "width": 0.43,
+              "height": 0.09,
+              "track": [
+                [
+                  0.0,
+                  0.28,
+                  0.165,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.08,
+                  0.28,
+                  0.165,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.22,
+                  0.28,
+                  0.14,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.28,
+                  0.14,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "text": "04  /  RECONSTRUCT",
+              "size": 0.032,
+              "face": "mono",
+              "align": "left"
+            },
+            {
+              "id": "texture-title",
+              "type": "text",
+              "color": "white",
+              "depth": -0.4,
+              "width": 0.42,
+              "height": 0.18,
+              "track": [
+                [
+                  0.0,
+                  0.28,
+                  0.785,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.25,
+                  0.28,
+                  0.785,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.42,
+                  0.28,
+                  0.76,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.28,
+                  0.76,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "text": "Map color onto geometry.",
+              "size": 0.051,
+              "face": "serif",
+              "align": "left"
+            },
+            {
+              "id": "texture-explain",
+              "type": "text",
+              "color": "white",
+              "depth": -0.4,
+              "width": 0.42,
+              "height": 0.12,
+              "track": [
+                [
+                  0.0,
+                  0.73,
+                  0.855,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.43,
+                  0.73,
+                  0.855,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.6,
+                  0.73,
+                  0.83,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.73,
+                  0.83,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "text": "The same color data can wrap a curved 3D surface.",
+              "size": 0.032,
+              "face": "sans",
+              "align": "center"
+            }
+          ]
+        },
+        "editorial": "graphic",
+        "editorial_look": "midnight",
+        "text": "From pixels to a textured surface",
+        "chapter": 5
+      },
+      "editorial_bridge_seconds": 0.9
+    }
+  ],
+  "director": "local",
+  "audio_start": 0.0,
+  "silent": false,
+  "cinematic_finish": true,
+  "caption_style": "off",
+  "caption_track": [],
+  "crossfades": false,
+  "sound_design": true,
+  "music_gain": 1.65,
+  "cue_gain": 0.0,
+  "voice_style": "natural",
+  "score_bpm": 88,
+  "beat_locked_cuts": [
+    {
+      "frame": 491,
+      "beat": 12,
+      "shift_frames": 0
+    },
+    {
+      "frame": 982,
+      "beat": 24,
+      "shift_frames": 0
+    },
+    {
+      "frame": 1555,
+      "beat": 38,
+      "shift_frames": 0
+    },
+    {
+      "frame": 2127,
+      "beat": 52,
+      "shift_frames": 0
+    },
+    {
+      "frame": 2700,
+      "beat": 66,
+      "shift_frames": 0
+    }
+  ]
+}

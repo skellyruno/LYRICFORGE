@@ -1,0 +1,11 @@
+# V9 continuous cinematic motion — source candidate
+
+Continuation of the local V8 source; not a replacement of the newer remote LYRICFORGE branch. Existing plugin rendering path, captions, user projects and V8 archive remain intact.
+
+- Join matching documentary compositions across speech boundaries (same chapter, graphic/asset, contiguous verified video trims; bounded 16s). Keep independent caption timing, exact frame sums, and avoid joining unrelated or unknown-duration video windows.
+- New source-capture camera: real user-declared screenshot, subpixel affine macro-to-wide shot, matte feather, atmospheric environment and subtle bounded reflection. No simulated controls, fabricated physical hardware or claimed true 3D. Applies to documentary capture stills only. Creator's existing capture toggle explicitly marks all attachments as genuine captures; mixed media should remain automatic and be tagged individually in Director. Semantic reranking clears stale provenance and crop flags.
+- Musical development with gradual intensity arc and counter-melody; bounded, block-consistent note tails; zero automatic documentary Creator foley. Plugin bed peak limits preserved. Not a licensed orchestral soundtrack or fresh neural voice inference. Existing external Brand Kit music path remains available.
+- Offline JUCE/Quick4 kit SHA256 manifest verified (all 14 entries); Python/FFmpeg app does not require a JUCE rebuild. Browser actual app navigation blocked by administrator, no fresh UI image claimed. Windows packaging and remote integration unverified; do not merge or replace remote branch wholesale.
+
+## Validation
+80 targeted Python tests passed, 1 skipped; editor and autonomous JS smoke suites passed. Initial music chunk consistency test failed due to unbounded note tails and insufficient lookback; corrected and passed. Product macro matte hard edge spotted in rendered frame, corrected and re-inspected. Benchmark uses existing verified Kokoro Michael narration (first 23.8s of prior recording) and earlier genuine V5 editor/Creator screenshots, not a new live recording. Script-derived process graphic; no private reference media included. This is a motion benchmark, not a new documentary. No true 3D, optical flow, explicit beat-locked cuts, or new model inference yet.

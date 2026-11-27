@@ -1,0 +1,56 @@
+{
+  "render": {
+    "scenes": 5,
+    "rendered": 5,
+    "cached": 0,
+    "duration": 45.0,
+    "crossfades": 0,
+    "guided_replays": 0,
+    "recorded_scenes": 0,
+    "beat_locked_cuts": [
+      {
+        "frame": 491,
+        "beat": 12,
+        "shift_frames": 0
+      },
+      {
+        "frame": 982,
+        "beat": 24,
+        "shift_frames": 0
+      },
+      {
+        "frame": 1555,
+        "beat": 38,
+        "shift_frames": 0
+      },
+      {
+        "frame": 2045,
+        "beat": 50,
+        "shift_frames": 0
+      }
+    ],
+    "score_bpm": 88,
+    "spatial_shots": 0
+  },
+  "review": {
+    "errors": 0,
+    "warnings": 0,
+    "caption_overlaps": 0,
+    "repeated_shots": 0,
+    "issues": []
+  },
+  "fft": [
+    {
+      "label": "440 Hz",
+      "value": 1.0
+    },
+    {
+      "label": "880 Hz",
+      "value": 0.5
+    },
+    {
+      "label": "1320 Hz",
+      "value": 0.25
+    }
+  ]
+}

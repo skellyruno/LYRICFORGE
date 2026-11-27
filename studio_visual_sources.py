@@ -185,7 +185,7 @@ def fill_missing(plan, folder: Path, allow_network=False, check_cancel=lambda:No
     """Fill missing shots, preferring exact query cache. Network failures fall back to cards."""
     if folder.is_symlink():
         raise ValueError('Linked asset folder')
-    pending=[s for s in plan['scenes'] if s['type'] in ('big_text','visualizer') and not s.get('asset')]
+    pending=[s for s in plan['scenes'] if s['type'] in ('big_text','visualizer') and not s.get('asset') and s.get('editorial') not in ('chapter','graphic')]
     searched={}; used=set(); fetched=0; reused=0; failed=0; count=0
     for i,scene in enumerate(pending):
         check_cancel()
@@ -223,6 +223,7 @@ def fill_missing(plan, folder: Path, allow_network=False, check_cancel=lambda:No
         check_cancel()
         if match:
             key,meta=match
+            scene.pop('editorial',None)
             scene.update(type='broll',asset=key,asset_name=meta['name'],source=meta['source'],text='',camera='push' if i%2==0 else 'pull')
     plan['visual_sources']={'downloaded':fetched,'cached':reused,'queries':count,'remaining_cards':sum(s['type']=='big_text' for s in plan['scenes'])}
     if pending:

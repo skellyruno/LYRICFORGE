@@ -590,3 +590,44 @@ def render(plan: dict, audio: Path, assets_folder: Path, work: Path, output: Pat
         return {'scenes':len(clips),'rendered':made,'cached':reused,'duration':duration,'render_elapsed_seconds':round(time.monotonic()-started,3),'performance_mode':mode,'crossfades':count,'guided_replays':sum(bool(s.get('guided_replay')) and not s.get('replay_fallback') for s in plan['scenes']),'recorded_scenes':sum(bool(s.get('recorded_demo')) for s in plan['scenes'])}
     finally:
         shutil.rmtree(scratch,ignore_errors=True)
+
+
+# Explicit internal routing: Creator's research/theme/proof and music/plugin
+# contracts stay on the original engine. Standard cinematic documentaries use
+# the independently tested editorial renderer and retain its complete plan.
+import studio_editorial_director as _editorial_engine
+_creator_make_plan = make_plan
+_creator_render = render
+configure_spatial = _editorial_engine.configure_spatial
+encoded_frames = _editorial_engine.encoded_frames
+
+def make_plan(lines, duration, assets, preset, brand='SKELLYMOTION', *,
+              reference_profile=None, editorial_style='standard',
+              visual_theme='legacy', skell_terminology=False, **options):
+    theme.validate(visual_theme)
+    if editorial_style not in ('standard','reference'):
+        raise ValueError('Unknown editorial style')
+    if (preset=='doc' and options.get('cinematic') and editorial_style=='standard'
+            and visual_theme=='legacy' and not skell_terminology
+            and not any(row.get('proof_label') or row.get('source_url') for row in lines)):
+        result=_editorial_engine.make_plan(lines,duration,assets,preset,brand,
+                                         reference_profile=reference_profile,**options)
+        result.update(editorial_engine='v20',editorial_style=editorial_style,
+                      visual_theme=visual_theme,skell_terminology=False)
+        return result
+    return _creator_make_plan(lines,duration,assets,preset,brand,
+                              editorial_style=editorial_style,visual_theme=visual_theme,
+                              skell_terminology=skell_terminology,**options)
+
+def render(plan, audio, assets_folder, work, output, settings, size, make_ass,
+           encode, check_cancel, progress, music=None):
+    # Old authored documentary plans lack the engine marker; their explicit
+    # composition/spatial fields are sufficient evidence of editorial origin.
+    editorial = (plan.get('editorial_engine')=='v20' or
+        (plan.get('preset')=='doc' and plan.get('cinematic_finish') and
+         plan.get('visual_theme','legacy')=='legacy' and
+         any(s.get('editorial') or s.get('graphic') or s.get('spatial_motion') or
+             s.get('editorial_bridge_scene') for s in plan['scenes'])))
+    fn=_editorial_engine.render if editorial else _creator_render
+    return fn(plan,audio,assets_folder,work,output,settings,size,make_ass,
+              encode,check_cancel,progress,music)

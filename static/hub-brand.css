@@ -1,0 +1,59 @@
+/* Exact SkellHub artwork, adapted to Motion's existing welcome layout. */
+.brand-symbol{clip-path:none!important;border-radius:10px;background:radial-gradient(circle,#1e1e20,#0a0a0c 73%)!important;box-shadow:inset 0 1px color-mix(in srgb, color-mix(in srgb, var(--studio-accent) 38%, #f0f0f0) 10%, transparent),0 0 15px color-mix(in srgb, color-mix(in srgb, var(--studio-accent) 100%, #dedede) 5%, transparent);padding:2px;border:0}
+.brand-symbol img{display:block;width:100%!important;height:100%!important;object-fit:contain;filter:drop-shadow(0 0 4px color-mix(in srgb, color-mix(in srgb, var(--studio-accent) 100%, #dcdcdc) 31%, transparent))}
+.welcome-overlay,html.desktop-mode .welcome-overlay{display:grid;grid-template-columns:minmax(0,660px) minmax(180px,360px);gap:clamp(16px,4vw,60px);justify-content:center;align-content:safe center;align-items:center;padding:24px clamp(18px,4vw,56px)}
+.welcome-overlay:before,.welcome-overlay:after{display:none!important;content:none!important}
+.welcome-content,html.desktop-mode .welcome-content{max-width:660px;width:100%;min-width:0;margin:0}
+.welcome-hub-art{width:100%;display:grid;place-items:center;align-self:center;pointer-events:none;min-width:0;isolation:isolate}
+.motion-radar{position:relative;width:min(100%,360px);aspect-ratio:531/505;display:grid;place-items:center;isolation:isolate}
+.motion-radar img{display:block;width:100%;height:100%;object-fit:contain;mix-blend-mode:screen;filter:drop-shadow(0 0 11px color-mix(in srgb, color-mix(in srgb, var(--studio-accent) 100%, #dadada) 18%, transparent));mask-image:radial-gradient(circle closest-side at center,#000 87%,transparent 100%);-webkit-mask-image:radial-gradient(circle closest-side at center,#000 87%,transparent 100%)}
+.motion-radar .radar-sweep{pointer-events:none;position:absolute;inset:14%;border:1px solid color-mix(in srgb, color-mix(in srgb, var(--studio-accent) 100%, #dadada) 23%, transparent);border-left-color:color-mix(in srgb, color-mix(in srgb, var(--studio-accent) 100%, #dadada) 0%, transparent);border-right-color:color-mix(in srgb, color-mix(in srgb, var(--studio-accent) 100%, #dedede) 56%, transparent);border-radius:50%;transform-origin:center;animation:motion-hub-sweep 24s linear infinite}
+.motion-radar .radar-pulse{pointer-events:none;position:absolute;inset:35%;border:1px solid color-mix(in srgb, color-mix(in srgb, var(--studio-accent) 100%, #dcdcdc) 47%, transparent);border-radius:50%;box-shadow:0 0 12px color-mix(in srgb, color-mix(in srgb, var(--studio-accent) 100%, #dcdcdc) 13%, transparent),inset 0 0 12px color-mix(in srgb, color-mix(in srgb, var(--studio-accent) 100%, #dcdcdc) 7%, transparent);animation:motion-hub-pulse 5.4s ease-in-out infinite}
+.welcome-hub-label{margin-top:10px;font-size:10px;letter-spacing:.18em;color:color-mix(in srgb, var(--studio-accent) 6%, #b3b3b3);text-align:center}
+@keyframes motion-hub-sweep{to{transform:rotate(360deg)}}
+@keyframes motion-hub-pulse{0%,100%{opacity:.38;transform:scale(.96)}50%{opacity:.80;transform:scale(1.055)}}
+html.motion-document-hidden .motion-radar span{animation-play-state:paused!important}
+html:has(#startupPerformance option[value=eco]:checked) .motion-radar span,html:has(#performanceMode option[value=eco]:checked) .motion-radar span{animation:none!important}
+@media(prefers-reduced-motion:reduce){.motion-radar span{animation:none!important}}
+@media(max-width:900px){.welcome-overlay,html.desktop-mode .welcome-overlay{grid-template-columns:minmax(0,680px);align-content:start;padding:18px}.welcome-hub-art{display:none}}
+@media(max-height:720px){.welcome-overlay,html.desktop-mode .welcome-overlay{align-content:start}.welcome-hub-art{align-self:center}}
+/* Decorative children must not consume a grid cell. */
+.welcome-overlay>.welcome-grain{display:none!important}
+.welcome-overlay>.welcome-content{grid-column:1;grid-row:1}
+.welcome-overlay>.welcome-hub-art{grid-column:2;grid-row:1}
+.welcome-content h1,html.desktop-mode .welcome-content h1{font-size:clamp(40px,4.3vw,68px);line-height:.99;letter-spacing:-.055em;margin:12px 0 14px}
+.welcome-content>p,html.desktop-mode .welcome-content>p{margin:0 0 16px;max-width:530px}
+@media(max-height:760px){.welcome-content h1,html.desktop-mode .welcome-content h1{font-size:clamp(36px,4vw,54px);margin:8px 0 10px}.welcome-content>p{margin-bottom:10px}.welcome-features{margin-top:10px}}
+
+/* Hub identity v3: sampled from the original skull PNG. */
+:root{--accent:color-mix(in srgb, var(--studio-accent) 100%, #dcdcdc);--accent-dark:#2d2d2f;--hub-accent:color-mix(in srgb, var(--studio-accent) 100%, #dcdcdc);--hub-accent-soft:color-mix(in srgb, var(--studio-accent) 39%, #efefef)}
+.brand-name span,.welcome-content h1 em,.welcome-kicker,.upload-arrow,.rail-item.active,.eyebrow,.flex-label span{color:var(--hub-accent)}
+.green-dot,.live-indicator{background:var(--hub-accent);box-shadow:0 0 11px color-mix(in srgb, color-mix(in srgb, var(--studio-accent) 100%, #dcdcdc) 44%, transparent)}
+.brand-pill{color:var(--hub-accent);border-color:color-mix(in srgb, var(--studio-accent) 35%, #626262)}
+.primary-btn,.play-button{background:var(--hub-accent);color:#1b1b1d;box-shadow:0 0 14px color-mix(in srgb, color-mix(in srgb, var(--studio-accent) 100%, #dcdcdc) 9%, transparent)}
+.primary-btn:hover:not(:disabled),.play-button:hover{background:color-mix(in srgb, var(--studio-accent) 100%, #e6e6e6)}
+.welcome-creator-btn{color:var(--hub-accent);background:#212123;border-color:color-mix(in srgb, var(--studio-accent) 34%, #626262)}
+.welcome-creator-btn:hover{background:#2c2c2e;border-color:var(--hub-accent)}
+.hero-upload{border-color:color-mix(in srgb, var(--studio-accent) 56%, #9e9e9e);background:color-mix(in srgb, #1a1a1c 91%, transparent)}
+.hero-upload:hover,.hero-upload.drag-over{border-color:var(--hub-accent);background:#28282a}
+.upload-glyph{color:var(--hub-accent);background:#2b2b2d;border-color:color-mix(in srgb, var(--studio-accent) 35%, #646464)}
+.welcome-secondary-actions .demo-btn,.welcome-secondary-actions #openProjectsWelcome{color:var(--hub-accent-soft)}
+.rail-item.active{background:#202022;border-color:color-mix(in srgb, var(--studio-accent) 29%, #5a5a5a)}
+.lyric-clip{border-color:color-mix(in srgb, var(--studio-accent) 73%, #aaaaaa);background:#2f2f31;color:color-mix(in srgb, var(--studio-accent) 20%, #f5f5f5)}
+.lyric-clip.selected{background:color-mix(in srgb, var(--studio-accent) 34%, #585858);box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--studio-accent) 100%, #e8e8e8)}
+.playhead{background:var(--hub-accent);box-shadow:0 0 5px color-mix(in srgb, color-mix(in srgb, var(--studio-accent) 100%, #dcdcdc) 50%, transparent)}
+.welcome-overlay,html.desktop-mode .welcome-overlay{grid-template-columns:minmax(0,660px) minmax(0,540px);gap:clamp(18px,3vw,52px);background:radial-gradient(ellipse at 78% 45%,#232325 0%,#141416 39%,#101012 75%,#0d0d0f)}
+.motion-radar{width:min(100%,540px,70vh);aspect-ratio:531/505;isolation:isolate}
+/* Ring layer rotates; central skull stays upright. Both use original asset. */
+.motion-radar img{transform-origin:48.97% 49.5%;animation:motion-hub-rotation 18s linear infinite;mask-image:radial-gradient(circle closest-side at 48.97% 49.5%,transparent 0 29%,#000 31% 92%,transparent 100%);-webkit-mask-image:radial-gradient(circle closest-side at 48.97% 49.5%,transparent 0 29%,#000 31% 92%,transparent 100%);filter:none;will-change:transform}
+.motion-radar::after{content:"";position:absolute;inset:0;background:url('/static/skelly-radar.png') center/contain no-repeat;mix-blend-mode:screen;mask-image:radial-gradient(circle closest-side at 48.97% 49.5%,#000 0 29%,transparent 31%);-webkit-mask-image:radial-gradient(circle closest-side at 48.97% 49.5%,#000 0 29%,transparent 31%);pointer-events:none}
+.motion-radar .radar-sweep{display:none}
+.motion-radar .radar-pulse{inset:34.7% 35.5% 35.7% 34.5%;border-color:color-mix(in srgb, color-mix(in srgb, var(--studio-accent) 100%, #dcdcdc) 36%, transparent);box-shadow:none;animation:motion-hub-pulse 5.4s ease-in-out infinite}
+@keyframes motion-hub-rotation{to{transform:rotate(360deg)}}
+html.motion-document-hidden .motion-radar img,html:has(#welcome.hidden) .motion-radar img,html:has(#welcome.hidden) .motion-radar span{animation-play-state:paused!important;will-change:auto}
+html:has(#startupPerformance option[value=eco]:checked) .motion-radar img,html:has(#performanceMode option[value=eco]:checked) .motion-radar img{animation:none!important;will-change:auto}
+@media(prefers-reduced-motion:reduce){.motion-radar img{animation:none!important;will-change:auto}}
+@media(max-width:900px){.welcome-overlay,html.desktop-mode .welcome-overlay{grid-template-columns:minmax(0,680px);align-content:start;padding:18px}.welcome-hub-art{display:none}}
+/* Prevent the rotated rectangular source bounds from creating scrollbars. */
+.motion-radar{overflow:clip;border-radius:50%}
+.welcome-hub-art{overflow:hidden}

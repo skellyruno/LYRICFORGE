@@ -1,0 +1,38 @@
+/* Dark Studio V5. UI-only; project palette and exported media are independent. */
+:root{color-scheme:dark;--studio-accent:#36FF17;--hub-accent:var(--studio-accent);--hub-accent-soft:color-mix(in srgb,var(--studio-accent) 45%,#e3e5e4);--accent:var(--studio-accent);--accent-dark:#222426;--bg:#08090b;--panel:#111214;--surface:#17191c;--line:#292c30;--text:#eff1f2;--dim:#94999e;--rail:#0c0d10;--muted:#b5b8bc}
+:root[data-studio-theme="signal"]{--studio-accent:#36FF17;--radar-hue:0.000deg}
+:root[data-studio-theme="ice"]{--studio-accent:#36DFFF;--radar-hue:77.569deg}
+:root[data-studio-theme="violet"]{--studio-accent:#B992FF;--radar-hue:149.485deg}
+:root[data-studio-theme="ember"]{--studio-accent:#FFAD54;--radar-hue:-80.755deg}
+:root[data-studio-theme="bone"]{--studio-accent:#E1D9C8;--radar-hue:-71.183deg}
+:root[data-studio-theme="crimson"]{--studio-accent:#FF5876;--radar-hue:237.239deg}
+html,body,.app{background:#08090b;color:var(--text)}
+.topbar,.timeline-pane,.rail,.playback-bar{background:#0c0d10;border-color:#27292c}
+.settings-panel,.panel,.modal-overlay .review-modal{background:#111214;border-color:#292c30}
+.workspace{background:radial-gradient(ellipse at 50% 35%,#181a1d,#101114 60%,#090a0d)}
+.welcome-overlay,html.desktop-mode .welcome-overlay{background:radial-gradient(ellipse at 79% 43%,#141718 0%,#0c0d0f 44%,#08090b 80%)}
+.primary-btn,.play-button{background:var(--studio-accent);color:#090b0a;font-weight:750}
+.primary-btn:hover:not(:disabled),.play-button:hover{background:color-mix(in srgb,var(--studio-accent) 80%,white)}
+.brand-name span,.welcome-content h1 em,.welcome-kicker,.eyebrow,.rail-item.active,.flex-label span,.upload-arrow{color:var(--studio-accent)}
+.green-dot,.live-indicator,.playhead{background:var(--studio-accent)}
+.brand-symbol{background:#101112!important}
+.motion-radar img{filter:hue-rotate(var(--radar-hue,0deg))!important;animation:motion-hub-rotation 18s linear infinite}
+.motion-radar::after{filter:hue-rotate(var(--radar-hue,0deg))}
+.motion-radar .radar-pulse{border-color:color-mix(in srgb,var(--studio-accent) 35%,transparent)}
+html:has(#startupPerformance option[value=eco]:checked) .motion-radar img,html:has(#performanceMode option[value=eco]:checked) .motion-radar img{animation:none!important}
+@media(prefers-reduced-motion:reduce){.motion-radar img{animation:none!important}}
+#studioTheme{height:34px;border:1px solid #363a40;border-radius:7px;background:#16181b;color:var(--studio-accent);font-size:11px;padding:0 7px;max-width:120px;min-width:74px;flex-shrink:0;cursor:pointer}
+#studioTheme:focus-visible{outline:2px solid var(--studio-accent);outline-offset:2px}
+@media(max-width:760px){#studioTheme{max-width:80px;min-width:50px}.top-actions{gap:4px}.brand-pill{display:none}}
+/* Keep all navigation visible and reserve space for the lyric list. */
+html.desktop-mode .rail{gap:3px;padding:7px 8px;overflow-y:auto}
+html.desktop-mode .rail-item{flex:1 0 34px;min-height:34px;height:auto;max-height:54px;gap:1px;font-size:9px}
+html.desktop-mode .rail-ico{font-size:17px;line-height:19px}
+html.desktop-mode .rail-bottom{display:none}
+html.desktop-mode #panel-lyrics{overflow-y:auto;overscroll-behavior:contain}
+html.desktop-mode #lyricsEditor{flex:1 0 120px;min-height:120px;padding:9px 12px}
+html.desktop-mode .word-timing-editor{max-height:155px;flex-shrink:0}
+html.desktop-mode .word-timing-list{max-height:90px}
+html.desktop-mode #panel-lyrics .panel-footer{flex-shrink:0;padding:8px 12px}
+html.desktop-mode #panel-lyrics .helper{margin-top:5px}
+:root[data-studio-theme="bone"] .motion-radar img,:root[data-studio-theme="bone"] .motion-radar::after{filter:hue-rotate(var(--radar-hue)) saturate(.15)!important}

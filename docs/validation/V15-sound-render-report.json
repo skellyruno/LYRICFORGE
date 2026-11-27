@@ -1,0 +1,64 @@
+{
+  "render": {
+    "picture_review": {
+      "samples": 90,
+      "near_empty": 0,
+      "static_pair_fraction": 0.0674,
+      "median_luma": 13.4,
+      "warnings": 0,
+      "issues": [],
+      "basis": "Decoded-frame heuristic review; not a semantic, text-legibility or artistic approval.",
+      "layout": {
+        "checked_text_samples": 57,
+        "warnings": 0,
+        "issues": [],
+        "basis": "Actual glyph bounds at representative layer-clock positions; intentional overlaps need review."
+      },
+      "repair": {
+        "before": 0,
+        "after": 0,
+        "corrections": [],
+        "basis": "Bounded sampled glyph review; does not guarantee all-frame or artistic quality."
+      }
+    },
+    "scenes": 5,
+    "rendered": 5,
+    "cached": 0,
+    "duration": 45.0,
+    "crossfades": 0,
+    "guided_replays": 0,
+    "recorded_scenes": 0,
+    "beat_locked_cuts": [
+      {
+        "frame": 491,
+        "beat": 12,
+        "shift_frames": 0
+      },
+      {
+        "frame": 982,
+        "beat": 24,
+        "shift_frames": 0
+      },
+      {
+        "frame": 1555,
+        "beat": 38,
+        "shift_frames": 0
+      },
+      {
+        "frame": 2045,
+        "beat": 50,
+        "shift_frames": 0
+      }
+    ],
+    "score_bpm": 88,
+    "spatial_shots": 0
+  },
+  "review": {
+    "errors": 0,
+    "warnings": 0,
+    "caption_overlaps": 0,
+    "repeated_shots": 0,
+    "issues": []
+  },
+  "score": "original cinematic arc, music-led"
+}

@@ -157,9 +157,6 @@ def crossfade_clips(clips, scenes, fps, scratch, encode, check_cancel, duration,
 def original_bed(plan, path, *, rate=24000, include_music=True, check_cancel=lambda:None,music_gain=1.,cue_gain=1.):
     """Original understated synth bed, generated in bounded blocks. No samples or
     external rights dependencies. Optional gentle transition swells."""
-    from studio_signal_story import pause_gain
-    rests=plan.get('score_rests',[])
-    pause_gain(np.array([0.]),rests)
     duration=float(plan['duration']);total=max(1,round(duration*rate));rng=np.random.default_rng(1701)
     cut=[(float(s['start']),s.get('type','big_text'),s.get('title_motion',False)) for s in plan['scenes'][1:]]
     action=sorted(float(s['start'])+replay_hit(float(s['end'])-float(s['start'])) for s in plan['scenes'] if s.get('guided_replay') and s.get('before_asset') and not s.get('replay_fallback'))
@@ -206,7 +203,6 @@ def original_bed(plan, path, *, rate=24000, include_music=True, check_cancel=lam
                     tick=.013*np.sin(2*np.pi*860*z[mask])*np.exp(-z[mask]*62)*cue_gain
                     left[mask]+=tick;right[mask]+=tick
             fade=np.minimum(1,t/.35)*np.minimum(1,np.maximum(0,(duration-t)/.65));stereo=np.column_stack((left*fade,right*fade))
-            if rests:stereo*=pause_gain(t,rests)[:,None]
             wav.writeframes(np.round(np.clip(stereo,-.99,.99)*32767).astype('<i2').tobytes())
     return path
 
@@ -216,3 +212,20 @@ def voice_chain(style):
     if style=='off':return base
     if style=='present':return base+',highpass=f=95,equalizer=f=280:t=q:w=1:g=-2,equalizer=f=3200:t=q:w=1:g=2,lowpass=f=13000,acompressor=threshold=0.09:ratio=2.5:attack=8:release=120,loudnorm=I=-16:TP=-2:LRA=7,aresample=48000'
     return base+',highpass=f=80,lowpass=f=11000,acompressor=threshold=0.10:ratio=2:attack=12:release=120,loudnorm=I=-17:TP=-2:LRA=7,aresample=48000'
+
+
+# Preserve the Creator caption/transition path for existing plans. Explicit
+# documentary marker/auto captions use the exact editorial implementation.
+import studio_editorial_cinematic as _editorial_cinema
+_creator_write_kinetic_ass = write_kinetic_ass
+_creator_voice_chain = voice_chain
+silent_voice = _editorial_cinema.silent_voice
+
+def write_kinetic_ass(plan,width,height,target):
+    if (plan.get('editorial_engine')=='v20' or plan.get('caption_style') in ('marker','auto')
+            or (plan.get('preset')=='doc' and plan.get('caption_track') is not None)):
+        return _editorial_cinema.write_kinetic_ass(plan,width,height,target)
+    return _creator_write_kinetic_ass(plan,width,height,target)
+
+def voice_chain(style, *, silent=False):
+    return _editorial_cinema.voice_chain(style,silent=True) if silent else _creator_voice_chain(style)

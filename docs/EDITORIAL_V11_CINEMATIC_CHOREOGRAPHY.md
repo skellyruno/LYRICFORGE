@@ -1,0 +1,15 @@
+# V11 cinematic choreography — local source candidate
+Continuation of the preserved V10 archive; shared SkellWorld and repository development instructions retained. No changes to Creator controls or the plugin-walkthrough path. Offline Quick4 kit from November 26 verified 13/13 SHA-256 entries; JUCE is not used by this Python/FFmpeg renderer.
+
+## Implemented
+- Two independent perspective-projected planes for long landscape capture scenes: genuine source detail and full UI, coordinated orbit/dolly, rack-focus approximation, complete sharp final capture. No synthetic control values, no physical reconstruction. Directional diffuse/rough-specular shading on extruded display housing and two broad studio lights; captured screen pixels remain unmodified at the full hold. Portrait and short scenes use one plane.
+- Incoming authored typography/graphics enter intact instead of being cut in half by a directional wipe. Authored compositions (chapter, statement, diagram, genuine source document) can leave as a perspective-mapped plane, revealing another authored composition, a capture or explicitly tagged B-roll. Footage clock and original source trim are retained. Recorded plugin demonstrations remain excluded. Reverse footage-to-authored spatial transitions remain pending.
+- Explicit matched-source shot intent (document, close-up, footage) breaks ties in documentary media selection; genuine focus metadata retained. No fabricated evidence or general-purpose reference understanding. An optional local semantic model remains separate. Semantic replacement clears stale transition provenance.
+- Animated process graphics add a traveling reveal signal and secondary pulse. These are illustrative, not measured audio or invented facts.
+- Original documentary score adds a melodic development, warm low harmony and a late resolving piano phrase, while maintaining 88 BPM beat clock. Source speech and independent captions stay unchanged. Plugin score exact sample equality at three one-second intervals compared with V10. No third-party music or narration generated.
+
+## Verification
+- 84 targeted Python tests passed on the first V11 candidate. Following the footage transition addition, 31 focused tests passed, including exact-clock 144-frame rendered document-to-footage regression, perspective endpoints, source role/provenance, beat clock and score block consistency. Counts overlap, not 115 unique tests.
+- Editor and autonomous frontend smoke suites passed. Fresh browser/native UI capture not verified; no user-facing interface changes in this pass.
+- First rendered capture pose visually inspected; crop narrowed and main-plane blur softened, then corrected pose and encoded first shot inspected. The full comparison film uses prior genuine captures and the existing verified Kokoro Michael narration, not fresh inference. No source media or model weights bundled.
+- Source candidate only; no GitHub push or main merge, no verified Windows binary. Lighting is analytic and DOF is layer blur; not PBR/ray tracing. Music quality and reference fidelity require user approval.

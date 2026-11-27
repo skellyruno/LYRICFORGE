@@ -107,3 +107,10 @@ def test_recovery_launchers_are_packaged_and_point_to_exe():
         assert f"Copy-Item -LiteralPath 'SkellyMotion-{mode}.cmd'" in build
     script = (root / "static/app.js").read_text()
     assert "if(covered&&!state.playing&&!state.lines.length)return;" in script
+    import re, shutil, subprocess
+    match = re.search(r"function previewInterval\([^\n]+\)\{[^}]+\}", script)
+    assert match, "Missing idle preview cadence helper"
+    if shutil.which("node"):
+        result = subprocess.run(["node", "-e", match.group(0) + ";if(previewInterval(true,false,false,'turbo')<200||previewInterval(false,true,false,'turbo')<200||previewInterval(false,false,true,'turbo')>20)process.exit(1)"], capture_output=True, text=True)
+        assert result.returncode == 0, result.stderr
+    assert "if(state.backgroundIsVideo&&!state.playing&&!bgVid.paused)bgVid.pause();" in script

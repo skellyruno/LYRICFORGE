@@ -1,0 +1,92 @@
+{
+  "render": {
+    "picture_review": {
+      "samples": 82,
+      "near_empty": 0,
+      "static_pair_fraction": 0.0247,
+      "median_luma": 18.49,
+      "warnings": 0,
+      "issues": [],
+      "basis": "Decoded-frame heuristic review; not a semantic, text-legibility or artistic approval.",
+      "layout": {
+        "checked_text_samples": 61,
+        "warnings": 0,
+        "issues": [],
+        "basis": "Actual glyph bounds at representative layer-clock positions; intentional overlaps need review."
+      },
+      "repair": {
+        "before": 0,
+        "after": 0,
+        "corrections": [],
+        "basis": "Bounded sampled glyph review; does not guarantee all-frame or artistic quality."
+      }
+    },
+    "scenes": 5,
+    "rendered": 0,
+    "cached": 5,
+    "duration": 40.916666666666664,
+    "crossfades": 0,
+    "guided_replays": 0,
+    "recorded_scenes": 0,
+    "beat_locked_cuts": [
+      {
+        "frame": 491,
+        "beat": 12,
+        "shift_frames": 0
+      },
+      {
+        "frame": 982,
+        "beat": 24,
+        "shift_frames": 0
+      },
+      {
+        "frame": 1473,
+        "beat": 36,
+        "shift_frames": 0
+      },
+      {
+        "frame": 1964,
+        "beat": 48,
+        "shift_frames": 0
+      }
+    ],
+    "score_bpm": 88,
+    "spatial_shots": 0
+  },
+  "review": {
+    "errors": 0,
+    "warnings": 0,
+    "caption_overlaps": 0,
+    "repeated_shots": 0,
+    "issues": []
+  },
+  "storyboard": {
+    "candidates": [
+      {
+        "name": "seed-39",
+        "score": 1.223242,
+        "layout_warnings": 0,
+        "near_empty": 0,
+        "tonal_range": 0.4248,
+        "motion": 0.0668
+      },
+      {
+        "name": "seed-7",
+        "score": 1.163334,
+        "layout_warnings": 0,
+        "near_empty": 0,
+        "tonal_range": 0.3947,
+        "motion": 0.067
+      },
+      {
+        "name": "seed-18",
+        "score": 1.090724,
+        "layout_warnings": 0,
+        "near_empty": 0,
+        "tonal_range": 0.3696,
+        "motion": 0.0558
+      }
+    ],
+    "basis": "Rendered-frame contrast, motion, empty-frame and supplied layout checks; not semantic or artistic approval."
+  }
+}
