@@ -26,14 +26,25 @@ jobs:
           update: true
           install: >-
             git make diffutils
-            mingw-w64-x86_64-toolchain mingw-w64-x86_64-pkgconf mingw-w64-x86_64-nasm
+            mingw-w64-x86_64-toolchain mingw-w64-x86_64-pkgconf mingw-w64-x86_64-nasm mingw-w64-x86_64-ccache
             mingw-w64-x86_64-x264 mingw-w64-x86_64-libass mingw-w64-x86_64-zlib mingw-w64-x86_64-libiconv
             mingw-w64-x86_64-libvpx mingw-w64-x86_64-dav1d mingw-w64-x86_64-opus mingw-w64-x86_64-libvorbis
             mingw-w64-x86_64-lame
             mingw-w64-x86_64-ffnvcodec-headers mingw-w64-x86_64-amf-headers mingw-w64-x86_64-libvpl
+      - uses: actions/cache/restore@v4
+        with:
+          path: .shared-ccache
+          key: shared-ffmpeg-813-mingw-${{ github.run_id }}
+          restore-keys: |
+            shared-ffmpeg-813-mingw-
       - name: Build one FFmpeg 8.1.3 shared native stack
         shell: msys2 {0}
         run: bash packaging/shared-media/build_shared_ffmpeg.sh
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .shared-ccache
+          key: shared-ffmpeg-813-mingw-${{ github.run_id }}
       - name: Check native CLI with Windows system paths only
         shell: pwsh
         run: |

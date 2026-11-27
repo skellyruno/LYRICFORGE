@@ -6,6 +6,7 @@ param(
 )
 $ErrorActionPreference='Stop'
 $root=(Resolve-Path "$PSScriptRoot/../..").Path
+$python=(Get-Command python).Source
 Set-Location $root
 $fixtures=(Resolve-Path $Fixtures).Path
 $model=(Resolve-Path $Model).Path
@@ -60,10 +61,12 @@ Remove-Item Env:SKELLY_CI_SHARED_DLL_DIR -ErrorAction SilentlyContinue
 try {
     Run-Checked $setup @('/SP-','/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',"/DIR=$target","/LOG=$log",'/TASKS=') 300000
     if (-not (Test-Path $log)) { throw 'Missing setup log' }
+    & $python -c "import json,sys;from pathlib import Path;from payload_integrity import manifest,compare;compare(json.loads(Path(sys.argv[2]).read_text()),manifest(Path(sys.argv[1])))" $target $ledger
+    if ($LASTEXITCODE -ne 0) { throw 'Installed payload identity mismatch' }
     $exe=Join-Path $target 'SkellyMotion.exe'
     foreach ($arg in @('--self-test','--ai-self-test','--native-self-test')) { Run-Checked $exe @($arg) 120000 }
     Run-Checked $exe @('--shared-media-proof','snapshot',$fixtures,$model,(Join-Path $evidence 'installed-ai-proof.json'),'--dll-root',(Join-Path $target '_internal')) 900000
-    & "$root/packaging/capture-rendered-ui.ps1" $exe (Join-Path $evidence 'SkellyMotion-Installed-WebView2.png')
+    & "$root/packaging/direct-media/capture_stable_welcome.ps1" $exe (Join-Path $evidence 'SkellyMotion-Installed-WebView2.png')
     Run-Checked (Join-Path $target 'unins000.exe') @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART') 120000
     if ((Test-Path $exe) -or -not (Test-Path $sentinel) -or (Get-FileHash $sentinel).Hash -ne $before) { throw 'Uninstall or workspace safety failed' }
 } finally {

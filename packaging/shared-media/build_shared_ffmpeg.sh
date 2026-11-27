@@ -4,7 +4,12 @@ set -euo pipefail
 base="$(pwd)/shared-candidate"
 vendor="$base/vendor"
 evidence="$base/build-evidence"
-mkdir -p "$vendor" "$evidence"
+mkdir -p "$vendor" "$evidence" "$base/../.shared-ccache"
+export CCACHE_DIR="$base/../.shared-ccache"
+export CCACHE_BASEDIR="$(pwd)"
+export CCACHE_COMPILERCHECK=content
+ccache --max-size=768M
+ccache --zero-stats
 export PKG_CONFIG_PATH="$MINGW_PREFIX/lib/pkgconfig:$MINGW_PREFIX/share/pkgconfig"
 export PKG_CONFIG_LIBDIR="$PKG_CONFIG_PATH"
 export LC_ALL=C
@@ -13,10 +18,26 @@ cd "$base/ffmpeg"
 test "$(git rev-parse HEAD)" = '1041abdc962f4cc4f394aa8de9dc5236c0c3b9e7'
 trap 'code=$?; if [ -f ffbuild/config.log ]; then cp ffbuild/config.log "$evidence/ffmpeg-config.log"; fi; exit $code' EXIT
 pacman -Q > "$evidence/msys2-packages.txt"
+# FFmpeg 8.1's MinGW configure probes iconv without the import library.
+# Prove the actual shared linker resolves all three required symbols first.
+cat > "$evidence/iconv-link.c" <<'EOF'
+#include <iconv.h>
+#include <stddef.h>
+__declspec(dllexport) int check_iconv(void) {
+    iconv_t c = iconv_open("UTF-8","UTF-8");
+    if (c == (iconv_t)-1) return 1;
+    iconv(c, NULL, NULL, NULL, NULL);
+    return iconv_close(c);
+}
+EOF
+gcc -shared "$evidence/iconv-link.c" -o "$evidence/iconv-link.dll" -liconv
+objdump -p "$evidence/iconv-link.dll" > "$evidence/iconv-link-imports.txt"
+grep -i 'DLL Name:.*iconv' "$evidence/iconv-link-imports.txt"
 # Preserve native decoding, muxing, demuxing, filtering and encoding.
 ./configure \
   --prefix="$vendor" --arch=x86_64 --target-os=mingw32 \
   --pkg-config=pkgconf --enable-shared --disable-static \
+  --cc="ccache gcc" --cxx="ccache g++" --extra-libs=-liconv \
   --enable-gpl --enable-version3 --disable-debug --disable-doc \
   --disable-ffplay --disable-autodetect --disable-network \
   --enable-zlib --enable-iconv --enable-libx264 --enable-libass \
@@ -27,6 +48,7 @@ pacman -Q > "$evidence/msys2-packages.txt"
   --disable-indevs --disable-outdevs --enable-indev=lavfi
 make -j"$(nproc)"
 make install
+ccache --show-stats > "$evidence/ccache-stats.txt"
 # FFmpeg's MinGW build produces COFF import libraries for MSVC.
 for name in avcodec avdevice avfilter avformat avutil swresample swscale; do
   if [ -f "$vendor/bin/$name.lib" ]; then mv "$vendor/bin/$name.lib" "$vendor/lib/$name.lib"; fi
