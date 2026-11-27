@@ -39,6 +39,10 @@ jobs:
           python field-notes/v21-staging/tools/stage_v21.py reconciliation field-notes/candidates/SkellyMotion-V21-Reconciliation-Patch.zip candidate evidence/staged.json
           git -C creator-original diff --exit-code
           git rev-parse HEAD > evidence/producer-revision.txt
+      - name: Restore and verify the original welcome branding
+        run: |
+          python -m pytest -q field-notes/v21-staging/tools/test_welcome_brand.py
+          python field-notes/v21-staging/tools/apply_welcome_brand.py candidate field-notes/candidates/SkellyMotion-Editorial-V20-Source-Candidate.zip
       - name: Install candidate test dependencies
         run: |
           sudo apt-get update

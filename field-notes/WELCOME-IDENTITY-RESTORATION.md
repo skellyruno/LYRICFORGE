@@ -1,0 +1,5 @@
+# Welcome identity restoration
+
+Restore the original neon-green YOUR WORDS emphasis, black welcome surface and rotating original SkellHub radar (stationary skull). The archived CSS used an undefined studio accent and hid the radar under 900px. Use the original PNG from the SHA-pinned V20 archive. Do not replace Creator controls or modify exported colors. The welcome screen now covers the unused timeline until a project is opened, preventing startup actions from being hidden. Preserve reduced-motion and Eco behavior. Existing Creator and editorial archive baselines remain unchanged.
+
+Offline Chromium rendering of the actual recovered V19/V21 trial HTML with the exact stylesheet at 844x522, 1280x800 and 390x844 confirmed green emphasis, black background, loaded radar and animation property. Local HTTP navigation was blocked, so static assets were inlined for the render; full server interaction and final Windows WebView2 remain unverified. The new staging step applies this fix to the exact Creator proposal, not the old V20 binary. No release or merge.

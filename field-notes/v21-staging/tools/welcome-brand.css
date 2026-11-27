@@ -1,0 +1,42 @@
+/* Welcome identity: preserve the original radar, green emphasis and black surface.
+   No changes to project colors, exported media or editor controls. */
+:root { --studio-accent: #36ff17; }
+:root[data-studio-theme="obsidian"] { --studio-accent: #61cf84; }
+:root[data-studio-theme="amethyst"] { --studio-accent: #b58cdb; }
+:root[data-studio-theme="crimson"] { --studio-accent: #d47b78; }
+#app .brand-name > span { color: var(--studio-accent, #36ff17); }
+#app #welcome {
+  --welcome-accent: #36ff17;
+  background: #08090b; bottom: 0; max-height: none;
+  display: grid; grid-template-columns: minmax(0, 620px) minmax(120px, 320px);
+  gap: clamp(12px, 3vw, 36px); align-items: start; align-content: safe center;
+  justify-content: center; padding: 20px clamp(12px, 3vw, 36px);
+}
+#app #welcome.hidden { display: none !important; }
+#app #welcome::before, #app #welcome::after, #app #welcome > .welcome-grain { display: none; content: none; }
+#app #welcome .welcome-content { grid-area: 1 / 1; min-width: 0; width: 100%; max-width: 620px; margin: 0; }
+#app #welcome h1 { color: #eff5ef; font-size: clamp(32px, 4.3vw, 66px); line-height: .99; margin: 10px 0 13px; }
+#app #welcome h1 em, #app #welcome .welcome-kicker, #app #welcome .upload-arrow,
+#app #welcome .upload-glyph, #app #welcome .welcome-creator-btn { color: var(--welcome-accent); }
+#app #welcome .green-dot { background: var(--welcome-accent); box-shadow: 0 0 9px #36ff1770; }
+#app #welcome .hero-upload { border-color: #34533b; background: #121713; }
+#app #welcome .hero-upload:hover, #app #welcome .hero-upload.drag-over { border-color: var(--welcome-accent); }
+#app #welcome .welcome-creator-btn { border-color: #34533b; background: #121713; }
+#app #welcome .welcome-hub-art { display: grid; grid-area: 1 / 2; place-items: center; align-self: start; pointer-events: none; min-width: 0; width: 100%; padding-top: 6px; overflow: hidden; }
+#app #welcome .motion-radar { position: relative; display: grid; place-items: center; width: min(100%, 320px, 44vh); aspect-ratio: 531 / 505; overflow: clip; border-radius: 50%; isolation: isolate; }
+#app #welcome .motion-radar img { display: block; width: 100%; height: 100%; object-fit: contain; mix-blend-mode: screen; transform-origin: 48.97% 49.5%; animation: skelly-welcome-rotate 18s linear infinite; mask-image: radial-gradient(circle closest-side at 48.97% 49.5%, transparent 0 29%, #000 31% 92%, transparent 100%); }
+#app #welcome .motion-radar::after { content: ""; position: absolute; inset: 0; background: url('/static/skelly-radar.png') center / contain no-repeat; mix-blend-mode: screen; mask-image: radial-gradient(circle closest-side at 48.97% 49.5%, #000 0 29%, transparent 31%); pointer-events: none; }
+#app #welcome .radar-sweep, #app #welcome .radar-pulse { display: none; }
+#app #welcome .welcome-hub-label { color: #8da18d; font-size: 10px; letter-spacing: .13em; text-align: center; margin-top: 5px; }
+@keyframes skelly-welcome-rotate { to { transform: rotate(360deg); } }
+html.motion-document-hidden #app #welcome .motion-radar img, html:has(#welcome.hidden) #app #welcome .motion-radar img { animation-play-state: paused; }
+html:has(#startupPerformance option[value=eco]:checked) #app #welcome .motion-radar img,
+html:has(#performanceMode option[value=eco]:checked) #app #welcome .motion-radar img { animation: none; }
+@media (prefers-reduced-motion: reduce) { #app #welcome .motion-radar img { animation: none; } }
+@media (max-width: 540px) {
+  #app #welcome { grid-template-columns: minmax(0, 1fr); gap: 8px; align-content: start; }
+  #app #welcome .welcome-hub-art { grid-area: 1 / 1; justify-self: end; width: 100px; margin-top: 30px; }
+  #app #welcome .motion-radar { width: 100%; }
+  #app #welcome .welcome-hub-label { display: none; }
+  #app #welcome h1 { padding-right: 105px; font-size: clamp(25px, 8vw, 40px); }
+}
