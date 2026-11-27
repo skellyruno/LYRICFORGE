@@ -40,3 +40,7 @@ html:has(#performanceMode option[value=eco]:checked) #app #welcome .motion-radar
   #app #welcome .welcome-hub-label { display: none; }
   #app #welcome h1 { padding-right: 105px; font-size: clamp(25px, 8vw, 40px); }
 }
+/* The empty-project toolbar needs no disabled history buttons on narrow screens. */
+@media (max-width: 540px) {
+  html:not(.desktop-mode) #app:has(#welcome:not(.hidden)) .top-actions .icon-action:disabled { display: none; }
+}
