@@ -3,7 +3,7 @@ on:
   push:
     branches: [feature/field-notes-production-20261126]
     paths:
-      - 'field-notes/candidates/SkellyMotion-Editorial-V19-Source-Candidate.zip'
+      - 'field-notes/candidates/SkellyMotion-Editorial-V20-Source-Candidate.zip'
       - '.github/workflows/editorial-candidate-windows.yml'
   workflow_dispatch:
 permissions:
@@ -24,8 +24,8 @@ jobs:
         working-directory: .
         shell: pwsh
         run: |
-          $archive = 'field-notes/candidates/SkellyMotion-Editorial-V19-Source-Candidate.zip'
-          $expected = 'c687d9558d64000f972a5c740697d3669d1457cbb09fd5e4f7fe286e9a00b4e4'
+          $archive = 'field-notes/candidates/SkellyMotion-Editorial-V20-Source-Candidate.zip'
+          $expected = '4ba17dd5cdca24a040a05453706cda1881934d0d1e8704080e292e398ace6462'
           if ((Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expected) { throw 'Candidate archive SHA256 mismatch' }
           Expand-Archive -LiteralPath $archive -DestinationPath candidate
       - uses: actions/setup-python@v6
@@ -388,14 +388,14 @@ jobs:
       - uses: actions/upload-artifact@v6
         if: always()
         with:
-          name: Editorial-V19-Windows-UI-Evidence
+          name: Editorial-V20-Windows-UI-Evidence
           path: candidate/LYRICFORGE-main/release-gate-evidence/SkellyMotion-WebView2.png
           retention-days: 7
           if-no-files-found: warn
       - uses: actions/upload-artifact@v6
         if: success()
         with:
-          name: Editorial-V19-Windows-x64
+          name: Editorial-V20-Windows-x64
           path: candidate/LYRICFORGE-main/dist/SkellyMotion/
           retention-days: 7
           if-no-files-found: error

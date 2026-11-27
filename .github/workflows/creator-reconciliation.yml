@@ -1,0 +1,40 @@
+name: Creator / non-destructive reconciliation proposal
+on:
+  push:
+    branches: [feature/field-notes-production-20261126]
+    paths:
+      - 'field-notes/candidates/SkellyMotion-Editorial-V20-Source-Candidate.zip'
+      - '.github/workflows/creator-reconciliation.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: creator-reconciliation-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'push' && github.ref == 'refs/heads/feature/field-notes-production-20261126' }}
+jobs:
+  proposal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6
+        with:
+          ref: b37a857e4be4cf5dc7f13337452fdbdcb033e29b
+          path: creator-original
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Verify exact archives and create separate proposal
+        run: |
+          printf '%s  %s\n' '4ba17dd5cdca24a040a05453706cda1881934d0d1e8704080e292e398ace6462' 'field-notes/candidates/SkellyMotion-Editorial-V20-Source-Candidate.zip' '11092c43d5be71a13ce081b5e88984575a08f7a38a870e7f8bf1180672616632' 'field-notes/reconciliation-reference/SkellyMotion-Editorial-V6-Source-Candidate.zip' | sha256sum -c -
+          python field-notes/v20-staging/tools/reconcile_creator.py creator-original field-notes/reconciliation-reference/SkellyMotion-Editorial-V6-Source-Candidate.zip 'field-notes/candidates/SkellyMotion-Editorial-V20-Source-Candidate.zip' reconciliation
+          git -C creator-original diff --exit-code
+          git -C creator-original rev-parse HEAD > reconciliation/creator-revision.txt
+          git rev-parse HEAD > reconciliation/producer-revision.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: V20-Creator-Reconciliation-Proposal
+          path: reconciliation/
+          retention-days: 14
+          if-no-files-found: error
