@@ -21,3 +21,6 @@ Run 46028083402 inference failed at model acquisition: selected OpenAI CLIP revi
 2. Resolve all remaining source/workflow conflicts by comparing the exact candidate against root; preserve packaging and recovery contracts.
 3. Promote verified staged source on draft #12, rerun full release gate on that tree and inspect exact Windows UI.
 4. Consolidate the historical PR references, then merge only verified changes. No production release or main merge in this audit.
+
+## Hosted Hold/Cut discrepancy
+The exact 68c3370 hosted Linux step again timed out after eight minutes; Windows was skipped. Local exact-source 15/15 Hold/Cut passed on FFmpeg 7.1.5. A disposable single-tpad alternative, without a cached loop, also passed all 15 on the same local runtime (9.75 s). It is not promoted. The targeted diagnostic workflow compares original loop vs single-tpad on Ubuntu 24.04 and the newer runner, captures the exact FFmpeg version/commands/progress, bounds each actual encode to 20 s, validates frame counts and audio/video timing, then runs real API tests with visible progress. No replacement of the production Hold algorithm until the newer runner proves it. The original long film job is not cancelled. No false claim that the hosted regression is resolved.
