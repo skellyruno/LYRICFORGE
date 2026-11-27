@@ -74,8 +74,9 @@ def video_stream_width(path):
     raise ValueError("Background file has no readable video/image stream")
 
 def aac_trim(path):
-    info=probe_json(path,["-select_streams","a:0","-show_packets",
-        "-show_entries","packet=pts,duration:packet_side_data=side_data_type,skip_samples,discard_padding"])
+    info=probe_json(path,["-select_streams","a:0","-show_streams","-show_packets"])
+    streams=info.get("streams",[])
+    if len(streams)!=1 or streams[0].get("codec_name")!="aac":raise ValueError("Unexpected selected audio stream")
     packets=info.get("packets",[])
     if not packets:raise ValueError("No AAC packets")
     skip=discard=0
