@@ -77,3 +77,5 @@ html[data-welcome-artwork="hide"] #app #welcome h1 { padding-right: 0; }
 #clipStudio.one-click-edit #clipSelectedName{overflow-wrap:anywhere;margin:0}
 #clipStudio.one-click-edit #clipEditNow{width:100%}
 #clipStudio.one-click-edit #clipUploadStep .clip-options,#clipStudio.one-click-edit #watchBox{display:none}
+
+.research-settings{border:1px solid #34443a;border-radius:7px;padding:10px;margin:6px 0 12px}.research-settings summary{cursor:pointer;color:#d5e5d7;font-size:12px}.research-settings .control-group{margin-top:12px}.research-step .research-toggle{display:flex;align-items:center;gap:8px;color:#bfcac0;font-size:12px}.research-step .research-toggle input{width:auto;accent-color:#36ff17}.research-source-link{display:block;margin:4px 0;overflow-wrap:anywhere}

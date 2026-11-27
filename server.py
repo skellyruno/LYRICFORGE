@@ -4511,6 +4511,8 @@ class CreatorRequest(CreatorBrief):
     sound_design: bool = True
     title_motion: bool = True
     title_style: str = "adaptive"
+    auto_pictures: bool = False
+    research_sources: list[dict] = Field(default_factory=list,max_length=12)
     proof_start: float = Field(default=0.,ge=0.,le=1800.)
     proof_seconds: float = Field(default=5.,ge=2.,le=10.)
 
@@ -4583,6 +4585,7 @@ async def create_video_request(payload: str = Form(...), files: list[UploadFile]
         suffixes=[Path(f.filename or '').suffix.lower() for f in files]
         preflight=bind_uploads(body.chapters,suffixes) if body.chapters else []
         script=(creator.validate_script(preflight,body.production_mode) if body.chapters else creator.chapters_from_text(body.script_text) if body.script_text.strip() else [] if voice=='recorded' else creator.draft_script(body.product,body.brief,body.facts,body.target_seconds,body.story,body.production_mode)['chapters'])
+        research_sources=[{'title':creator.clean(r.get('title'),220),'url':creator.source_url(r.get('url')),'kind':creator.clean(r.get('kind'),30)} for r in body.research_sources]
         if body.format not in director_intel.FORMATS or body.format=='canvas': raise ValueError('Select a narrated video format')
         if len(files)>40 or len(body.visual_roles)>len(files): raise ValueError('At most 40 visual uploads; metadata must match files')
         for meta in body.visual_roles:
@@ -4591,7 +4594,7 @@ async def create_video_request(payload: str = Form(...), files: list[UploadFile]
     except (ValueError,TypeError) as exc: raise HTTPException(400,str(exc)[:500]) from exc
     project_id=uuid.uuid4().hex;p=DATA/project_id;p.mkdir()
     settings=sanitize_settings({'fps':24,'performanceMode':request_perf_mode.get()})
-    data={'id':project_id,'title':body.product.strip(),'duration':0.,'status':'creator_pending','save_state':'draft','settings':settings,'lines':[],'audio_file':'voice.wav','creator_script':[] if body.chapters else script,'creator_brief':body.brief,'creator_production_mode':body.production_mode,'creator_visual_theme':body.visual_theme,'creator_skell_terminology':body.skell_terminology}
+    data={'id':project_id,'title':body.product.strip(),'duration':0.,'status':'creator_pending','save_state':'draft','settings':settings,'lines':[],'audio_file':'voice.wav','creator_script':[] if body.chapters else script,'creator_brief':body.brief,'creator_production_mode':body.production_mode,'creator_visual_theme':body.visual_theme,'creator_skell_terminology':body.skell_terminology,'creator_research_sources':research_sources}
     save_project(p,data)
     try:
         if recording is not None:
@@ -4672,7 +4675,8 @@ def run_creator(project_id,job_id,body,script,voice):
         if body.auto_render:
             legacy_documentary=body.story=='documentary' and body.production_mode!='research'
             _,settings,plan=prepare_director(project_id,DirectorRequest(output_fps=body.output_fps,preset='doc' if body.production_mode=='research' or body.story=='documentary' else 'plugin',brand=body.product,preview=body.preview,output_format=body.format,cinematic_finish=True,guided_replay=True,editorial_style='standard' if legacy_documentary else 'reference',visual_theme=body.visual_theme,skell_terminology=body.skell_terminology,caption_style='marker' if legacy_documentary else 'clean',caption_scale=.85,transition_style='cut' if legacy_documentary else 'auto',transition_seconds=.28,sound_design=body.sound_design,title_motion=body.title_motion,title_style=body.title_style))
-            run_director(project_id,job_id,plan,settings,body.preview)
+            plan['research_footage']=body.production_mode=='research' and body.auto_pictures
+            run_director(project_id,job_id,plan,settings,body.preview,auto_pictures=body.auto_pictures)
             with job_lock: jobs[job_id]['project_id']=project_id
         else:
             with job_lock: jobs[job_id].update(status='done',progress=100,stage='complete',outputs={'project_id':project_id,'duration':result['duration'],'voice_provider':voice})
@@ -4846,6 +4850,7 @@ def prepare_director(project_id: str, body: DirectorRequest):
             if body.preview or start>0 or duration<float(data['duration'])-.1:
                 plan['warnings'].append('A shortened export may not contain both complete listening excerpts.')
         if data.get('creator_production_mode')=='research':
+            plan['research_sources']=data.get('creator_research_sources',[])
             plan['source_ledger']=[{'claim':row['text'],'url':row['source_url'],'start':row['start'],'end':row['end']} for row in lines if row.get('source_url')]
             plan['warnings'].append('Research source URLs are author-supplied and are not independently verified.')
             if any(not row.get('source_url') for row in lines):plan['warnings'].append('Edited or unsourced narration is not covered by the source ledger.')
@@ -5371,5 +5376,7 @@ def clip_capabilities():
 
 import studio_topic_research as topic_research
 app.include_router(topic_research.router)
+import studio_research_compose as research_compose
+app.include_router(research_compose.router)
 
 app.mount("/static", StaticFiles(directory=STATIC), name="static")

@@ -181,12 +181,60 @@ def import_picture(folder, item):
         temp.unlink(missing_ok=True)
 
 
+def video_search(query):
+    """Only small, explicitly public-domain / CC0 original clips."""
+    args={'action':'query','generator':'search','gsrsearch':query+' filetype:video','gsrnamespace':6,'gsrlimit':10,'prop':'imageinfo','iiprop':'url|mime|size|extmetadata','format':'json','formatversion':2}
+    payload=json.loads(read_url(API+'?'+urlencode(args),'commons.wikimedia.org',2*1024*1024))
+    found=[];wanted=set(keywords(query))
+    for page in payload.get('query',{}).get('pages',[]):
+        try:
+            info=page['imageinfo'][0];meta=info['extmetadata']
+            field=lambda k:clean(meta.get(k,{}).get('value'))
+            license_name=field('LicenseShortName');url=info['url'];source=info['descriptionurl']
+            mime=info['mime'];ext={'video/webm':'.webm','video/mp4':'.mp4'}.get(mime)
+            if not ext or license_name.casefold() not in LICENSES or field('Restrictions') or field('AttributionRequired').casefold() not in ('','false','0'):continue
+            if not trusted_url(url,'upload.wikimedia.org') or not trusted_url(source,'commons.wikimedia.org'):continue
+            if not 0<int(info['size'])<=24*1024*1024:continue
+            title=clean(page['title'].removeprefix('File:'),120)
+            overlap=len(wanted&set(keywords(title+' '+field('ImageDescription'))))
+            if not wanted or overlap<min(2,len(wanted)):continue
+            found.append({'id':int(page['pageid']),'url':url,'ext':ext,'title':title,'source':{'provider':'Wikimedia Commons','page':source,'creator':field('Artist') or 'See source page','license':license_name,'license_url':'https://creativecommons.org/publicdomain/zero/1.0/' if license_name.casefold()!='public domain' else 'https://commons.wikimedia.org/wiki/Commons:Licensing','query':query,'use':'illustrative footage; verify subject and rights before publishing'},'score':overlap})
+        except (KeyError,TypeError,ValueError,AttributeError,IndexError):continue
+    return sorted(found,key=lambda x:x['score'],reverse=True)
+
+
+def import_video(folder,item):
+    from studio_clips import probe_media
+    if folder.is_symlink() or item['ext'] not in ('.mp4','.webm'):raise ValueError('Unsupported video source')
+    folder.mkdir(exist_ok=True)
+    key=hashlib.sha256(('commons-video:'+str(item['id'])).encode()).hexdigest()[:32]+item['ext']
+    target=folder/key;temp=folder/('.video-'+uuid4().hex+item['ext'])
+    with INDEX_LOCK:
+        index=perf.read_cache(folder/'index.json')
+        if reusable_picture(target,index.get(key)):return key,index[key]
+        if key in index or target.exists() or target.is_symlink() or len(index)>=40:raise ValueError('Asset slot unavailable')
+    try:
+        temp.write_bytes(read_url(item['url'],'upload.wikimedia.org',24*1024*1024))
+        info=probe_media(temp)
+        if not info['has_video'] or not 2<=info['duration']<=120 or not 320<=info['width']<=1920 or not 180<=info['height']<=1080:raise ValueError('Unsupported video dimensions or duration')
+        meta={'name':item['title'],'description':item['source']['query'],'source':item['source'],'features':{'duration':info['duration'],'width':info['width'],'height':info['height']}}
+        with INDEX_LOCK:
+            index=perf.read_cache(folder/'index.json')
+            if reusable_picture(target,index.get(key)):return key,index[key]
+            if key in index or target.exists() or target.is_symlink() or len(index)>=40:raise ValueError('Asset slot unavailable')
+            perf.publish_staged_file(temp,target)
+            try:index[key]=meta;perf.atomic_write_json(folder/'index.json',index)
+            except Exception:target.unlink(missing_ok=True);raise
+        return key,meta
+    finally:temp.unlink(missing_ok=True)
+
+
 def fill_missing(plan, folder: Path, allow_network=False, check_cancel=lambda:None, progress=lambda done,total:None):
     """Fill missing shots, preferring exact query cache. Network failures fall back to cards."""
     if folder.is_symlink():
         raise ValueError('Linked asset folder')
     pending=[s for s in plan['scenes'] if s['type'] in ('big_text','visualizer') and not s.get('asset') and s.get('editorial') not in ('chapter','graphic')]
-    searched={}; used=set(); fetched=0; reused=0; failed=0; count=0
+    searched={}; used=set(); fetched=0; reused=0; failed=0; count=0; video_count=0; video_queries=0
     for i,scene in enumerate(pending):
         check_cancel()
         progress(i,len(pending))
@@ -196,7 +244,7 @@ def fill_missing(plan, folder: Path, allow_network=False, check_cancel=lambda:No
         match=None
         index=perf.read_cache(folder/'index.json')
         for key,meta in index.items():
-            if not re.fullmatch(r'[a-f0-9]{32}\.jpg',key) or not isinstance(meta,dict):
+            if not re.fullmatch(r'[a-f0-9]{32}\.(?:jpg|mp4|webm)',key) or not isinstance(meta,dict):
                 continue
             if reusable_picture(folder/key, meta) and meta['source'].get('query')==query:
                 match=(key,meta);break
@@ -205,7 +253,16 @@ def fill_missing(plan, folder: Path, allow_network=False, check_cancel=lambda:No
         elif allow_network and query not in searched and count<MAX_SEARCHES:
             count+=1
             try:
-                options=search(query)
+                if plan.get('research_footage') and video_queries<3:
+                    video_queries+=1
+                    try:
+                        for item in video_search(query)[:2]:
+                            check_cancel()
+                            if item['id'] in used:continue
+                            try:match=import_video(folder,item);used.add(item['id']);fetched+=1;video_count+=1;break
+                            except (OSError,ValueError,RuntimeError):continue
+                    except (OSError,ValueError,TimeoutError,TypeError):failed+=1
+                options=search(query) if not match else []
                 check_cancel()
                 for item in options[:2]:
                     if item['id'] in used:
@@ -225,7 +282,7 @@ def fill_missing(plan, folder: Path, allow_network=False, check_cancel=lambda:No
             key,meta=match
             scene.pop('editorial',None)
             scene.update(type='broll',asset=key,asset_name=meta['name'],source=meta['source'],text='',camera='push' if i%2==0 else 'pull')
-    plan['visual_sources']={'downloaded':fetched,'cached':reused,'queries':count,'remaining_cards':sum(s['type']=='big_text' for s in plan['scenes'])}
+    plan['visual_sources']={'downloaded':fetched,'downloaded_videos':video_count,'cached':reused,'queries':count,'remaining_cards':sum(s['type']=='big_text' for s in plan['scenes'])}
     if pending:
         plan['warnings']=[w for w in plan.get('warnings',[]) if not w.startswith('No visual assets supplied')]
     if plan['visual_sources']['remaining_cards']:

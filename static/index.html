@@ -630,12 +630,12 @@
     <div class="clip-studio-body"><section class="clip-step research-step">
       <label class="control-group">Topic<input id="researchTopic" maxlength="80" placeholder="e.g. How pitch correction works" /></label>
       <label class="control-group">Target length (seconds)<input id="researchLength" type="number" min="15" max="180" value="60" /></label>
-      <p class="clip-fine">Fetches a public Wikipedia article using your topic, writes an attributed script, then creates narration and illustrative motion graphics locally. No uploads or API key required. Internet is needed for research.</p>
-      <button id="researchRun" class="primary-btn" type="button">Create research video</button>
+      <p class="clip-fine">Researches related articles and publications, writes a source-linked script, narrates and renders. Internet is required for research. No uploads or API key needed.</p>
+      <details class="research-settings"><summary>Writing &amp; visual options</summary><label class="control-group">Local writing model (optional)<input id="researchModel" maxlength="120" placeholder="Installed Ollama model name" /></label><p class="clip-fine">Leave blank for source-based writing. A running local Ollama model enables free-form revisions; model installation is separate.</p><label class="research-toggle"><input id="researchVisuals" type="checkbox" checked /> Find licensed illustrative photos and footage</label></details><button id="researchRun" class="primary-btn" type="button">Create research video</button>
       <div id="researchStatus" class="render-status hidden" role="status" aria-live="polite"></div>
       <div id="researchResults" class="auto-results"></div>
       <div id="researchReview" class="hidden"><h3>Revise your video</h3><p id="researchEstimate" class="clip-fine"></p><p id="researchSource" class="clip-fine"></p>
-        <label class="control-group">Tell it what to change<textarea id="researchInstruction" rows="2" maxlength="250" placeholder="Make it shorter, focus on the history, use calm narration…"></textarea></label>
+        <label class="control-group">Tell it what to change<textarea id="researchInstruction" rows="2" maxlength="1000" placeholder="Rewrite the introduction, focus on the history, change the pacing…"></textarea></label>
         <button id="researchRevise" class="primary-btn" type="button">Apply changes &amp; render</button>
         <label class="control-group">Editable script (one source-linked chapter per line)<textarea id="researchScript" rows="7" maxlength="60000"></textarea></label>
         <button id="researchRenderScript" class="wide-ghost" type="button">Render edited script</button>
