@@ -1,0 +1,59 @@
+name: Duplicate decoder / Whisper parity research
+on:
+  push:
+    branches: [feature/field-notes-production-20261126]
+    paths:
+      - 'packaging/compact-media/whisper_decoder_parity.py'
+      - '.github/workflows/whisper-decoder-parity.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: whisper-decoder-parity-${{ github.ref }}-${{ github.event_name == 'push' && 'push' || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'push' && github.ref == 'refs/heads/feature/field-notes-production-20261126' }}
+jobs:
+  compare:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@v4
+        with:
+          name: SkellyMotion-Consolidated-Windows-x64
+          run-id: 46032977554
+          github-token: ${{ github.token }}
+          path: original
+      - uses: actions/download-artifact@v4
+        with:
+          name: compact-ffmpeg-runtime-and-source
+          run-id: 46040313923
+          github-token: ${{ github.token }}
+          path: compact-ffmpeg
+      - name: Install the exact shipped transcription versions
+        run: python -m pip install "faster-whisper==1.2.1" "av==18.1.1" "ctranslate2==4.9.1"
+      - name: Generate independent speech fixture without private audio
+        shell: powershell
+        run: |
+          Add-Type -AssemblyName System.Speech
+          $s=New-Object System.Speech.Synthesis.SpeechSynthesizer
+          $s.SetOutputToWaveFile((Join-Path (Get-Location) 'parity-voice.wav'))
+          $s.Speak('SkellyMotion checks the spoken words and their timing. The green spiral is ready. Keep every original sample safe.')
+          $s.Dispose()
+      - name: Compare decoded PCM and actual pinned Whisper inference
+        shell: pwsh
+        run: |
+          python packaging/compact-media/whisper_decoder_parity.py original/_internal/tools/ffmpeg.exe compact-ffmpeg/ffmpeg.exe parity-voice.wav decoder-evidence
+          if ($LASTEXITCODE -ne 0) { throw 'Parity not proven; no dependency changes permitted' }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: whisper-duplicate-decoder-parity-evidence
+          path: decoder-evidence/*.json
+          if-no-files-found: warn
+          retention-days: 14
