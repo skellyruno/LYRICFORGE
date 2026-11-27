@@ -2,7 +2,7 @@ name: Integrate exact legacy cleanup into verified installer
 on:
   push:
     branches: [feature/field-notes-production-20261126]
-    paths: ['packaging/release-audit/generate_cleanup_installer.py','packaging/release-audit/repack_verified.py','packaging/release-audit/repack_cleanup.ps1','.github/workflows/integrated-cleanup.yml']
+    paths: ['packaging/release-audit/generate_cleanup_installer.py','packaging/release-audit/test_cleanup_installer_base.py','packaging/release-audit/repack_verified.py','packaging/release-audit/repack_cleanup.ps1','.github/workflows/integrated-cleanup.yml']
   workflow_dispatch:
 permissions:
   actions: read
@@ -55,6 +55,8 @@ jobs:
           run-id: 46067996629
           github-token: ${{ github.token }}
           path: optimized-proof
+      - name: Test installer section guard
+        run: python -m unittest discover -s packaging/release-audit -p test_cleanup_installer_base.py -v
       - name: Repackage exact verified runtime and prove real upgrade
         shell: pwsh
         run: ./packaging/release-audit/repack_cleanup.ps1 -Old prior/SkellyMotion-Setup.exe -OldLedger prior-proof/payload-manifest.json -New optimized/SkellyMotion-Setup.exe -NewLedger optimized-proof/shared-payload-manifest.json

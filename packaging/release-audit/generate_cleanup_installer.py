@@ -6,6 +6,12 @@ from cleanup_legacy_media import read,PREFIXES
 EXPECTED_OLD_COUNT=253
 EXPECTED_OLD_BYTES=80874948
 
+def check_base(base):
+    # Inno section declarations are whole lines, not mentions in comments.
+    sections=set(re.findall(r"^\s*\[([^\]\r\n]+)\]\s*(?:;[^\r\n]*)?$",base,re.M))
+    if {name.strip().casefold() for name in sections}&{"code","installdelete","uninstalldelete"}:
+        raise ValueError("Unexpected installer base")
+
 def generate(base,old,new,out):
     old,new=read(old),read(new)
     eligible={k:v for k,v in old.items() if k not in new and k.startswith(PREFIXES)}
@@ -15,7 +21,7 @@ def generate(base,old,new,out):
         if not re.fullmatch(r"[A-Za-z0-9_.+/-]+",name) or not re.fullmatch(r"[0-9a-f]{64}",digest):
             raise ValueError("Unsafe cleanup allowlist entry")
     base=Path(base).read_text(encoding="utf-8")
-    if "[Code]" in base or "[InstallDelete]" in base or "[UninstallDelete]" in base:raise ValueError("Unexpected installer base")
+    check_base(base)
     if new.get("_internal/tools/ffprobe.exe")!=(44490240,"f04d1654ac6c2016b1654c8634cdaf39fd367b919c417b38f4d9a9913900312c"):
         raise ValueError("Wrong reconstructed FFprobe")
     code=r'''
