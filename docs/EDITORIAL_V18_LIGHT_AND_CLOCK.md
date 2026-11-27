@@ -1,0 +1,7 @@
+# Editorial V18 — Light, flow and exact clocks
+
+V17 recovered and preserved. V18 adds limited MacCormack passive dye advection, vorticity confinement, bounded 128-cell grid, density shading and approximate Fresnel/specular response. These are stylized simulations, not photorealistic or calibrated optical experiments. Wavelength illustration compares 420, 550, 680 nm schematically; the RGB mixer computes independent linear light values and sRGB encoding. New opt-in sampled chromatic score uses an existing local instrument bank. No model weights or sound bank included.
+
+The final director mux now uses MP4 edit lists and a 240000 movie timescale. This eliminates the 1024-sample AAC priming shift that previously lengthened the first video packet. The separate repair tool is constrained to this exact legacy signature and validates identical H.264 and AAC packet hashes. All four Field Notes masters independently verified at exact 60 FPS, with matched stream durations. The original masters are retained. The new color film uses 540p, 2455 frames, 40.916667s, -17.3 LUFS, -3.5 dBTP; picture and layout review zero warnings. Prior three masters are timing-only lossless remasters, not new creative edits.
+
+Local broader suite: 140 passed; final timing-focused rerun: 13 passed; isolated legacy repair test: 1 passed; three frontend smoke suites passed. Fresh neural voice, semantic model inference, integrated Windows build and complete reconciliation with newer remote Creator branch remain unverified. No public release approved.
