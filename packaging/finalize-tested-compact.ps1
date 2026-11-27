@@ -33,6 +33,9 @@ if ($ExistingSetup) {
     if ((Get-FileHash $Candidate -Algorithm SHA256).Hash.ToLowerInvariant() -ne '861fe956cca8c442eeac82e5971fff0273a166e6410e98269fefbdf6731ae117') { throw 'Wrong tested compact FFmpeg' }
     python "$PSScriptRoot/compact_ffmpeg_payload.py" stage "$root/dist/SkellyMotion" $ledger --candidate $Candidate
     if ($LASTEXITCODE -ne 0) { throw 'Replacement identity failed' }
+    # Restore approved icon in the already-tested executable; its frozen Python archive is unchanged.
+    python "$PSScriptRoot/restore_original_icon.py" stage "$root/dist/SkellyMotion" "$root/static/skellyhub.ico" --ledger $ledger --evidence (Join-Path $evidence 'icon-provenance.json')
+    if ($LASTEXITCODE -ne 0) { throw 'Original icon restoration failed' }
     $compiler=Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
     if (-not (Test-Path -LiteralPath $compiler)) {
         choco install innosetup --yes --no-progress
@@ -41,6 +44,8 @@ if ($ExistingSetup) {
     & $compiler "$PSScriptRoot/SkellyMotion.iss"
     if ($LASTEXITCODE -ne 0) { throw 'Installer compiler failed' }
     $setup=(Resolve-Path "$root/dist/installer/SkellyMotion-Setup.exe").Path
+    python "$PSScriptRoot/restore_original_icon.py" verify $setup "$root/static/skellyhub.ico"
+    if ($LASTEXITCODE -ne 0) { throw 'Installer embedded icon mismatch' }
 }
 $target=Join-Path $env:RUNNER_TEMP ('SkellyMotion-CompactMedia-'+[Guid]::NewGuid().ToString('N'))
 $env:LYRICFORGE_DATA=Join-Path $env:RUNNER_TEMP ('SkellyMotion-CompactData-'+[Guid]::NewGuid().ToString('N'))
@@ -60,6 +65,10 @@ try {
     else { python "$PSScriptRoot/compact_ffmpeg_payload.py" installed $target $ledger }
     if ($LASTEXITCODE -ne 0) { throw 'Installed file identity failed' }
     $exe=Join-Path $target 'SkellyMotion.exe'
+    if (-not $ExistingSetup) {
+        python "$PSScriptRoot/restore_original_icon.py" verify $exe "$root/static/skellyhub.ico"
+        if ($LASTEXITCODE -ne 0) { throw 'Installed original icon mismatch' }
+    }
     foreach ($arg in @('--self-test','--ai-self-test','--native-self-test')) { Run-Checked $exe @($arg) 120000 }
     & "$PSScriptRoot/capture-rendered-ui.ps1" $exe (Join-Path $evidence 'SkellyMotion-Installed-WebView2.png')
     Run-Checked (Join-Path $target 'unins000.exe') @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART') 120000

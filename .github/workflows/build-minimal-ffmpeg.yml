@@ -3,8 +3,9 @@ on:
   push:
     branches: [feature/field-notes-production-20261126]
     paths:
-      - '.github/workflows/build-minimal-ffmpeg.yml'
-      - 'packaging/compact-media/**'
+      - 'packaging/compact-media/audit_media.py'
+      - 'packaging/compact-media/render_parity.py'
+      - 'packaging/compact-media/prepare-static-vpl.sh'
       - 'packaging/compact_ffmpeg_payload.py'
       - 'packaging/compact-media-installer.ps1'
       - 'packaging/capture-rendered-ui.ps1'
