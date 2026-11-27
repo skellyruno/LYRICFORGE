@@ -1,0 +1,129 @@
+{
+  "edition": "Field Notes V18",
+  "publication": "candidate; public screening pending approval and audio distribution review",
+  "source_archive": {
+    "name": "SkellyMotion-Editorial-V18-Source-Candidate.zip",
+    "sha256": "d5075ea434aefa5129f7a8e6101bb8a10f7d29f7d42aab75ef43130c5c256100",
+    "files": 242
+  },
+  "full_screening_zip": {
+    "name": "SkellyMotion-Field-Notes-V18-Screening-Package.zip",
+    "sha256": "9383561f507a9872384f9eac252f4b9bcf65e5df279ff312955e9f0b416cda30",
+    "bytes": 30403077
+  },
+  "website_source_zip": {
+    "name": "SkellyMotion-Field-Notes-V18-Website-Source.zip",
+    "sha256": "2b6d5c118aa21a49178ee4de38038f425017714d5132d7c110f39fd68422ff89",
+    "bytes": 288674
+  },
+  "media": {
+    "Field-Notes-01-The-Shape-of-Sound.mp4": {
+      "sha256": "f4d60734f1108a1b3e99c619aa766bb23db41b182edd88b84867966d167d374d",
+      "bytes": 11000434,
+      "streams": [
+        {
+          "index": 0,
+          "codec_name": "h264",
+          "width": 1280,
+          "height": 720,
+          "r_frame_rate": "60/1",
+          "avg_frame_rate": "60/1",
+          "duration": "45.000000",
+          "nb_read_frames": "2700"
+        },
+        {
+          "index": 1,
+          "codec_name": "aac",
+          "r_frame_rate": "0/0",
+          "avg_frame_rate": "0/0",
+          "duration": "45.000000",
+          "nb_read_frames": "2110"
+        }
+      ],
+      "lufs": -16.5,
+      "lra": 17.6,
+      "true_peak": -3.6
+    },
+    "Field-Notes-02-The-Anatomy-of-an-Image.mp4": {
+      "sha256": "5c196a9ab6958d03081dbd71fc1a490d9d28357be46e34dc46b67f0662f96869",
+      "bytes": 7270401,
+      "streams": [
+        {
+          "index": 0,
+          "codec_name": "h264",
+          "width": 1280,
+          "height": 720,
+          "r_frame_rate": "60/1",
+          "avg_frame_rate": "60/1",
+          "duration": "54.550000",
+          "nb_read_frames": "3273"
+        },
+        {
+          "index": 1,
+          "codec_name": "aac",
+          "r_frame_rate": "0/0",
+          "avg_frame_rate": "0/0",
+          "duration": "54.550000",
+          "nb_read_frames": "2558"
+        }
+      ],
+      "lufs": -16.6,
+      "lra": 17.7,
+      "true_peak": -3.6
+    },
+    "Field-Notes-03-The-Architecture-of-Silence.mp4": {
+      "sha256": "648dc8639de5c1b029f89445db3c7be7afd3df4dbdb6e1816d936bfb5cddc17d",
+      "bytes": 5843107,
+      "streams": [
+        {
+          "index": 0,
+          "codec_name": "h264",
+          "width": 960,
+          "height": 540,
+          "r_frame_rate": "60/1",
+          "avg_frame_rate": "60/1",
+          "duration": "27.266667",
+          "nb_read_frames": "1636"
+        },
+        {
+          "index": 1,
+          "codec_name": "aac",
+          "r_frame_rate": "0/0",
+          "avg_frame_rate": "0/0",
+          "duration": "27.266667",
+          "nb_read_frames": "1279"
+        }
+      ],
+      "lufs": -19.6,
+      "lra": 16.7,
+      "true_peak": -5.0
+    },
+    "Field-Notes-04-The-Science-of-Color.mp4": {
+      "sha256": "c301b4d283d64eac0c8b7a571fb79e4e25e151060727e32f0a386c41fc4f99a6",
+      "bytes": 6242481,
+      "streams": [
+        {
+          "index": 0,
+          "codec_name": "h264",
+          "width": 960,
+          "height": 540,
+          "r_frame_rate": "60/1",
+          "avg_frame_rate": "60/1",
+          "duration": "40.916667",
+          "nb_read_frames": "2455"
+        },
+        {
+          "index": 1,
+          "codec_name": "aac",
+          "r_frame_rate": "0/0",
+          "avg_frame_rate": "0/0",
+          "duration": "40.916667",
+          "nb_read_frames": "1918"
+        }
+      ],
+      "lufs": -17.3,
+      "lra": 10.2,
+      "true_peak": -3.5
+    }
+  }
+}
