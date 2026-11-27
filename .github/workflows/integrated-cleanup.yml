@@ -1,0 +1,73 @@
+name: Integrate exact legacy cleanup into verified installer
+on:
+  push:
+    branches: [feature/field-notes-production-20261126]
+    paths: ['packaging/release-audit/generate_cleanup_installer.py','packaging/release-audit/repack_verified.py','packaging/release-audit/repack_cleanup.ps1','.github/workflows/integrated-cleanup.yml']
+  workflow_dispatch:
+permissions:
+  actions: read
+  contents: read
+concurrency:
+  group: integrated-cleanup-${{ github.ref }}-${{ github.event_name == 'push' && 'push' || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'push' && github.ref == 'refs/heads/feature/field-notes-production-20261126' }}
+jobs:
+  repack:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Verify provenance of successful installers and ledgers
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $repo="${{ github.repository }}"
+          foreach ($entry in @(@{id=15226171467;sha='42abf135176551f719590a3763ff1ab282ecbe6ef7fa92f7bb243ca95085c5f6'},@{id=15226481235;sha='57e5084306f6eec26feffc80eea8e64b14bceeb38d4c59b7e2593f23ae2fd0ed'},@{id=15231688906;sha='a7147c97f043f00f2c9b0fced413e0f5b223a0611e96671434d2463e02d69db8'},@{id=15231404953;sha='f25153f056f097bf8ddf4191676bb4f8a759094d37105db6c77baf645e300b2c'})) {
+            $a=gh api "repos/$repo/actions/artifacts/$($entry.id)"|ConvertFrom-Json
+            if ($LASTEXITCODE -ne 0 -or $a.expired -or $a.digest -ne ('sha256:'+$entry.sha)) {throw "Unexpected artifact $($entry.id)"}
+          }
+      - uses: actions/download-artifact@v4
+        with:
+          name: SkellyMotion-Restored-Header-Windows-Setup
+          run-id: 46055109253
+          github-token: ${{ github.token }}
+          path: prior
+      - uses: actions/download-artifact@v4
+        with:
+          name: restored-header-compact-installer-evidence
+          run-id: 46055109253
+          github-token: ${{ github.token }}
+          path: prior-proof
+      - uses: actions/download-artifact@v4
+        with:
+          name: SkellyMotion-Direct-Half-Size-Windows-Setup
+          run-id: 46067996629
+          github-token: ${{ github.token }}
+          path: optimized
+      - uses: actions/download-artifact@v4
+        with:
+          name: direct-media-half-size-evidence
+          run-id: 46067996629
+          github-token: ${{ github.token }}
+          path: optimized-proof
+      - name: Repackage exact verified runtime and prove real upgrade
+        shell: pwsh
+        run: ./packaging/release-audit/repack_cleanup.ps1 -Old prior/SkellyMotion-Setup.exe -OldLedger prior-proof/payload-manifest.json -New optimized/SkellyMotion-Setup.exe -NewLedger optimized-proof/shared-payload-manifest.json
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: integrated-cleanup-evidence
+          path: integrated-cleanup-evidence/
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@v6
+        if: success()
+        with:
+          name: SkellyMotion-Cleanup-Verified-Setup
+          path: dist/installer/SkellyMotion-Setup.exe
+          compression-level: 0
+          if-no-files-found: error
