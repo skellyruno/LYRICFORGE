@@ -157,6 +157,9 @@ def crossfade_clips(clips, scenes, fps, scratch, encode, check_cancel, duration,
 def original_bed(plan, path, *, rate=24000, include_music=True, check_cancel=lambda:None,music_gain=1.,cue_gain=1.):
     """Original understated synth bed, generated in bounded blocks. No samples or
     external rights dependencies. Optional gentle transition swells."""
+    from studio_signal_story import pause_gain
+    rests=plan.get('score_rests',[])
+    pause_gain(np.array([0.]),rests)
     duration=float(plan['duration']);total=max(1,round(duration*rate));rng=np.random.default_rng(1701)
     cut=[(float(s['start']),s.get('type','big_text'),s.get('title_motion',False)) for s in plan['scenes'][1:]]
     action=sorted(float(s['start'])+replay_hit(float(s['end'])-float(s['start'])) for s in plan['scenes'] if s.get('guided_replay') and s.get('before_asset') and not s.get('replay_fallback'))
@@ -203,6 +206,7 @@ def original_bed(plan, path, *, rate=24000, include_music=True, check_cancel=lam
                     tick=.013*np.sin(2*np.pi*860*z[mask])*np.exp(-z[mask]*62)*cue_gain
                     left[mask]+=tick;right[mask]+=tick
             fade=np.minimum(1,t/.35)*np.minimum(1,np.maximum(0,(duration-t)/.65));stereo=np.column_stack((left*fade,right*fade))
+            if rests:stereo*=pause_gain(t,rests)[:,None]
             wav.writeframes(np.round(np.clip(stereo,-.99,.99)*32767).astype('<i2').tobytes())
     return path
 
