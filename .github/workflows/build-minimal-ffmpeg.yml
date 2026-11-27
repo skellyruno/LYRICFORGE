@@ -69,6 +69,9 @@ jobs:
             mingw-w64-x86_64-x264 mingw-w64-x86_64-libass mingw-w64-x86_64-zlib mingw-w64-x86_64-libiconv
             mingw-w64-x86_64-libvpx mingw-w64-x86_64-dav1d mingw-w64-x86_64-opus mingw-w64-x86_64-libvorbis
             mingw-w64-x86_64-ffnvcodec-headers mingw-w64-x86_64-amf-headers mingw-w64-x86_64-libvpl
+      - name: Verify Intel VPL static linkage before configuring FFmpeg
+        shell: msys2 {0}
+        run: bash packaging/compact-media/prepare-static-vpl.sh "$(pwd)/compact-build-evidence"
       - name: Build compact FFmpeg with full native decoder and filter sets
         shell: msys2 {0}
         run: |
@@ -76,10 +79,14 @@ jobs:
           [[ "$FFMPEG_REF" =~ ^n[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]
           git clone --depth 1 --branch "$FFMPEG_REF" https://github.com/FFmpeg/FFmpeg.git ffmpeg-src
           cd ffmpeg-src
+          export PKG_CONFIG_PATH="$MINGW_PREFIX/lib/pkgconfig:$MINGW_PREFIX/share/pkgconfig"
+          export PKG_CONFIG_LIBDIR="$PKG_CONFIG_PATH"
+          # Always retain the actual failure, including configure's C test output.
+          trap 'code=$?; if [ -f ffbuild/config.log ]; then cp ffbuild/config.log ../compact-build-evidence/ffmpeg-config.log; fi; exit $code' EXIT
           # Preserve native decoders/demuxers/parsers/muxers/filters/BSFs.
           # Limit encoding to the app's actual export modes and regression fixtures.
           ./configure \
-            --arch=x86_64 --target-os=mingw32 --pkg-config-flags=--static \
+            --arch=x86_64 --target-os=mingw32 --pkg-config=pkgconf --pkg-config-flags=--static \
             --extra-ldflags=-static --disable-shared --enable-static \
             --enable-gpl --disable-debug --disable-doc --disable-ffplay \
             --disable-autodetect --disable-network \
@@ -110,6 +117,16 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Not a standalone FFmpeg executable' }
           & ./compact-ffmpeg/ffprobe.exe -version
           if ($LASTEXITCODE -ne 0) { throw 'Not a standalone ffprobe executable' }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: compact-build-diagnostics
+          path: |
+            compact-build-evidence/*.log
+            compact-build-evidence/*.pc
+            compact-build-evidence/*.c
+            compact-build-evidence/*.txt
+          if-no-files-found: warn
       - uses: actions/upload-artifact@v4
         with:
           name: compact-ffmpeg-runtime-and-source

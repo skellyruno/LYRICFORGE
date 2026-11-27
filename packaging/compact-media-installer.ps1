@@ -5,8 +5,13 @@ $evidence=(Resolve-Path $EvidenceDirectory).Path
 $ledger=Join-Path $evidence 'payload-manifest.json'
 $root=(Resolve-Path "$PSScriptRoot/..").Path
 function Run-Checked([string]$Exe,[string]$Args,[int]$TimeoutMs) {
+    Write-Host "Starting $Exe with bounded timeout $TimeoutMs ms"
     $p=Start-Process -FilePath $Exe -ArgumentList $Args -WorkingDirectory (Split-Path $Exe) -PassThru
-    if (-not $p.WaitForExit($TimeoutMs)) { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue; throw "Timed out: $Exe" }
+    if (-not $p.WaitForExit($TimeoutMs)) {
+        Get-CimInstance Win32_Process | Where-Object { $_.ProcessId -eq $p.Id -or $_.ParentProcessId -eq $p.Id } | Select-Object ProcessId,Name,CommandLine | Format-List | Out-String | Write-Host
+        & taskkill.exe /PID $p.Id /T /F | Out-Host
+        throw "Timed out: $Exe"
+    }
     if ($p.ExitCode -ne 0) { throw "$Exe exited $($p.ExitCode)" }
 }
 if ($ExistingSetup) {
@@ -34,7 +39,7 @@ $sentinel=Join-Path $env:LYRICFORGE_DATA 'preserve.txt'
 Set-Content -LiteralPath $sentinel -Value 'preserve existing workspace'
 $sentinelHash=(Get-FileHash $sentinel -Algorithm SHA256).Hash
 $log=Join-Path $evidence 'install.log'
-$installArgs='/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DIR="'+$target+'" /LOG="'+$log+'" /TASKS=""'
+$installArgs="/SP- /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /NOCANCEL /DIR=`"$target`" /LOG=`"$log`" /TASKS=`"`""
 try {
     Run-Checked $setup $installArgs 300000
     if ($ExistingSetup) { python "$PSScriptRoot/payload_integrity.py" installed $target $ledger }
