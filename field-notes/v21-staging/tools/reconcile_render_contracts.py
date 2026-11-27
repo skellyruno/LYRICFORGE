@@ -174,7 +174,21 @@ def apply(root, archive):
         assert result.returncode == 0, result.stderr'''
     if old in test:test=once(test,old,new)
     else:raise ValueError('Unexpected recovery test baseline')
+    test=once(test,'if(state.backgroundIsVideo&&!bgVid.paused)bgVid.pause();','if(state.backgroundIsVideo&&!state.playing&&!bgVid.paused)bgVid.pause();')
     add(name,test)
+    # Preserve legacy documentary defaults without changing explicit themes,
+    # newer research production or the source/proof ledger.
+    server=read('server.py')
+    server=once(server,'        body=CreatorRequest.model_validate_json(payload)\n        import studio_theme', '''        body=CreatorRequest.model_validate_json(payload)
+        if body.story=='documentary' and body.production_mode!='research' and 'visual_theme' not in body.model_fields_set:
+            body=body.model_copy(update={'visual_theme':'legacy'})
+        import studio_theme''')
+    server=once(server,'        if body.auto_render:\n            _,settings,plan=prepare_director(project_id,DirectorRequest(', '''        if body.auto_render:
+            legacy_documentary=body.story=='documentary' and body.production_mode!='research'
+            _,settings,plan=prepare_director(project_id,DirectorRequest(''')
+    server=once(server,"editorial_style='reference',visual_theme=body.visual_theme,skell_terminology=body.skell_terminology,caption_style='clean',caption_scale=.85,transition_style='auto'","editorial_style='standard' if legacy_documentary else 'reference',visual_theme=body.visual_theme,skell_terminology=body.skell_terminology,caption_style='marker' if legacy_documentary else 'clean',caption_scale=.85,transition_style='cut' if legacy_documentary else 'auto'")
+    server=once(server,'caption_style=body.caption_style,caption_scale=body.caption_scale',"caption_style=('marker' if plan.get('editorial_engine')=='v20' else 'clean') if body.caption_style=='auto' else body.caption_style,caption_scale=body.caption_scale")
+    add('server.py',server)
     # All source is validated before writing; the original archive and Creator
     # checkout are never edited. Record exactly which files changed.
     for name,value in changes.items():
