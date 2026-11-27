@@ -42,6 +42,8 @@ jobs:
       - name: Restore and verify the original welcome branding
         run: |
           python -m pytest -q field-notes/v21-staging/tools/test_welcome_brand.py
+          node field-notes/v21-staging/tools/test_welcome_preferences.mjs
+          node --check field-notes/v21-staging/tools/welcome-preferences.js
           python field-notes/v21-staging/tools/apply_welcome_brand.py candidate field-notes/candidates/SkellyMotion-Editorial-V20-Source-Candidate.zip
       - name: Install candidate test dependencies
         run: |
@@ -59,6 +61,8 @@ jobs:
           set -o pipefail
           for file in static/app.js static/autoclip.js static/make.js static/hub-brand.js; do node --check "$file"; done
           for file in tests/editor_smoke.mjs tests/autoclip_smoke.mjs tests/compressor_lab_smoke.mjs; do node "$file"; done 2>&1 | tee ../evidence/frontend.log
+      - name: Lossless scene assembly regressions
+        run: python -m pytest -q field-notes/v20-staging/tools/test_finalize_master.py
       - name: Full source regression gate
         working-directory: candidate
         run: |

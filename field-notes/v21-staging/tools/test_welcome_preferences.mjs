@@ -1,0 +1,35 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+const code=readFileSync(new URL('./welcome-preferences.js',import.meta.url),'utf8');
+const key='skellymotion-welcome-appearance-v1';
+function load(stored, fail=false) {
+  const map=new Map(stored===undefined?[]:[[key,stored]]);
+  const input=()=>({value:'',checked:false,events:{},addEventListener(n,f){this.events[n]=f;}});
+  const theme=input(), art=input(), root={dataset:{}}, events={};
+  const storage={getItem(k){if(fail)throw Error('blocked');return map.get(k)??null;},setItem(k,v){if(fail)throw Error('blocked');map.set(k,v);}};
+  vm.runInNewContext(code,{document:{documentElement:root,getElementById:id=>id==='welcomeAppearance'?theme:art},window:{addEventListener(n,f){events[n]=f;}},localStorage:storage});
+  return {theme,art,root,map,events};
+}
+const fresh=load();
+assert.equal(fresh.root.dataset.welcomeAppearance,'skelly');
+assert.equal(fresh.art.checked,true);
+fresh.theme.value='clean';fresh.theme.events.change();
+assert.equal(fresh.root.dataset.welcomeAppearance,'clean');
+assert.equal(fresh.art.checked,true);
+fresh.art.checked=false;fresh.art.events.change();
+assert.equal(fresh.root.dataset.welcomeArtwork,'hide');
+const again=load(fresh.map.get(key));
+assert.equal(again.theme.value,'clean');
+assert.equal(again.art.checked,false);
+again.theme.value='skelly';again.theme.events.change();
+assert.equal(again.art.checked,false);
+again.events.storage({key,newValue:null});
+assert.equal(again.theme.value,'skelly');
+assert.equal(again.art.checked,true);
+assert.equal(load('invalid json').theme.value,'skelly');
+assert.equal(load('{"theme":"unknown","artwork":0}').art.checked,true);
+const blocked=load(undefined,true);
+blocked.theme.value='clean';blocked.theme.events.change();
+assert.equal(blocked.root.dataset.welcomeAppearance,'clean');
+console.log('Welcome preference defaults, independent toggles, storage roundtrip, invalid data and blocked storage passed');

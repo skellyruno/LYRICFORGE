@@ -44,3 +44,19 @@ html:has(#performanceMode option[value=eco]:checked) #app #welcome .motion-radar
 @media (max-width: 540px) {
   html:not(.desktop-mode) #app:has(#welcome:not(.hidden)) .top-actions .icon-action:disabled { display: none; }
 }
+
+/* Optional monochrome welcome. Never recolor the editing canvas or media. */
+#app #welcome .welcome-appearance { margin: 8px 0 0; color: #aeb7ae; font-size: 11px; }
+#app #welcome .welcome-appearance summary { cursor: pointer; width: fit-content; padding: 5px 0; }
+#app #welcome .welcome-appearance-options { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; padding: 6px 0; }
+#app #welcome .welcome-appearance-options label { display: inline-flex; align-items: center; gap: 7px; }
+#app #welcome .welcome-appearance-options select { color: #eee; background: #171a18; border: 1px solid #525b53; padding: 5px 8px; border-radius: 5px; font-size: 11px; }
+#app #welcome .welcome-appearance-options input { accent-color: var(--welcome-accent); }
+#app #welcome .welcome-appearance :is(summary,select,input):focus-visible { outline: 2px solid var(--welcome-accent); outline-offset: 3px; }
+html[data-welcome-appearance="clean"] #app #welcome { --welcome-accent: #f2f2f2; filter: grayscale(1); }
+html[data-welcome-appearance="clean"] #app:has(#welcome:not(.hidden)) .topbar { filter: grayscale(1); }
+html[data-welcome-appearance="clean"] #app #welcome h1 { color: #f2f2f2; }
+html[data-welcome-artwork="hide"] #app #welcome { grid-template-columns: minmax(0, 620px); }
+html[data-welcome-artwork="hide"] #app #welcome .welcome-hub-art { display: none; }
+html[data-welcome-artwork="hide"] #app #welcome .motion-radar img { animation: none; }
+html[data-welcome-artwork="hide"] #app #welcome h1 { padding-right: 0; }

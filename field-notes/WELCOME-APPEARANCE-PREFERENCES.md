@@ -1,0 +1,5 @@
+# Optional clean welcome appearance
+
+Default Skelly (green) remains unchanged. Expand Appearance below the welcome actions to select Clean (white) and independently show/hide the spiral. A dedicated local preference key avoids changes to projects and media, and the neutral toolbar styling is scoped to the welcome screen. Hiding the artwork stops animation and reclaims the entire layout column. Storage errors are non-fatal; existing Eco/reduced-motion behavior is preserved.
+
+Local Chromium screenshots and UI interactions checked at 844x522, 1280x800 and 390x844 against recovered V19/V21 trial HTML plus the updated styles and script. Local HTTP navigation is blocked, so the real DOM uses inlined assets and an injected storage adapter for the simulated reload test. Exact packaged Windows UI and actual persistent WebView2 storage are still unverified. New CI tests cover input validation, storage failure and independent preferences; also include the previously locally tested lossless assembly helper in the integration gate. No main merge or release.
