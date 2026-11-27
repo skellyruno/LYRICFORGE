@@ -4585,7 +4585,7 @@ async def create_video_request(payload: str = Form(...), files: list[UploadFile]
         suffixes=[Path(f.filename or '').suffix.lower() for f in files]
         preflight=bind_uploads(body.chapters,suffixes) if body.chapters else []
         script=(creator.validate_script(preflight,body.production_mode) if body.chapters else creator.chapters_from_text(body.script_text) if body.script_text.strip() else [] if voice=='recorded' else creator.draft_script(body.product,body.brief,body.facts,body.target_seconds,body.story,body.production_mode)['chapters'])
-        research_sources=[{'title':creator.clean(r.get('title'),220),'url':creator.source_url(r.get('url')),'kind':creator.clean(r.get('kind'),30)} for r in body.research_sources]
+        research_sources=[{'title':creator.clean(r.get('title'),220),'url':creator.source_url(r.get('url')),'kind':creator.clean(r.get('kind'),30),**{k:creator.clean(r.get(k),250) for k in ('license','author','publisher') if r.get(k)},'abstract_only':r.get('abstract_only') is True} for r in body.research_sources]
         if body.format not in director_intel.FORMATS or body.format=='canvas': raise ValueError('Select a narrated video format')
         if len(files)>40 or len(body.visual_roles)>len(files): raise ValueError('At most 40 visual uploads; metadata must match files')
         for meta in body.visual_roles:
