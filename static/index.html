@@ -17,7 +17,7 @@
       <div class="brand"><div class="brand-symbol"><img src="/static/skelly-skull.png" alt="" /></div><span class="brand-name">SKELLY<span>MOTION</span></span><span class="brand-pill">STUDIO</span></div>
       <div class="top-middle"><span id="projectTitle" class="song-title">Untitled project</span><span class="top-separator">/</span><span id="projectStatus" class="project-status">Ready to create</span></div>
       <div class="top-actions">
-        <button id="newBtn" class="ghost-btn" title="Start a new song">＋ New</button>
+        <button id="homeBtn" class="ghost-btn" type="button" title="Back to home">⌂ Home</button><button id="newBtn" class="ghost-btn" title="Start a new song">＋ New</button>
         <button id="undoBtn" class="ghost-btn icon-action" title="Undo (Ctrl+Z)" aria-label="Undo" disabled>↶</button>
         <button id="redoBtn" class="ghost-btn icon-action" title="Redo (Ctrl+Y)" aria-label="Redo" disabled>↷</button>
         <button id="saveBtn" class="ghost-btn" title="Save this project permanently" disabled>Save</button>
@@ -404,7 +404,7 @@
       <button type="button" role="menuitem" data-clip-menu="delete">⌫ Delete clip</button>
     </div>
     <div class="welcome-overlay" id="welcome"><div class="welcome-grain"></div><div class="welcome-content"><div class="welcome-kicker"><span class="green-dot"></span> SKELLYMOTION / LYRIC VIDEO STUDIO</div><h1>YOUR MUSIC.<br /><em>YOUR WORDS.</em><br />YOUR VISION.</h1><p>Upload a song. Review the AI-detected lyrics. Turn every line into a lyric video that hits right on the beat.</p><button type="button" class="hero-upload" id="heroUpload"><span class="upload-glyph">↥</span><span><b>Drop a song here or click to upload</b><small>MP3, WAV, M4A, FLAC, OGG · Up to 15 min</small></span><span class="upload-arrow">↗</span></button><input id="audioFile" type="file" accept="audio/*,.mp3,.wav,.m4a,.flac,.ogg,.aac,.opus,.mp4,.webm" hidden />
-    <button id="openCreatorWelcome" class="welcome-creator-btn" type="button"><span>✦ Create from a brief</span><small>Script, narration, pictures &amp; video</small></button>
+    <div class="quick-create-actions"><button id="openResearchWelcome" class="welcome-creator-btn" type="button"><span>✦ Make a research video</span><small>Topic → script → narrated video</small></button><button id="openAutoEditWelcome" class="welcome-creator-btn" type="button"><span>✂ Auto-edit a video</span><small>Upload → edit → export</small></button></div><button id="openCreatorWelcome" class="welcome-creator-btn" type="button"><span>✦ Create from a brief</span><small>Script, narration, pictures &amp; video</small></button>
     <div class="recognition-controls">
       <label for="recognitionMode">Lyric recognition
         <select id="recognitionMode">
@@ -431,7 +431,7 @@
         </label>
         <small>Vocabulary is a hint—not a guaranteed transcription. It does not change the model.</small>
       </details>
-    </div><div class="welcome-features"><span>✳ AI lyric detection</span><span>✳ Word-level sync</span><span>✳ MP4 export</span></div><div class="welcome-secondary-actions"><button id="resumeLastBtn" class="demo-btn hidden" type="button">↻ Resume last project <span>→</span></button><button id="openProjectsWelcome" class="demo-btn" type="button">▦ Open a saved project <span>→</span></button><button id="openClipStudio" class="demo-btn" type="button">✂ Clip a long video into Shorts <span>→</span></button><button id="openMake" class="demo-btn" type="button">✦ Make a music video, animation or stream pack <span>→</span></button><button id="demoBtn" class="demo-btn">Or explore the demo editor <span>→</span></button></div><details class="welcome-appearance"><summary>Appearance</summary><div class="welcome-appearance-options"><label for="welcomeAppearance">Theme <select id="welcomeAppearance"><option value="skelly">Skelly (green)</option><option value="clean">Clean (white)</option></select></label><label for="welcomeArtwork"><input type="checkbox" id="welcomeArtwork" checked /> Show spiral</label></div></details></div><aside class="welcome-hub-art" aria-hidden="true"><div class="motion-radar"><img src="/static/skelly-radar.png" width="531" height="505" alt="" /></div><span class="welcome-hub-label">SKELLY / CREATIVE STUDIO</span></aside></div>
+    </div><div class="welcome-features"><span>✳ AI lyric detection</span><span>✳ Word-level sync</span><span>✳ MP4 export</span></div><div class="welcome-secondary-actions"><button id="returnActiveBtn" class="demo-btn hidden" type="button">↩ Return to active project <span>→</span></button><button id="resumeLastBtn" class="demo-btn hidden" type="button">↻ Resume last project <span>→</span></button><button id="openProjectsWelcome" class="demo-btn" type="button">▦ Open a saved project <span>→</span></button><button id="openClipStudio" class="demo-btn" type="button">✂ Clip a long video into Shorts <span>→</span></button><button id="openMake" class="demo-btn" type="button">✦ Make a music video, animation or stream pack <span>→</span></button><button id="demoBtn" class="demo-btn">Or explore the demo editor <span>→</span></button></div><details class="welcome-appearance"><summary>Appearance</summary><div class="welcome-appearance-options"><label for="welcomeAppearance">Theme <select id="welcomeAppearance"><option value="skelly">Skelly (green)</option><option value="clean">Clean (white)</option></select></label><label for="welcomeArtwork"><input type="checkbox" id="welcomeArtwork" checked /> Show spiral</label></div></details></div><aside class="welcome-hub-art" aria-hidden="true"><div class="motion-radar"><img src="/static/skelly-radar.png" width="531" height="505" alt="" /></div><span class="welcome-hub-label">SKELLY / CREATIVE STUDIO</span></aside></div>
 
     <div id="reviewOverlay" class="modal-overlay hidden"><div class="review-modal"><div class="modal-top"><span class="eyebrow">STEP 01 OF 02</span><button id="closeReview" title="Close" class="modal-close">×</button></div><div class="modal-visual"><span class="modal-icon">♪</span><span class="step-chain"><b>UPLOAD</b><i></i><b>REVIEW</b><i></i><span>CREATE</span></span></div><h2 id="reviewTitle">Review your lyrics.</h2><p id="reviewDescription">We picked up the lyrics in your song. Fix anything we missed before we sync them to the timeline.</p><div id="transcribeProgress" class="transcribe-progress hidden" aria-live="polite"><div class="loading-orbit"></div><strong>Preparing your song…</strong><span>Using your existing Whisper AI model.</span><div class="transcribe-meter" id="transcribeMeterTrack" role="progressbar" aria-label="Audio analyzed" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="transcribeMeter"></div></div><small class="transcribe-note">Progress measures analyzed audio, not time remaining.</small></div><textarea id="lyricsText" spellcheck="false" placeholder="Your lyrics will appear here. You can also type or paste lyrics manually."></textarea><div id="reviewWarning" class="review-warning hidden"></div>
           <div id="uncertainReview" class="uncertain-review hidden">
@@ -483,13 +483,13 @@
   <div id="clipStudio" class="clip-studio hidden" role="dialog" aria-modal="true" aria-labelledby="clipStudioTitle">
     <header class="clip-studio-bar">
       <div><span class="eyebrow">CLIP STUDIO</span><h2 id="clipStudioTitle">Long video to Shorts</h2></div>
-      <div class="clip-studio-actions"><button id="makeFromStudio" class="ghost-btn" type="button">Make</button><button id="brandOpen" class="ghost-btn" type="button">Brand kit</button><button id="clipStudioClose" class="ghost-btn" type="button">Close</button></div>
+      <div class="clip-studio-actions"><button id="makeFromStudio" class="ghost-btn" type="button">Make</button><button id="brandOpen" class="ghost-btn" type="button">Brand kit</button><button id="clipStudioClose" class="ghost-btn" type="button">⌂ Home</button></div>
     </header>
     <div class="clip-studio-body">
       <section id="clipUploadStep" class="clip-step">
-        <button id="clipPick" type="button" class="hero-upload"><span class="upload-glyph">↥</span><span><b>Choose a video to clip</b><small id="clipLimitNote">MP4, MOV, MKV, WebM</small></span><span class="upload-arrow">↗</span></button>
+        <button id="clipPick" type="button" class="hero-upload"><span class="upload-glyph">↥</span><span><b id="clipPickTitle">Choose a video to clip</b><small id="clipLimitNote">MP4, MOV, MKV, WebM</small></span><span class="upload-arrow">↗</span></button>
         <input id="clipFile" type="file" accept="video/*,.mp4,.mov,.mkv,.webm,.m4v" hidden />
-        <div class="clip-options">
+        <div id="clipOneClick" class="hidden"><p id="clipSelectedName" class="clip-fine">Choose a video to edit.</p><button id="clipEditNow" class="primary-btn" type="button" disabled>Edit video</button></div><div class="clip-options">
           <label>Spoken language<select id="clipLanguage"><option value="auto">Auto-detect</option><option value="en">English</option><option value="es">Spanish</option><option value="fr">French</option><option value="pt">Portuguese</option><option value="de">German</option><option value="it">Italian</option><option value="ja">Japanese</option><option value="ko">Korean</option></select></label>
           <label>Recognition<select id="clipRecognition"><option value="fast">Fast</option><option value="balanced" selected>Balanced</option><option value="accurate">Accurate (slower)</option></select></label>
           <label class="clip-check"><input id="clipKeepFillers" type="checkbox" checked /> Listen for ums and uhs <small>Lets Auto-edit cut filler words. Turn off if the recognizer starts inventing them.</small></label>
@@ -503,7 +503,7 @@
           <div class="watch-actions"><button id="watchStart" class="primary-btn" type="button">Start watching</button><button id="watchStop" class="ghost-btn hidden" type="button">Stop</button></div>
           <div id="watchLog" class="watch-log" aria-live="polite"></div>
         </details>
-        <p class="clip-fine">Clips are chosen from the transcript, loudness and scene changes. You approve every clip before anything is exported.</p>
+        <p id="clipUploadHelp" class="clip-fine">Clips are chosen from the transcript, loudness and scene changes. You approve every clip before anything is exported.</p>
       </section>
       <section id="clipProgressStep" class="clip-step hidden"><div class="loading-orbit"></div><strong id="clipProgressTitle">Working…</strong><div class="transcribe-meter"><div id="clipMeter"></div></div><small id="clipProgressNote"></small></section>
       <section id="clipReadyStep" class="clip-step hidden">
@@ -610,7 +610,7 @@
   <div id="makeOverlay" class="clip-studio hidden" role="dialog" aria-modal="true" aria-labelledby="makeTitle">
     <header class="clip-studio-bar">
       <div><span class="eyebrow">MAKE</span><h2 id="makeTitle">Make something new</h2></div>
-      <div class="clip-studio-actions"><button id="makeBrand" class="ghost-btn" type="button">Brand kit</button><button id="makeClose" class="ghost-btn" type="button">Close</button></div>
+      <div class="clip-studio-actions"><button id="makeBrand" class="ghost-btn" type="button">Brand kit</button><button id="makeHome" class="ghost-btn" type="button">⌂ Home</button><button id="makeClose" class="ghost-btn" type="button">Close</button></div>
     </header>
     <div class="clip-studio-body"><div class="clip-step make-step">
       <input id="makeSearch" class="make-search" type="search" placeholder="Search tools (press / )" maxlength="40" aria-label="Search the tools" autocomplete="off">
@@ -625,9 +625,27 @@
     </div></div>
   </div>
 </div>
+  <div id="researchStudio" class="clip-studio hidden" role="dialog" aria-modal="true" aria-labelledby="researchTitle">
+    <header class="clip-studio-bar"><div><span class="eyebrow">CREATOR / RESEARCH</span><h2 id="researchTitle">Make a research video</h2></div><button id="researchHome" class="ghost-btn" type="button">⌂ Home</button></header>
+    <div class="clip-studio-body"><section class="clip-step research-step">
+      <label class="control-group">Topic<input id="researchTopic" maxlength="80" placeholder="e.g. How pitch correction works" /></label>
+      <label class="control-group">Target length (seconds)<input id="researchLength" type="number" min="15" max="180" value="60" /></label>
+      <p class="clip-fine">Fetches a public Wikipedia article using your topic, writes an attributed script, then creates narration and illustrative motion graphics locally. No uploads or API key required. Internet is needed for research.</p>
+      <button id="researchRun" class="primary-btn" type="button">Create research video</button>
+      <div id="researchStatus" class="render-status hidden" role="status" aria-live="polite"></div>
+      <div id="researchResults" class="auto-results"></div>
+      <div id="researchReview" class="hidden"><h3>Revise your video</h3><p id="researchEstimate" class="clip-fine"></p><p id="researchSource" class="clip-fine"></p>
+        <label class="control-group">Tell it what to change<textarea id="researchInstruction" rows="2" maxlength="250" placeholder="Make it shorter, focus on the history, use calm narration…"></textarea></label>
+        <button id="researchRevise" class="primary-btn" type="button">Apply changes &amp; render</button>
+        <label class="control-group">Editable script (one source-linked chapter per line)<textarea id="researchScript" rows="7" maxlength="60000"></textarea></label>
+        <button id="researchRenderScript" class="wide-ghost" type="button">Render edited script</button>
+      </div>
+    </section></div>
+  </div>
   <script src="/static/app.js"></script>
   <script src="/static/autoclip.js"></script>
   <script src="/static/make.js"></script>
+  <script src="/static/quick-create.js"></script>
 <script src="/static/welcome-preferences.js"></script>
 </body>
 </html>

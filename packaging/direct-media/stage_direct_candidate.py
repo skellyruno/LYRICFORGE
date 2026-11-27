@@ -9,7 +9,7 @@ def stage(root,dest):
     dest.mkdir()
     with zipfile.ZipFile(io.BytesIO(subprocess.check_output(["git","-C",str(root),"archive","--format=zip","HEAD"]))) as z:z.extractall(dest)
     server=dest/"server.py";text=server.read_text(encoding="utf-8")
-    if hashlib.sha256(text.encode()).hexdigest()!="9fba12c0e5c8f5928bd4537eb995b8ff9622a3940911ec7e70244b010ec02983":
+    if hashlib.sha256(text.encode()).hexdigest()!="7910372eca188f0a732d66d12168679e61bfcb8343ebf4ffb8b08903a967fdcd":
         raise ValueError("Unexpected original server")
     start=text.index("def media_duration(path: Path) -> float:");end=text.index("async def save_upload(",start)
     replacement='''def media_duration(path: Path) -> float:

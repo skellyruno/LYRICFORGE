@@ -60,3 +60,20 @@ html[data-welcome-artwork="hide"] #app #welcome { grid-template-columns: minmax(
 html[data-welcome-artwork="hide"] #app #welcome .welcome-hub-art { display: none; }
 html[data-welcome-artwork="hide"] #app #welcome .motion-radar img { animation: none; }
 html[data-welcome-artwork="hide"] #app #welcome h1 { padding-right: 0; }
+
+/* Compact entry points; preserve the original welcome artwork. */
+#app #welcome .quick-create-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:8px 0}
+#app #welcome .quick-create-actions .welcome-creator-btn{width:100%;min-width:0;margin:0;text-align:left;white-space:normal;line-height:1.25;padding:10px}
+#app #welcome .quick-create-actions small{display:block;font-size:10px;margin-top:3px}
+#homeBtn{display:inline-flex!important;align-items:center;white-space:nowrap}
+.research-step{max-width:720px}.research-step .control-group{display:flex;flex-direction:column;gap:6px;min-width:0;color:#c8d5c9}
+.research-step :is(input,textarea){width:100%;background:#0d110f;color:#f0f5f0;border:1px solid #3c5040;border-radius:7px;padding:10px;font:inherit;box-sizing:border-box}
+.research-step #researchReview{display:grid;gap:12px}.research-step #researchReview.hidden{display:none!important}
+.research-step a{color:var(--accent);overflow-wrap:anywhere}.research-step video{max-height:380px;max-width:100%}
+@media(max-width:540px){#app #welcome .quick-create-actions{grid-template-columns:1fr}#homeBtn{font-size:11px;padding:0 6px}.research-step{width:100%}#researchStudio .clip-studio-bar{padding:14px}#researchStudio .clip-studio-body{padding:14px}}
+
+#app #welcome .quick-create-actions .welcome-creator-btn{display:flex;flex-direction:column;align-items:flex-start;gap:4px}
+#clipStudio.one-click-edit #clipOneClick:not(.hidden){display:flex;flex-direction:column;gap:8px;margin:14px 0}
+#clipStudio.one-click-edit #clipSelectedName{overflow-wrap:anywhere;margin:0}
+#clipStudio.one-click-edit #clipEditNow{width:100%}
+#clipStudio.one-click-edit #clipUploadStep .clip-options,#clipStudio.one-click-edit #watchBox{display:none}

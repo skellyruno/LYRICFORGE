@@ -8,7 +8,10 @@ EXPECTED_OLD_BYTES=80874948
 
 def check_base(base):
     # Inno section declarations are whole lines, not mentions in comments.
-    sections=set(re.findall(r"^\s*\[([^\]\r\n]+)\]\s*(?:;[^\r\n]*)?$",base,re.M))
+    sections=set()
+    for line in base.splitlines():
+        match=re.match(r"^\s*\[([^\]\r\n]+)\]",line)
+        if match: sections.add(match.group(1))
     if {name.strip().casefold() for name in sections}&{"code","installdelete","uninstalldelete"}:
         raise ValueError("Unexpected installer base")
 

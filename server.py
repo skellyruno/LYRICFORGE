@@ -5369,4 +5369,7 @@ def clip_capabilities():
             "languages": edit.LANGUAGES}
 
 
+import studio_topic_research as topic_research
+app.include_router(topic_research.router)
+
 app.mount("/static", StaticFiles(directory=STATIC), name="static")

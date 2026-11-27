@@ -270,11 +270,11 @@ async function renderPickedShorts() {
 }
 
 /* ---------- Clip Studio: long video to Shorts ---------- */
-const studio = { id: null, timer: null, busy: false, cards: [], caps: null };
+const studio = { id: null, timer: null, busy: false, cards: [], caps: null, oneClick: false, selected: null, autoPending: false };
 function setStep(name) {
   for (const step of ['clipUploadStep', 'clipProgressStep', 'clipReadyStep']) $(step).classList.toggle('hidden', step !== name);
 }
-function closeStudio() { clearTimeout(watch.timer); clearTimeout(studio.timer); studio.timer = null; $('clipStudio').classList.add('hidden'); }
+function closeStudio() { if(studio.autoPending||studio.busy){toast('Finish or cancel the current edit before leaving.',true);return false;} clearTimeout(watch.timer); clearTimeout(studio.timer); studio.timer = null; $('clipStudio').classList.add('hidden'); return true; }
 async function loadCaps() {
   if (studio.caps) return studio.caps;
   try { studio.caps = await api('/api/clips/capabilities'); } catch (e) { studio.caps = {}; }
@@ -298,7 +298,17 @@ function paintClipLangs() {
       return el('label', { class: 'lang-chip' }, input, name);
     })));
 }
-async function openStudio(id) {
+async function openStudio(id,oneClick=false) {
+  if(studio.autoPending||studio.busy)return;
+  studio.oneClick=oneClick;studio.selected=null;
+  $('clipStudio').classList.toggle('one-click-edit',oneClick);
+  $('clipUploadHelp').textContent=oneClick?'Automatically analyzes and edits your video. Creates a new export; the original stays unchanged.':'Clips are chosen from the transcript, loudness and scene changes. You approve every clip before anything is exported.';
+  if(oneClick)$('clipUseAi').checked=false;
+  $('clipStudioTitle').textContent=oneClick?'Auto-edit a video':'Long video to Shorts';
+  $('clipOneClick').classList.toggle('hidden',!oneClick);
+  $('clipSelectedName').textContent='Choose a video to edit.';$('clipEditNow').disabled=true;
+  $('clipPickTitle').textContent=oneClick?'Choose a video to edit':'Choose a video to clip';
+  $('autoEditResults').replaceChildren();$('autoEditStatus').classList.add('hidden');
   $('clipStudio').classList.remove('hidden');
   await loadCaps();
   if (studio.caps.watch) refreshWatch();
@@ -313,7 +323,7 @@ async function uploadSource(file) {
   form.append('keep_fillers', $('clipKeepFillers') && $('clipKeepFillers').checked ? 'true' : 'false');
   form.append('recognition', $('clipRecognition').value); form.append('use_ai', $('clipUseAi').checked ? 'true' : 'false');
   try { const made = await api('/api/clip-sources', { method: 'POST', body: form }); studio.id = made.id; attach(); }
-  catch (e) { toast(e.message, true); setStep('clipUploadStep'); }
+  catch (e) { studio.autoPending=false;toast(e.message, true); setStep('clipUploadStep'); }
 }
 async function attach() {
   clearTimeout(studio.timer);
@@ -322,8 +332,8 @@ async function attach() {
     const project = await api('/api/projects/' + id);
     if (studio.id !== id) return;
     $('clipStudioTitle').textContent = project.title || 'Long video to Shorts';
-    if (project.status === 'ready') { showReady(project); return; }
-    if (project.status === 'failed') { setStep('clipUploadStep'); toast(project.clip_error || 'Could not analyze this video.', true); return; }
+    if (project.status === 'ready') { showReady(project); if(studio.autoPending){studio.autoPending=false;applyAutoEdit({trim_silence:true,loudness:true,captions:true,zoom:'subtle',shorts:0,voice_cleanup:'light',fillers:'off'});await runAutoEdit();} return; }
+    if (project.status === 'failed') { studio.autoPending=false;setStep('clipUploadStep'); toast(project.clip_error || 'Could not analyze this video.', true); return; }
     setStep('clipProgressStep');
     const analyzing = project.status === 'analyzing';
     $('clipProgressTitle').textContent = analyzing ? 'Finding the best moments…' : 'Transcribing speech…';
@@ -757,9 +767,11 @@ on('autopilotFromReview', 'click', runAutopilot);
 on('autoFindShorts', 'click', findShorts);
 on('autoRenderShorts', 'click', renderPickedShorts);
 on('openClipStudio', 'click', () => openStudio(null));
-on('clipStudioClose', 'click', closeStudio);
+on('openAutoEditWelcome','click',()=>openStudio(null,true));
+on('clipStudioClose', 'click', ()=>{if(closeStudio())bridge()?.home?.();});
+on('clipEditNow','click',()=>{if(!studio.selected||studio.autoPending||studio.busy)return;studio.autoPending=true;uploadSource(studio.selected);});
 on('clipPick', 'click', () => $('clipFile').click());
-on('clipFile', 'change', (e) => { const f = e.target.files && e.target.files[0]; if (f) uploadSource(f); e.target.value = ''; });
+on('clipFile', 'change', (e) => { const f = e.target.files && e.target.files[0]; if(f){if(studio.oneClick){studio.selected=f;$('clipSelectedName').textContent=f.name;$('clipEditNow').disabled=false;}else uploadSource(f);} e.target.value = ''; });
 on('clipRegen', 'click', regenerate);
 on('autoEditRun', 'click', runAutoEdit);
 on('aePreset', 'change', pickPreset);

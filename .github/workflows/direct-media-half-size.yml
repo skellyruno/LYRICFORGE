@@ -24,6 +24,11 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.11'
+      - name: Check creation interface source
+        run: |
+          node --check static/quick-create.js
+          node tests/editor_smoke.mjs
+          node tests/autoclip_smoke.mjs
       - name: Verify exact prior artifacts
         shell: pwsh
         env:
