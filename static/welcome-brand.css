@@ -81,3 +81,5 @@ html[data-welcome-artwork="hide"] #app #welcome h1 { padding-right: 0; }
 .research-settings{border:1px solid #34443a;border-radius:7px;padding:10px;margin:6px 0 12px}.research-settings summary{cursor:pointer;color:#d5e5d7;font-size:12px}.research-settings .control-group{margin-top:12px}.research-step .research-toggle{display:flex;align-items:center;gap:8px;color:#bfcac0;font-size:12px}.research-step .research-toggle input{width:auto;accent-color:#36ff17}.research-source-link{display:block;margin:4px 0;overflow-wrap:anywhere}
 
 #researchStudio .research-step{gap:10px}#researchStudio .clip-studio-body{padding-top:18px}#researchStudio .research-step .control-group{margin-bottom:0}#researchStudio .research-settings{margin:2px 0 4px}#researchStudio .research-settings .control-group{margin-top:8px}
+
+.research-step select{width:100%;background:#0d110f;color:#f0f5f0;border:1px solid #3c5040;border-radius:7px;padding:8px;font:inherit;box-sizing:border-box}.research-settings #researchRefreshModels{width:auto;min-height:28px;padding:4px 8px;margin:4px 0}.research-settings #researchModelStatus{display:block;margin-bottom:4px}

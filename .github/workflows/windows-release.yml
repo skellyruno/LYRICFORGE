@@ -61,6 +61,7 @@ jobs:
           node --check static/app.js
           node --check static/autoclip.js
           node --check static/make.js
+          node --check static/quick-create.js
           node --check static/welcome-preferences.js
           node tests/preview_clock.mjs
           node tests/editor_smoke.mjs
@@ -133,6 +134,7 @@ jobs:
           node --check static/app.js
           node --check static/autoclip.js
           node --check static/make.js
+          node --check static/quick-create.js
           node --check static/welcome-preferences.js
       - name: Test original editor on Windows
         run: python -m pytest tests -q

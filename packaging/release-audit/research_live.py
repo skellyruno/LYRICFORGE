@@ -38,6 +38,8 @@ def model(out,name):
     with urlopen('http://127.0.0.1:11434/api/tags',timeout=20) as response:
         report['installed_models']=json.load(response).get('models',[])
     save()
+    report['discovered_models']=compose.installed_models();save()
+    if not any(x['name']==name for x in report['discovered_models']):raise RuntimeError('Installed model discovery failed')
     first=compose.compose('Pitch correction',30,model=name,gather=fixture)
     report['initial']=first;save()
     second=compose.compose('Pitch correction',30,model=name,instruction='Make the opening more concise and use an energetic delivery in square format.',prior=first['chapters'],gather=fixture)
