@@ -15,6 +15,12 @@ class MetadataTests(unittest.TestCase):
     def test_ambiguous_delayed_skip(self):
         with self.assertRaises(ValueError):
             priming_from_debug(SKIP+HEADER+STREAM+"Stream mapping:\n"+SKIP)
+    def test_ffmpeg9_input_prefix(self):
+        actual=SKIP.replace("[mov,", "[in#0/mov,")
+        self.assertEqual(priming_from_debug(actual+HEADER+STREAM),1024)
+    def test_unexpected_input_prefix(self):
+        with self.assertRaises(ValueError):
+            priming_from_debug(SKIP.replace("[mov,","[in#1/mov,")+HEADER+STREAM)
     def test_fail_closed(self):
         for log in (HEADER+STREAM, SKIP+SKIP+HEADER+STREAM,
                     SKIP+HEADER+STREAM+STREAM.replace('#0:0','#0:1'),

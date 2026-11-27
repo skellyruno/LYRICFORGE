@@ -7,7 +7,7 @@ import re
 import subprocess
 from pathlib import Path
 
-_SKIP = re.compile(r'^\[mov,mp4,m4a,3gp,3g2,mj2 @ (?:0x)?[0-9a-fA-F]+\] demuxer injecting skip (\d+) / discard (\d+)\s*$', re.M)
+_SKIP = re.compile(r'^\[(?:in#0/)?mov,mp4,m4a,3gp,3g2,mj2 @ (?:0x)?[0-9a-fA-F]+\] demuxer injecting skip (\d+) / discard (\d+)\s*$', re.M)
 _STREAM = re.compile(r'^\s*Stream #0:\d+[^\n]*?: Audio: ([^\s,]+)', re.M)
 
 
