@@ -27,10 +27,10 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          run=46031807482
+          run=46032977554
           for i in $(seq 1 120); do
             gh api "repos/$REPO/actions/runs/$run" > run.json
-            test "$(jq -r .head_sha run.json)" = '282c40c1e624948d536f9f4ab4fac920dcf6c5c5'
+            test "$(jq -r .head_sha run.json)" = '13d8311ad66f39418110db4785170f5846e8cce2'
             test "$(jq -r .head_branch run.json)" = 'feature/field-notes-production-20261126'
             if [ "$(jq -r .status run.json)" = completed ]; then break; fi
             sleep 15
@@ -41,7 +41,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: exact-staged-source
-          run-id: 46031807482
+          run-id: 46032977554
           github-token: ${{ github.token }}
           path: verified-source
       - uses: actions/setup-python@v6

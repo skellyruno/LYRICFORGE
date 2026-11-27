@@ -2,8 +2,8 @@
 from pathlib import Path,PurePosixPath
 import argparse,hashlib,json,os,stat,subprocess,zipfile
 
-ARCHIVE_SHA='40877d4197a45434b189e5b4f2c45786553cbc1fc8d05b1bb0ed251d3379abdd'
-PRODUCER='282c40c1e624948d536f9f4ab4fac920dcf6c5c5'
+ARCHIVE_SHA='4d874c8de450ce1c9fad725b45ce03ed4cf2a41105ab1499dbe574d9e95e4540'
+PRODUCER='13d8311ad66f39418110db4785170f5846e8cce2'
 BRANCH='feature/field-notes-production-20261126'
 PREFIX='LYRICFORGE-main/'
 
@@ -27,7 +27,7 @@ def prepare(root,artifact,report):
             if entry.file_size>10*1024*1024:raise ValueError('Unexpected large file')
             if Path(path).suffix.lower() in ('.wav','.mp3','.mp4','.zip','.exe','.bin','.onnx','.safetensors'):raise ValueError('Unexpected media or model in source')
             payload[path]=z.read(entry)
-    if len(payload)!=290:raise ValueError('Unexpected candidate file count')
+    if len(payload)!=291:raise ValueError('Unexpected candidate file count')
     extra=sorted(p for p in tracked if p not in payload and
         (p.startswith(('static/','tests/','packaging/','examples/')) or '/' not in p))
     if extra:raise ValueError('Existing runtime or test files missing from candidate: '+', '.join(extra))
