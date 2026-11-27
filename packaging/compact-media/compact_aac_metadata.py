@@ -17,7 +17,7 @@ def priming_from_debug(log):
         raise ValueError('Unsupported container')
     if _STREAM.findall(before_mapping) != ['aac']:
         raise ValueError('Expected exactly one AAC audio stream')
-    values = _SKIP.findall(before_mapping)
+    values = _SKIP.findall(log)
     if len(values) != 1:
         raise ValueError('Missing or ambiguous AAC skip metadata')
     skip, discard = map(int, values[0])
@@ -26,7 +26,7 @@ def priming_from_debug(log):
     return skip
 
 
-def read_priming(exe, media):
+def read_priming(exe, media, diagnostic=None):
     result = subprocess.run([str(Path(exe).resolve()), '-hide_banner', '-nostdin',
         '-loglevel', 'debug', '-i', str(Path(media).resolve()), '-map', '0:a:0',
         '-c', 'copy', '-frames:a', '1', '-f', 'null', '-'],
@@ -34,4 +34,8 @@ def read_priming(exe, media):
         creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
     if len(result.stderr) > 2*1024*1024:
         raise ValueError('Excessive metadata output')
-    return priming_from_debug(result.stderr.decode(errors='replace'))
+    log=result.stderr.decode(errors='replace')
+    # Save fixture-only diagnostics even when the strict parser fails.
+    if diagnostic is not None:
+        Path(diagnostic).write_text(log,encoding='utf-8')
+    return priming_from_debug(log)

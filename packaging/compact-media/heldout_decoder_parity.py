@@ -53,8 +53,16 @@ def audit(baseline,candidate,oracle,narration,out):
         stereo=decode_audio(str(media),sampling_rate=16000,split_stereo=True)
         start=time.perf_counter()
         if media.suffix in (".m4a",".mp4"):
-            skip=read_priming(candidate,media)
+            # Inspect the independent oracle before parsing, and save the
+            # complete compact binary log so future failures are actionable.
             expected=priming(oracle,media)["skip_samples"]
+            try:
+                skip=read_priming(candidate,media,diagnostic=out/(name+".debug.log"))
+            except (ValueError,RuntimeError) as exc:
+                report["cases"].append({"name":name,"oracle_skip":expected,"error":str(exc),"passed":False})
+                save()
+                print("Metadata rejected:",name,"oracle skip:",expected,str(exc),flush=True)
+                continue
             if skip!=expected:raise ValueError("Standalone AAC metadata differs from independent oracle")
             filt=["-af",f"atrim=start_sample={skip},asetpts=N/SR/TB"]
             mono=alternate(candidate,media,["-flags2","+skip_manual"],filt,1)[0]
@@ -71,7 +79,7 @@ def audit(baseline,candidate,oracle,narration,out):
     # Explicitly reject ambiguous metadata rather than silently choosing a stream.
     multiple=out/"two-audio-streams.m4a"
     run(baseline,["-v","error","-y","-i",str(narration),"-t","2","-map","0:a:0","-map","0:a:0","-c:a","aac",str(multiple)])
-    try:read_priming(candidate,multiple)
+    try:read_priming(candidate,multiple,diagnostic=out/"two-audio-streams.debug.log")
     except ValueError:report["ambiguous_streams_rejected"]=True
     else:report["ambiguous_streams_rejected"]=False
     report["passed"]=all(c["passed"] for c in report["cases"]) and report["ambiguous_streams_rejected"]

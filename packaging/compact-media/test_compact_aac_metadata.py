@@ -10,6 +10,11 @@ class MetadataTests(unittest.TestCase):
         self.assertEqual(priming_from_debug(SKIP+HEADER+STREAM),1024)
     def test_ignore_output_stream(self):
         self.assertEqual(priming_from_debug(SKIP+HEADER+STREAM+"Stream mapping:\n"+STREAM),1024)
+    def test_delayed_packet_log(self):
+        self.assertEqual(priming_from_debug(HEADER+STREAM+"Stream mapping:\n"+SKIP),1024)
+    def test_ambiguous_delayed_skip(self):
+        with self.assertRaises(ValueError):
+            priming_from_debug(SKIP+HEADER+STREAM+"Stream mapping:\n"+SKIP)
     def test_fail_closed(self):
         for log in (HEADER+STREAM, SKIP+SKIP+HEADER+STREAM,
                     SKIP+HEADER+STREAM+STREAM.replace('#0:0','#0:1'),

@@ -22,7 +22,12 @@ def main():
     if manifest(a.root)!=before:raise ValueError("Unexpected payload before header fix")
     if sha((a.root/"_internal/static/skelly-skull.png").read_bytes())!=ASSET:raise ValueError("Original header artwork changed")
     index=a.root/REL;fixed=patch(index.read_bytes())
-    if a.source.read_bytes()!=fixed:raise ValueError("Source differs from exact staged HTML")
+    # Git for Windows may checkout the exact LF blob using CRLF. Normalize
+    # only the checkout comparison; retain the exact verified artifact bytes.
+    checked_out=a.source.read_bytes()
+    normalized=checked_out.replace(b"\r\n",b"\n")
+    if normalized!=fixed:raise ValueError(f"Source differs from exact staged HTML: raw={sha(checked_out)} normalized={sha(normalized)} expected={NEW}")
+    print("Header source matches exact verified bytes after checkout newline normalization")
     index.write_bytes(fixed)
     after=manifest(a.root)
     if len(before)!=len(after) or [x for x in before if x[0]!=REL]!=[x for x in after if x[0]!=REL]:raise ValueError("Unrelated payload changes")
