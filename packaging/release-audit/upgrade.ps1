@@ -46,12 +46,32 @@ python "$PSScriptRoot/verify_upgrade.py" $target $OldLedger $NewLedger (Join-Pat
 if ($LASTEXITCODE -ne 0) { throw 'Upgrade payload comparison failed' }
 foreach ($arg in @('--self-test','--ai-self-test','--native-self-test')) {Invoke-Checked $exe @($arg)}
 & "$root/packaging/direct-media/capture_stable_welcome.ps1" $exe (Join-Path $Evidence 'Upgrade-Native-UI.png')
+# Exercise the local hardware-encoder diagnostic on this exact installed binary.
+# Standard hosted runners are not proof of physical GPU acceleration.
+& "$root/packaging/release-audit/Test-SkellyMotion-GPU.ps1" -InstallPath $target -Output (Join-Path $Evidence 'runner-gpu-smoke.json')
+$gpu=Get-Content (Join-Path $Evidence 'runner-gpu-smoke.json') -Raw | ConvertFrom-Json
+if (-not ($gpu.cases | Where-Object { $_.encoder -eq 'libx264' -and $_.valid })) { throw 'CPU control encode failed' }
 Install $New 'repeat-install'
 Verify-Preserved
 python "$PSScriptRoot/verify_upgrade.py" $target $OldLedger $NewLedger (Join-Path $Evidence 'reinstall-payload.json')
 if ($LASTEXITCODE -ne 0) { throw 'Repeat install payload comparison failed' }
 Invoke-Checked $exe @('--self-test')
+# Test conservative cleanup on a real upgrade, never in a user's workspace.
+# A changed app-owned metadata file must be preserved, even if obsolete.
+$changed=Join-Path $target '_internal/av-18.1.1.dist-info/INSTALLER'
+if (-not (Test-Path $changed)) { throw 'Expected old metadata file missing' }
+Set-Content -LiteralPath $changed -Value 'modified-by-local-owner'
+$changedHash=(Get-FileHash $changed).Hash
+python "$PSScriptRoot/cleanup_legacy_media.py" $target $OldLedger $NewLedger (Join-Path $Evidence 'cleanup-dry-run.json')
+if ($LASTEXITCODE -ne 0 -or -not (Test-Path $changed)) { throw 'Dry-run failed' }
+python "$PSScriptRoot/cleanup_legacy_media.py" $target $OldLedger $NewLedger (Join-Path $Evidence 'cleanup-applied.json') --apply
+if ($LASTEXITCODE -ne 0) { throw 'Exact legacy cleanup failed' }
+$cleanup=Get-Content (Join-Path $Evidence 'cleanup-applied.json') -Raw | ConvertFrom-Json
+if ($cleanup.removed_bytes -lt 70000000 -or (Get-FileHash $changed).Hash -ne $changedHash) { throw 'Cleanup preservation or recovery failed' }
+Verify-Preserved
+Invoke-Checked $exe @('--self-test')
+Invoke-Checked $exe @('--ai-self-test')
 Invoke-Checked (Join-Path $target 'unins000.exe') @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART')
 Verify-Preserved
 if (Test-Path $exe) { throw 'Application still present after uninstall' }
-@{passed=$true;old_to_half_size=$true;repeat_install=$true;workspace_and_model_sentinels_preserved=$true;native_ui=$true;uninstall=$true} | ConvertTo-Json | Set-Content (Join-Path $Evidence 'upgrade-result.json')
+@{passed=$true;old_to_half_size=$true;repeat_install=$true;workspace_and_model_sentinels_preserved=$true;native_ui=$true;uninstall=$true;exact_legacy_cleanup_tested=$true;removed_legacy_bytes=$cleanup.removed_bytes;modified_file_preserved_before_uninstall=$true} | ConvertTo-Json | Set-Content (Join-Path $Evidence 'upgrade-result.json')

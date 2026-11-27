@@ -2,7 +2,7 @@ name: Verified installer in-place upgrade and reinstall
 on:
   push:
     branches: [feature/field-notes-production-20261126]
-    paths: ['packaging/release-audit/upgrade.ps1','packaging/release-audit/verify_upgrade.py','.github/workflows/verified-upgrade.yml']
+    paths: ['packaging/release-audit/upgrade.ps1','packaging/release-audit/verify_upgrade.py','packaging/release-audit/cleanup_legacy_media.py','packaging/release-audit/test_cleanup_legacy_media.py','packaging/release-audit/Test-SkellyMotion-GPU.ps1','.github/workflows/verified-upgrade.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -43,6 +43,8 @@ jobs:
           run-id: 46061531369
           github-token: ${{ github.token }}
           path: half-proof
+      - name: Check exact-only cleanup and changed-file protection
+        run: python -m unittest discover -s packaging/release-audit -p test_cleanup_legacy_media.py -v
       - name: Actual in-place upgrade and repeat install, without deleting user files
         shell: pwsh
         run: ./packaging/release-audit/upgrade.ps1 -Old prior/SkellyMotion-Setup.exe -New half/SkellyMotion-Setup.exe -OldLedger prior-proof/payload-manifest.json -NewLedger half-proof/shared-payload-manifest.json

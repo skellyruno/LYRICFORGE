@@ -13,7 +13,9 @@ try {
   $file=Join-Path $folder "$encoder.mp4";$log=Join-Path $folder "$encoder.log"
   $sw=[Diagnostics.Stopwatch]::StartNew()
   $info=[Diagnostics.ProcessStartInfo]::new();$info.FileName=$ffmpeg;$info.UseShellExecute=$false;$info.CreateNoWindow=$true;$info.RedirectStandardError=$true
-  foreach ($a in @('-hide_banner','-nostdin','-v','error','-y','-f','lavfi','-i','testsrc2=size=1280x720:rate=30:duration=2','-an','-c:v',$encoder,'-pix_fmt','yuv420p',$file)) {$info.ArgumentList.Add($a)}
+  $launch=@('-hide_banner','-nostdin','-v','error','-y','-f','lavfi','-i','testsrc2=size=1280x720:rate=30:duration=2','-an','-c:v',$encoder,'-pix_fmt','yuv420p',$file)
+  if ($launch | Where-Object { $_ -match '"' }) {throw 'Unexpected quote in argument'}
+  $info.Arguments=($launch|ForEach-Object {'"'+$_+'"'}) -join ' '
   $p=[Diagnostics.Process]::Start($info);$read=$p.StandardError.ReadToEndAsync()
   if (-not $p.WaitForExit(90000)) {$p.Kill();$p.WaitForExit();$status='timeout'} else {$status=if ($p.ExitCode -eq 0) {'encoded'} else {'failed_or_unsupported'}}
   $sw.Stop();$stderr=$read.GetAwaiter().GetResult()
@@ -25,6 +27,7 @@ try {
     $row.valid=($s.codec_name -eq 'h264' -and $s.width -eq 1280 -and $s.height -eq 720 -and $row.frames -eq 60)
    }
   }
+  $row.diagnostic=$row.diagnostic.Replace($folder,'[test-folder]')
   $report.cases+=@($row)
  }
 } finally { Remove-Item -LiteralPath $folder -Recurse -Force }
