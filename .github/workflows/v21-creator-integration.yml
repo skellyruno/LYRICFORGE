@@ -1,4 +1,4 @@
-name: V21 Creator exact-base integration gate
+name: Creator consolidation / inference / Windows gate
 on:
   push:
     branches: [feature/field-notes-production-20261126]
@@ -9,13 +9,14 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: v21-creator-${{ github.ref }}-${{ github.event_name == 'push' && 'push' || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'push' && github.ref == 'refs/heads/feature/field-notes-production-20261126' }}
 jobs:
-  integration:
+  prepare:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v6
         with:
@@ -49,45 +50,590 @@ jobs:
         run: |
           python field-notes/v21-staging/tools/reconcile_render_contracts.py candidate field-notes/candidates/SkellyMotion-Editorial-V20-Source-Candidate.zip evidence/render-contracts.json
           cp field-notes/v21-staging/tools/test_render_contracts.py candidate/tests/test_render_contracts.py
+      - name: Archive exact staged source and provenance
+        run: |
+          mkdir staged-source
+          python - <<'PY'
+          import zipfile
+          from pathlib import Path
+          with zipfile.ZipFile('staged-source/candidate.zip','w',compression=zipfile.ZIP_DEFLATED) as z:
+              for p in sorted(Path('candidate').rglob('*')):
+                  if p.is_file():
+                      z.write(p,'LYRICFORGE-main/'+p.relative_to('candidate').as_posix())
+          PY
+          (cd staged-source && sha256sum candidate.zip > candidate.zip.sha256)
+          git rev-parse HEAD > staged-source/producer-revision.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: exact-staged-source
+          path: staged-source/
+          retention-days: 7
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: staging-evidence
+          path: |
+            evidence/
+            reconciliation/report.json
+          retention-days: 14
+          if-no-files-found: warn
+  integration:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@v4
+        with:
+          name: exact-staged-source
+          path: staged-source
+      - name: Verify and unpack exact staged source
+        run: |
+          (cd staged-source && sha256sum -c candidate.zip.sha256)
+          test "$(cat staged-source/producer-revision.txt)" = "$GITHUB_SHA"
+          unzip -q staged-source/candidate.zip -d candidate
+          mkdir -p evidence
       - name: Install candidate test dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg fonts-dejavu-core
-          python -m pip install -r candidate/requirements.txt httpx pytest av
+          python -m pip install -r candidate/LYRICFORGE-main/requirements.txt httpx pytest av
       - name: Verify finite Hold and Cut release regressions
-        working-directory: candidate
+        working-directory: candidate/LYRICFORGE-main
         timeout-minutes: 8
         run: |
           python -m pytest -q tests/test_quick_tools2.py -k 'hold or cut'
       - name: Verify restored editorial rendering contracts
-        working-directory: candidate
+        working-directory: candidate/LYRICFORGE-main
         run: |
           python -m pytest -q tests/test_render_contracts.py tests/test_editorial.py tests/test_editorial_motion.py tests/test_editorial_v8.py tests/test_editorial_v9.py tests/test_editorial_v10.py tests/test_editorial_v11.py tests/test_editorial_v12.py tests/test_editorial_v13.py tests/test_editorial_v14.py tests/test_editorial_v15.py
       - name: Verify integrated component and server contracts
-        working-directory: candidate
+        working-directory: candidate/LYRICFORGE-main
         run: |
           set -o pipefail
-          python -m pytest -q tests/test_v21_reconciled_components.py tests/test_creator.py tests/test_voice_studio.py tests/test_presenter_intent.py tests/test_visual_sources.py tests/test_director_intelligence.py | tee ../evidence/components.log
+          python -m pytest -q tests/test_v21_reconciled_components.py tests/test_creator.py tests/test_voice_studio.py tests/test_presenter_intent.py tests/test_visual_sources.py tests/test_director_intelligence.py | tee ../../evidence/components.log
       - name: Verify frontend contracts
-        working-directory: candidate
+        working-directory: candidate/LYRICFORGE-main
         run: |
           set -o pipefail
-          for file in static/app.js static/autoclip.js static/make.js static/hub-brand.js; do node --check "$file"; done
-          for file in tests/editor_smoke.mjs tests/autoclip_smoke.mjs tests/compressor_lab_smoke.mjs; do node "$file"; done 2>&1 | tee ../evidence/frontend.log
+          for file in static/app.js static/autoclip.js static/make.js static/hub-brand.js static/welcome-preferences.js; do node --check "$file"; done
+          for file in tests/editor_smoke.mjs tests/autoclip_smoke.mjs tests/compressor_lab_smoke.mjs; do node "$file"; done 2>&1 | tee ../../evidence/frontend.log
       - name: Lossless scene assembly regressions
         run: python -m pytest -q field-notes/v20-staging/tools/test_finalize_master.py
       - name: Full source regression gate
-        working-directory: candidate
+        working-directory: candidate/LYRICFORGE-main
         run: |
           set -o pipefail
-          python -m pytest -q tests | tee ../evidence/full-suite.log
+          python -m pytest -q tests | tee ../../evidence/full-suite.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: V21-partial-integration-evidence
-          path: |
-            evidence/
-            reconciliation/report.json
-            reconciliation/creator-revision.txt
+          name: consolidated-linux-evidence
+          path: evidence/
           retention-days: 14
           if-no-files-found: warn
+  inference:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@v4
+        with:
+          name: exact-staged-source
+          path: staged-source
+      - name: Verify and unpack exact staged source
+        run: |
+          (cd staged-source && sha256sum -c candidate.zip.sha256)
+          test "$(cat staged-source/producer-revision.txt)" = "$GITHUB_SHA"
+          unzip -q staged-source/candidate.zip -d candidate
+          mkdir -p evidence
+      - uses: actions/download-artifact@v4
+        with:
+          name: Field-Notes-06-Kokoro-Michael
+          run-id: 45948801081
+          github-token: ${{ github.token }}
+          path: neural
+      - uses: actions/cache@v4
+        with:
+          path: |
+            models/
+            ~/.cache/huggingface/
+          key: creator-whisper-tiny-en-clip-b32-model-cache-v1
+      - name: Install real optional inference runtimes
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y ffmpeg fonts-dejavu-core
+          python -m pip install -r candidate/LYRICFORGE-main/requirements.txt av httpx 'transformers>=4.48,<5' safetensors huggingface-hub
+          python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+      - name: Execute actual offline Whisper and CLIP inference
+        run: python field-notes/v21-staging/tools/prove_inference.py candidate/LYRICFORGE-main neural evidence/inference models
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: real-model-inference-evidence
+          path: |
+            evidence/inference/*.json
+            evidence/inference/*.png
+          retention-days: 14
+          if-no-files-found: warn
+  narrated_film:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@v4
+        with:
+          name: exact-staged-source
+          path: staged-source
+      - name: Verify and unpack exact staged source
+        run: |
+          (cd staged-source && sha256sum -c candidate.zip.sha256)
+          test "$(cat staged-source/producer-revision.txt)" = "$GITHUB_SHA"
+          unzip -q staged-source/candidate.zip -d candidate
+          mkdir -p evidence
+      - uses: actions/download-artifact@v4
+        with:
+          name: Field-Notes-06-Kokoro-Michael
+          run-id: 45948801081
+          github-token: ${{ github.token }}
+          path: neural
+      - name: Install render runtime
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y ffmpeg fonts-dejavu-core
+          python -m pip install -r candidate/LYRICFORGE-main/requirements.txt av
+      - name: Render actual speech-timed Field Notes 06 master
+        env:
+          OMP_NUM_THREADS: '2'
+          OPENBLAS_NUM_THREADS: '1'
+        run: python field-notes/v21-staging/tools/render_narrated_master.py candidate/LYRICFORGE-main neural narrated
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Field-Notes-06-Narrated-Extended-Review
+          path: |
+            narrated/*.mp4
+            narrated/*.json
+            narrated/*.png
+            narrated/loudness.log
+            narrated/mastered.wav
+          retention-days: 14
+          if-no-files-found: warn
+  windows:
+    needs: integration
+    runs-on: windows-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: candidate/LYRICFORGE-main
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v4
+        with:
+          name: exact-staged-source
+          path: staged-source
+      - name: Verify same staged source tested on Linux
+        working-directory: .
+        shell: pwsh
+        run: |
+          $expected = (Get-Content staged-source/candidate.zip.sha256).Split(' ')[0]
+          if ((Get-FileHash staged-source/candidate.zip -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expected) { throw 'Candidate checksum mismatch' }
+          if ((Get-Content staged-source/producer-revision.txt).Trim() -ne $env:GITHUB_SHA) { throw 'Wrong producer revision' }
+          Expand-Archive -LiteralPath staged-source/candidate.zip -DestinationPath candidate
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: candidate/LYRICFORGE-main/requirements-desktop.txt
+      - name: Install Python packages
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-desktop.txt pyinstaller pytest httpx "pywebview>=5.4,<7" "pythonnet==3.0.5" "clr-loader==0.2.7.post0"
+      - name: Verify editor JavaScript
+        shell: pwsh
+        run: |
+          node --check static/app.js
+          node --check static/autoclip.js
+          node --check static/make.js
+          node --check static/hub-brand.js
+          node --check static/welcome-preferences.js
+          node tests/editor_smoke.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Editor JavaScript smoke test failed' }
+          node tests/autoclip_smoke.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Autonomous UI smoke test failed' }
+          node tests/compressor_lab_smoke.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Autonomous UI smoke test failed' }
+      - name: Download verified FFmpeg with libass
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # Use one known-good STATIC build, not whichever ffmpeg.exe happens to be on PATH.
+          # Gyan essentials 9.0.2 includes libass and libx264.
+          $url = 'https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-9.0.2-essentials_build.zip'
+          $expectedSha256 = '60f467265b1e312373dbcd92200c2618a74850f98d3d078e94296bb3fa2047ba'
+          $archive = Join-Path $env:RUNNER_TEMP 'ffmpeg-9.0.2-essentials_build.zip'
+          $extract = Join-Path $env:RUNNER_TEMP 'ffmpeg-essentials'
+          Invoke-WebRequest -Uri $url -OutFile $archive -MaximumRedirection 5
+          $actualSha256 = (Get-FileHash -Path $archive -Algorithm SHA256).Hash
+          if ($actualSha256 -ne $expectedSha256) { throw "FFmpeg SHA-256 mismatch: $actualSha256" }
+          Expand-Archive -Path $archive -DestinationPath $extract -Force
+          $ffmpeg = Get-ChildItem -Path $extract -Recurse -Filter ffmpeg.exe -File |
+            Where-Object { $_.DirectoryName -like '*bin' } |
+            Select-Object -First 1 -ExpandProperty FullName
+          $ffprobe = Get-ChildItem -Path $extract -Recurse -Filter ffprobe.exe -File |
+            Where-Object { $_.DirectoryName -like '*bin' } |
+            Select-Object -First 1 -ExpandProperty FullName
+          if (-not $ffmpeg -or -not $ffprobe) { throw 'Verified FFmpeg archive is missing ffmpeg.exe or ffprobe.exe' }
+          # Do not parse ffmpeg -filters output: flag formatting changes between versions.
+          # Render an actual ASS subtitle into H.264 to verify BOTH libass and libx264.
+          $smokeDir = Join-Path $env:RUNNER_TEMP 'lyricforge-ass-smoke'
+          New-Item -ItemType Directory -Force -Path $smokeDir | Out-Null
+          $assText = @'
+          [Script Info]
+          ScriptType: v4.00+
+          PlayResX: 320
+          PlayResY: 180
+
+          [V4+ Styles]
+          Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+          Style: Default,Arial,34,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,1,0,5,10,10,10,1
+
+          [Events]
+          Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+          Dialogue: 0,0:00:00.00,0:00:00.40,Default,,0,0,0,,SKELLYMOTION TEST
+          '@
+          Set-Content -Path (Join-Path $smokeDir 'smoke.ass') -Value $assText -Encoding utf8
+          Push-Location $smokeDir
+          try {
+            $smokeLog = & $ffmpeg -hide_banner -loglevel error -y -f lavfi -i 'color=c=black:s=320x180:r=25:d=0.5' -vf 'ass=smoke.ass' -frames:v 3 -c:v libx264 -pix_fmt yuv420p 'smoke.mp4' 2>&1 | Out-String
+            if ($LASTEXITCODE -ne 0) { throw "FFmpeg cannot render ASS lyric subtitles: $smokeLog" }
+            if (-not (Test-Path 'smoke.mp4') -or (Get-Item 'smoke.mp4').Length -lt 500) {
+              throw 'FFmpeg exited without producing a valid subtitle test video'
+            }
+            $probeResult = & $ffprobe -v error -show_entries format=duration -of 'default=noprint_wrappers=1:nokey=1' 'smoke.mp4' 2>&1 | Out-String
+            if ($LASTEXITCODE -ne 0 -or -not $probeResult.Trim()) { throw "ffprobe failed to validate the test video: $probeResult" }
+            Write-Host "FFmpeg ASS subtitle rendering and H.264 encoding passed ($probeResult seconds)."
+          } finally {
+            Pop-Location
+          }
+          New-Item -ItemType Directory -Force -Path vendor/ffmpeg | Out-Null
+          Copy-Item -Path $ffmpeg -Destination vendor/ffmpeg/ffmpeg.exe
+          Copy-Item -Path $ffprobe -Destination vendor/ffmpeg/ffprobe.exe
+          # Subsequent tests and tools must use the SAME FFmpeg that we package.
+          Add-Content -Path $env:GITHUB_PATH -Value (Resolve-Path vendor/ffmpeg).Path
+          & (Resolve-Path vendor/ffmpeg/ffmpeg.exe).Path -hide_banner -version | Select-Object -First 1
+      - name: Validate editor JavaScript syntax
+        run: |
+          node --check static/app.js
+          node --check static/autoclip.js
+          node --check static/make.js
+          node --check static/hub-brand.js
+          node --check static/welcome-preferences.js
+      - name: Test exact consolidated editor on Windows
+        run: python -m pytest tests -q
+      - name: Build self-contained Windows folder
+        shell: pwsh
+        run: |
+          # FFprobe is needed only on the CI runner for the source archive
+          # test. The portable app uses the already-bundled PyAV to probe
+          # durations and image/video streams, eliminating ~100 MB extracted.
+          python studio_icon.py
+          if ($LASTEXITCODE -ne 0) { throw 'Skull icon generation failed' }
+          pyinstaller --noconfirm --clean --onedir --windowed --name SkellyMotion `
+            --icon "static/skull.ico" `
+            --add-data "static;static" `
+            --add-data "studio_ai_worker.py;." `
+            --add-data "studio_kokoro_worker.py;." `
+            --add-binary "vendor/ffmpeg/ffmpeg.exe;tools" `
+            --hidden-import clr `
+            --hidden-import webview `
+            --collect-all webview `
+            --collect-all pythonnet `
+            --collect-all clr_loader `
+            --hidden-import faster_whisper `
+            --collect-all faster_whisper `
+            --collect-all ctranslate2 `
+            --collect-all tokenizers `
+            --collect-all av `
+            --exclude-module onnxruntime `
+            --exclude-module tkinter `
+            --exclude-module _tkinter `
+            --exclude-module turtle `
+            --exclude-module idlelib `
+            --exclude-module lib2to3 `
+            --exclude-module pydoc_data `
+            --exclude-module PIL.ImageTk `
+            --exclude-module PIL._imagingtk `
+            --exclude-module PIL._avif `
+            --exclude-module PIL._webp `
+            --exclude-module PIL._imagingcms `
+            --exclude-module watchfiles `
+            --exclude-module websockets `
+            --exclude-module httptools `
+            desktop_launcher.py
+      - name: Measure bundle size and identify large dependencies
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = (Resolve-Path 'dist/SkellyMotion').Path
+          $all = @(Get-ChildItem -LiteralPath $root -Recurse -File)
+          $total = ($all | Measure-Object -Property Length -Sum).Sum
+          Write-Host ("BUNDLE_SIZE_MB={0:N2}" -f ($total / 1MB))
+          Write-Host 'Largest bundled files:'
+          $all | Sort-Object Length -Descending | Select-Object -First 30 |
+            ForEach-Object {
+              $relative = $_.FullName.Substring($root.Length + 1)
+              Write-Host ("  {0,8:N2} MB  {1}" -f ($_.Length / 1MB), $relative)
+            }
+          Write-Host 'Top-level internal dependency sizes:'
+          $internal = Join-Path $root '_internal'
+          Get-ChildItem -LiteralPath $internal | ForEach-Object {
+            $bytes = if ($_.PSIsContainer) {
+              (Get-ChildItem -LiteralPath $_.FullName -Recurse -File |
+                Measure-Object -Property Length -Sum).Sum
+            } else { $_.Length }
+            [PSCustomObject]@{Name=$_.Name; MB=[math]::Round($bytes/1MB,2)}
+          } | Sort-Object MB -Descending | Select-Object -First 30 |
+            Format-Table -AutoSize | Out-String | Write-Host
+      - name: Guard against bundling AI models or oversized files
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # Whisper models download on first use into the user's cache; they must never be in the app folder.
+          $root = (Resolve-Path 'dist/SkellyMotion').Path
+          $modelNames = @('model.bin', 'pytorch_model.bin', 'model.safetensors')
+          $modelTypes = @('.gguf', '.ggml', '.safetensors')
+          $bad = @(Get-ChildItem -LiteralPath $root -Recurse -File | Where-Object {
+            ($modelNames -contains $_.Name) -or ($modelTypes -contains $_.Extension) -or ($_.Length -gt 150MB)
+          })
+          if ($bad.Count -gt 0) {
+            $bad | ForEach-Object { Write-Host ("  {0,8:N1} MB  {1}" -f ($_.Length / 1MB), $_.FullName.Substring($root.Length + 1)) }
+            throw 'A model or an unexpectedly large file was bundled. Models must download on first use.'
+          }
+          Write-Host 'No bundled models or oversized files.'
+      - name: Smoke test packaged Windows GUI program
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $exe = (Resolve-Path 'dist/SkellyMotion/SkellyMotion.exe').Path
+          $log = Join-Path $env:LOCALAPPDATA 'LyricForge/logs/desktop.log'
+          Write-Host "Running GUI executable self-test: $exe"
+          # PowerShell can launch Win32 GUI programs asynchronously with &.
+          # Start-Process -Wait -PassThru gives us the exit code of this exact process.
+          $testProcess = Start-Process -FilePath $exe -ArgumentList '--self-test' -WorkingDirectory (Split-Path $exe) -Wait -PassThru
+          $code = $testProcess.ExitCode
+          Write-Host "SkellyMotion GUI self-test exit code: $code"
+          if (Test-Path $log) {
+            Write-Host '----- SkellyMotion self-test output -----'
+            Get-Content -Path $log -Tail 120
+            Write-Host '----- end self-test output -----'
+          }
+          if ($code -ne 0) {
+            throw "SkellyMotion.exe smoke test exited with code $code"
+          }
+          Write-Host 'SkellyMotion portable GUI self-test completed successfully.'
+      - name: Verify bundled Whisper inference engine loads without VAD runtime
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $exe = (Resolve-Path 'dist/SkellyMotion/SkellyMotion.exe').Path
+          $folder = Split-Path $exe
+          # Whisper uses word timestamps with vad_filter=False in the app;
+          # onnxruntime's 40+ MB Silero VAD backend is not executed.
+          # Import the real transcriber and CPU inference extension in the
+          # frozen EXE to catch missing CTranslate2 / tokenizer dependencies.
+          $process = Start-Process -FilePath $exe -ArgumentList '--ai-self-test' -WorkingDirectory $folder -Wait -PassThru
+          if ($process.ExitCode -ne 0) {
+            $log = Join-Path $env:LOCALAPPDATA 'LyricForge/logs/desktop.log'
+            if (Test-Path $log) { Get-Content -Path $log -Tail 65 }
+            throw "Frozen Whisper/CTranslate2 import test failed: $($process.ExitCode)"
+          }
+          Write-Host 'Bundled Whisper and CTranslate2 import self-test passed'
+      - name: Verify packaged native Python.NET runtime and ship targeted repair
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $folder = (Resolve-Path 'dist/SkellyMotion').Path
+          $managedAssemblies = @(
+            '_internal/pythonnet/runtime/Python.Runtime.dll',
+            '_internal/webview/lib/Microsoft.Web.WebView2.Core.dll',
+            '_internal/webview/lib/Microsoft.Web.WebView2.WinForms.dll'
+          )
+          foreach ($relativePath in $managedAssemblies) {
+            $dll = Join-Path $folder $relativePath
+            if (-not (Test-Path -LiteralPath $dll)) {
+              throw "PyInstaller did not bundle required managed UI DLL: $relativePath"
+            }
+            $bytes = (Get-Item -LiteralPath $dll).Length
+            if ($bytes -lt 4096) {
+              throw "Bundled managed UI assembly is truncated ($bytes bytes): $relativePath"
+            }
+            # Real WebView2 WinForms assemblies can be ~39KB; verify PE/MZ
+            # format rather than wrongly assuming every DLL exceeds 50KB.
+            $stream = [System.IO.File]::OpenRead($dll)
+            try {
+              $first = $stream.ReadByte()
+              $second = $stream.ReadByte()
+            } finally { $stream.Dispose() }
+            if ($first -ne 77 -or $second -ne 90) {
+              throw "Bundled UI file is not a valid Windows DLL: $relativePath"
+            }
+          }
+          Copy-Item -LiteralPath 'Repair-SkellyMotion.cmd' -Destination (Join-Path $folder 'Repair-SkellyMotion.cmd')
+          Copy-Item -LiteralPath 'SkellyMotion-SafeMode.cmd' -Destination (Join-Path $folder 'SkellyMotion-SafeMode.cmd')
+          Copy-Item -LiteralPath 'SkellyMotion-BrowserMode.cmd' -Destination (Join-Path $folder 'SkellyMotion-BrowserMode.cmd')
+          if (-not (Test-Path (Join-Path $folder 'Repair-SkellyMotion.cmd'))) {
+            throw 'Trusted Windows runtime repair helper was not packaged'
+          }
+          foreach ($helper in @('SkellyMotion-SafeMode.cmd', 'SkellyMotion-BrowserMode.cmd')) {
+            if (-not (Test-Path (Join-Path $folder $helper))) {
+              throw "Missing recovery mode launcher: $helper"
+            }
+          }
+          $exe = Join-Path $folder 'SkellyMotion.exe'
+          $log = Join-Path $env:LOCALAPPDATA 'LyricForge/logs/desktop.log'
+          Write-Host "Validating Python.NET plus Core/WinForms WebView2 assemblies"
+          $process = Start-Process -FilePath $exe -ArgumentList '--native-self-test' -WorkingDirectory $folder -Wait -PassThru
+          Write-Host "Native Python.NET self-test exit code: $($process.ExitCode)"
+          if (Test-Path $log) {
+            Get-Content -Path $log -Tail 65
+          }
+          if ($process.ExitCode -ne 0) {
+            throw "Packaged Python.NET or WebView2 managed DLL failed to load. Exit code: $($process.ExitCode)"
+          }
+          Write-Host "Packaged Python.NET and WebView2 managed assembly self-test passed"
+      - name: Test real WebView2 window responsiveness
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $folder = (Resolve-Path 'dist/SkellyMotion').Path
+          $exe = Join-Path $folder 'SkellyMotion.exe'
+          $log = Join-Path $env:LOCALAPPDATA 'LyricForge/logs/desktop.log'
+          Write-Host 'Opening the actual packaged WebView2 editor window'
+          $process = Start-Process -FilePath $exe -ArgumentList '--window-self-test' -WorkingDirectory $folder -PassThru
+          if (-not $process.WaitForExit(110000)) {
+            Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+            throw 'Windows GUI smoke timed out: editor may be frozen'
+          }
+          Write-Host "Window GUI self-test exit code: $($process.ExitCode)"
+          if (Test-Path $log) {
+            Get-Content -Path $log -Tail 35
+            $startupLog = Get-Content -Path $log -Raw
+            if ($startupLog -match 'Error while processing window\.native|maximum recursion depth exceeded') {
+              throw 'Native pywebview JavaScript bridge recursively walked a WinForms object'
+            }
+          }
+          if ($process.ExitCode -ne 0) {
+            throw "Packaged WebView2 window failed to load or became unresponsive. Exit code $($process.ExitCode)"
+          }
+          Write-Host 'Real WebView2 editor window passed the responsiveness check'
+      # Only release-gate-labeled PRs capture visual evidence. The dedicated
+      # native window smoke above remains the blocking functional check.
+      - name: Capture actual Windows WebView2 image
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $folder = (Resolve-Path 'dist/SkellyMotion').Path
+          $exe = Join-Path $folder 'SkellyMotion.exe'
+          New-Item -ItemType Directory -Force 'release-gate-evidence' | Out-Null
+          Add-Type -AssemblyName System.Drawing
+          Add-Type -AssemblyName System.Windows.Forms
+          Add-Type -TypeDefinition @'
+          using System;
+          using System.Runtime.InteropServices;
+          public static class SkellyWindowCapture {
+              [StructLayout(LayoutKind.Sequential)]
+              public struct RECT { public int Left, Top, Right, Bottom; }
+              [DllImport("user32.dll")]
+              public static extern bool GetWindowRect(IntPtr handle, out RECT rect);
+              [DllImport("user32.dll")]
+              public static extern bool SetForegroundWindow(IntPtr handle);
+          }
+          '@
+          $process = Start-Process -FilePath $exe -ArgumentList '--window-self-test' -WorkingDirectory $folder -PassThru
+          try {
+            $handle = [IntPtr]::Zero
+            for ($i = 0; $i -lt 60; $i++) {
+              if ($process.HasExited) { throw 'Editor closed before a native window was captured' }
+              $live = Get-Process -Id $process.Id -ErrorAction Stop
+              $live.Refresh()
+              $handle = $live.MainWindowHandle
+              if ($handle -ne [IntPtr]::Zero) { break }
+              Start-Sleep -Seconds 1
+            }
+            if ($handle -eq [IntPtr]::Zero) { throw 'No visible native editor window was detected' }
+            [SkellyWindowCapture]::SetForegroundWindow($handle) | Out-Null
+            Start-Sleep -Seconds 3
+            $rect = New-Object SkellyWindowCapture+RECT
+            if (-not [SkellyWindowCapture]::GetWindowRect($handle, [ref]$rect)) {
+              throw 'Unable to read actual WinForms window bounds'
+            }
+            $width = [int]($rect.Right - $rect.Left)
+            $height = [int]($rect.Bottom - $rect.Top)
+            $workArea = [System.Windows.Forms.Screen]::FromHandle($handle).WorkingArea
+            Write-Host "Desktop work area: ($($workArea.Left),$($workArea.Top))..($($workArea.Right),$($workArea.Bottom))"
+            Write-Host "Native editor bounds: ($($rect.Left),$($rect.Top))..($($rect.Right),$($rect.Bottom)) = $width x $height"
+            $outsideWorkArea = ($rect.Left -lt $workArea.Left -or $rect.Top -lt $workArea.Top -or
+                                $rect.Right -gt $workArea.Right -or $rect.Bottom -gt $workArea.Bottom)
+            if ($width -lt 400 -or $height -lt 300 -or $width -gt 3840 -or $height -gt 2160) {
+              throw "Unreasonable native window dimensions: $width x $height"
+            }
+            $bitmap = [System.Drawing.Bitmap]::new($width, $height)
+            $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+            try {
+              $graphics.CopyFromScreen($rect.Left, $rect.Top, 0, 0, $bitmap.Size)
+              $target = Join-Path (Resolve-Path 'release-gate-evidence').Path 'SkellyMotion-WebView2.png'
+              $bitmap.Save($target, [System.Drawing.Imaging.ImageFormat]::Png)
+            } finally {
+              $graphics.Dispose()
+              $bitmap.Dispose()
+            }
+            Write-Host "Captured real WebView2 window: $target ($width x $height)"
+            if ($outsideWorkArea) {
+              throw 'Initial editor window extends beyond usable desktop area (image retained for inspection)'
+            }
+          } finally {
+            if (-not $process.HasExited) {
+              if (-not $process.WaitForExit(110000)) {
+                Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+              }
+            }
+          }
+      - name: Record exact source provenance in preview
+        working-directory: .
+        shell: pwsh
+        run: |
+          Copy-Item staged-source/candidate.zip.sha256 candidate/LYRICFORGE-main/dist/SkellyMotion/Source-SHA256.txt
+          Copy-Item staged-source/producer-revision.txt candidate/LYRICFORGE-main/dist/SkellyMotion/Source-Revision.txt
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: Consolidated-Creator-Windows-UI-Evidence
+          path: candidate/LYRICFORGE-main/release-gate-evidence/SkellyMotion-WebView2.png
+          retention-days: 7
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@v6
+        if: success()
+        with:
+          name: Consolidated-Creator-Windows-x64-Preview
+          path: candidate/LYRICFORGE-main/dist/SkellyMotion/
+          retention-days: 7
+          if-no-files-found: error
