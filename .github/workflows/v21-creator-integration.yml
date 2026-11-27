@@ -54,6 +54,8 @@ jobs:
         run: |
           python field-notes/v21-staging/tools/fix_hold_scheduler.py candidate
           cp field-notes/v21-staging/tools/test_hold_scheduler.py candidate/tests/test_hold_scheduler.py
+          python field-notes/v21-staging/tools/fix_creator_uploads.py candidate
+          cp field-notes/v21-staging/tools/test_creator_upload_contract.py candidate/tests/test_creator_upload_contract.py
       - name: Archive exact staged source and provenance
         run: |
           mkdir staged-source
@@ -106,7 +108,7 @@ jobs:
       - name: Install candidate test dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg fonts-dejavu-core
+          sudo apt-get install -y ffmpeg fonts-dejavu-core espeak-ng
           ffmpeg -version
           python -m pip install -r candidate/LYRICFORGE-main/requirements.txt httpx pytest av
       - name: Verify finite Hold and Cut release regressions
@@ -122,7 +124,7 @@ jobs:
         working-directory: candidate/LYRICFORGE-main
         run: |
           set -o pipefail
-          python -m pytest -q tests/test_v21_reconciled_components.py tests/test_creator.py tests/test_voice_studio.py tests/test_presenter_intent.py tests/test_visual_sources.py tests/test_director_intelligence.py | tee ../../evidence/components.log
+          python -m pytest -q tests/test_creator_upload_contract.py tests/test_v21_reconciled_components.py tests/test_creator.py tests/test_voice_studio.py tests/test_presenter_intent.py tests/test_visual_sources.py tests/test_director_intelligence.py | tee ../../evidence/components.log
       - name: Verify frontend contracts
         working-directory: candidate/LYRICFORGE-main
         run: |
@@ -255,6 +257,8 @@ jobs:
           node --check static/welcome-preferences.js
       - name: Fail fast on actual Hold and Cut with bundled FFmpeg
         run: python -m pytest -vv -s --maxfail=1 tests/test_quick_tools2.py tests/test_hold_scheduler.py -k "hold or cut"
+      - name: Verify real recorded Creator upload and layer binding
+        run: python -m pytest -q tests/test_creator_upload_contract.py
       - name: Test exact consolidated editor on Windows
         run: python -m pytest tests -q
       - name: Build self-contained Windows folder
