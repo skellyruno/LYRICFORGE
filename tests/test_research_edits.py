@@ -37,3 +37,20 @@ def test_model_fails_closed(monkeypatch):
     monkeypatch.setattr(compose,'ollama_json',lambda *a,**k:{'message':{'content':'{}'}})
     with pytest.raises(ValueError,match='valid source-linked script'):
         local_write('local','Pitch correction',30,[{'kind':'article','id':'A1','url':U}], '',[])
+
+
+from studio_research_edits import suggest_video_settings,VIDEO_SWITCHES,VIDEO_ENUMS
+def video_settings():
+    return {**{k:True for k in VIDEO_SWITCHES},**{k:v[0] for k,v in VIDEO_ENUMS.items()},'shorts':3}
+def test_video_instruction_changes_only_requested():
+    original=video_settings()
+    result=suggest_video_settings(original,'music off; voice cleanup strong; no shorts')
+    assert result['settings']=={**original,'music':False,'voice_cleanup':'strong','shorts':0}
+    assert {r['setting'] for r in result['changes']}=={'music','voice_cleanup','shorts'}
+    assert original['music'] is True
+def test_video_instruction_atomic_and_model_validation(monkeypatch):
+    original=video_settings()
+    with pytest.raises(ValueError):suggest_video_settings(original,'music off; unknown effect')
+    import json
+    monkeypatch.setattr(compose,'ollama_json',lambda *a,**k:{'message':{'content':json.dumps({**original,'zoom':'invalid'})}})
+    with pytest.raises(ValueError,match='valid video settings'):suggest_video_settings(original,'Zoom more','local')

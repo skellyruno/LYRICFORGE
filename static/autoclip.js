@@ -300,7 +300,7 @@ function paintClipLangs() {
 }
 async function openStudio(id,oneClick=false) {
   if(studio.autoPending||studio.busy)return;
-  studio.oneClick=oneClick;studio.selected=null;
+  studio.oneClick=oneClick;studio.selected=null;clearSuggestion();$('aeInstruction').value='';
   $('clipStudio').classList.toggle('one-click-edit',oneClick);
   $('clipUploadHelp').textContent=oneClick?'Automatically analyzes and edits your video. Creates a new export; the original stays unchanged.':'Clips are chosen from the transcript, loudness and scene changes. You approve every clip before anything is exported.';
   if(oneClick)$('clipUseAi').checked=false;
@@ -544,6 +544,46 @@ function applyAutoEdit(options) {
   }
 }
 
+let suggestedEdit=null, suggestionTicket=0, modelTicket=0;
+function clearSuggestion(){
+  suggestedEdit=null;++suggestionTicket;
+  $('aeApplySuggestion').classList.add('hidden');
+  $('aeSuggested').textContent='';
+}
+async function detectEditModels(){
+  const ticket=++modelTicket,select=$('aeInstructionModel'),previous=select.value;
+  try{
+    const info=await api('/api/creator/writing-models');
+    if(ticket!==modelTicket)return;
+    select.replaceChildren(el('option',{value:'',text:'Direct editing (no model)'}),...(info.models||[]).map(m=>el('option',{value:m.name,text:m.name})));
+    if((info.models||[]).some(m=>m.name===previous))select.value=previous;
+    $('aeModelStatus').textContent=info.connected?(info.models.length?'Select an installed local model for broader instructions.':'Ollama is running; no installed models detected.'):'Local model not connected. Direct settings remain available.';
+  }catch(e){if(ticket===modelTicket)$('aeModelStatus').textContent='Model detection unavailable. Direct editing remains available.';}
+}
+async function previewVideoInstruction(){
+  if(studio.busy||!studio.id)return;
+  clearSuggestion();const ticket=suggestionTicket,id=studio.id,original=readAutoEdit();
+  const instruction=$('aeInstruction').value.trim();
+  if(!instruction){$('aeSuggested').textContent='Enter an editing instruction.';return;}
+  $('aeSuggest').disabled=true;
+  try{
+    const reply=await post('/api/creator/video-edit-instruction',{current:original,instruction,model:$('aeInstructionModel').value});
+    if(ticket!==suggestionTicket||id!==studio.id)return;
+    suggestedEdit={...reply,original,id};
+    $('aeSuggested').textContent=reply.changes.map(c=>c.setting.replaceAll('_',' ')+': '+String(c.before)+' → '+String(c.after)).join(' · ');
+    $('aeApplySuggestion').classList.remove('hidden');
+  }catch(e){if(ticket===suggestionTicket)$('aeSuggested').textContent=e.message;}
+  finally{$('aeSuggest').disabled=false;}
+}
+function applyVideoSuggestion(){
+  if(studio.busy||!suggestedEdit)return;
+  if(suggestedEdit.id!==studio.id||JSON.stringify(readAutoEdit())!==JSON.stringify(suggestedEdit.original)){
+    clearSuggestion();$('aeSuggested').textContent='Settings changed. Preview the instruction again.';return;
+  }
+  applyAutoEdit(suggestedEdit.settings);clearSuggestion();
+  $('aePreset').value='';$('aeSuggested').textContent='Settings applied. Press Auto-edit this video to render.';
+}
+
 /* ---------- Presets: one-click bundles of the auto-edit options ---------- */
 const presets = { list: [] };
 async function refreshPresets(select) {
@@ -774,6 +814,11 @@ on('clipPick', 'click', () => $('clipFile').click());
 on('clipFile', 'change', (e) => { const f = e.target.files && e.target.files[0]; if(f){if(studio.oneClick){studio.selected=f;$('clipSelectedName').textContent=f.name;$('clipEditNow').disabled=false;}else uploadSource(f);} e.target.value = ''; });
 on('clipRegen', 'click', regenerate);
 on('autoEditRun', 'click', runAutoEdit);
+on('aeDetectModels','click',detectEditModels);
+on('aeSuggest','click',previewVideoInstruction);
+on('aeApplySuggestion','click',applyVideoSuggestion);
+on('aeInstruction','input',clearSuggestion);
+on('aeInstructionModel','change',clearSuggestion);
 on('aePreset', 'change', pickPreset);
 on('aePresetSave', 'click', savePreset);
 on('aePresetDelete', 'click', deletePreset);

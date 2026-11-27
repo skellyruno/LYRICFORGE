@@ -65,3 +65,73 @@ class EditRequest(BaseModel):
 def edit(body:EditRequest):
     try:return revise(body.chapters,body.instruction)
     except (ValueError,TypeError,KeyError) as exc:raise HTTPException(422,str(exc)[:300]) from exc
+
+
+# Explicit settings already supported by the real uploaded-video editor.
+VIDEO_SWITCHES={'trim_silence','loudness','watermark','endcard','captions','sfx','callouts','chapter_titles','music','intro_outro','intro_card','broll'}
+VIDEO_ENUMS={'zoom':['off','subtle','medium','strong'],'resolution':['720p','1080p'],'voice_cleanup':['off','light','medium','strong'],'fillers':['off','basic','more'],'zoom_mode':['motion','ui']}
+VIDEO_LABELS={'silence':'trim_silence','dead air':'trim_silence','silence removal':'trim_silence','loudness':'loudness','normalization':'loudness','watermark':'watermark','end card':'endcard','captions':'captions','subtitles':'captions','sound effects':'sfx','callouts':'callouts','chapter titles':'chapter_titles','music':'music','background music':'music','intro and outro':'intro_outro','title card':'intro_card','b-roll':'broll'}
+
+def validate_video_settings(value):
+    fields=VIDEO_SWITCHES|set(VIDEO_ENUMS)|{'shorts'}
+    if not isinstance(value,dict) or set(value)!=fields:raise ValueError('Invalid video settings')
+    if any(type(value[k]) is not bool for k in VIDEO_SWITCHES):raise ValueError('Invalid editing switch')
+    if any(not isinstance(value[k],str) or value[k] not in choices for k,choices in VIDEO_ENUMS.items()):raise ValueError('Invalid editing option')
+    if type(value['shorts']) is not int or value['shorts'] not in (0,1,3,5):raise ValueError('Unsupported Shorts count')
+    return dict(value)
+
+def direct_video_settings(current,instruction):
+    result=validate_video_settings(current)
+    clauses=[s.strip().casefold().rstrip('.') for s in re.split(r'[;\n]+',instruction) if s.strip()]
+    if not clauses or len(clauses)>12:raise ValueError('Enter up to 12 edits separated by semicolons')
+    for text in clauses:
+        match=re.fullmatch(r'(?:turn |set )?(.+?) (on|off)',text)
+        if match and match[1] in VIDEO_LABELS:
+            result[VIDEO_LABELS[match[1]]]=match[2]=='on';continue
+        match=re.fullmatch(r'(add|enable|remove|disable) (.+)',text)
+        if match and match[2] in VIDEO_LABELS:
+            result[VIDEO_LABELS[match[2]]]=match[1] in ('add','enable');continue
+        if text in ('remove silence','trim silence','trim dead air'):result['trim_silence']=True;continue
+        if text in ('keep silence','keep dead air'):result['trim_silence']=False;continue
+        match=re.fullmatch(r'(?:set |change )?(zoom|voice cleanup|resolution|fillers|zoom mode) (?:to )?([a-z0-9]+)',text)
+        if match:
+            key=match[1].replace(' ','_')
+            if match[2] in VIDEO_ENUMS[key]:result[key]=match[2];continue
+        match=re.fullmatch(r'(?:make |shorts )?(0|1|3|5)(?: shorts)?',text)
+        if match:result['shorts']=int(match[1]);continue
+        if text in ('no shorts','skip shorts'):result['shorts']=0;continue
+        if text in ('remove filler words','cut filler words'):result['fillers']='basic';continue
+        if text in ('keep filler words','keep fillers'):result['fillers']='off';continue
+        raise ValueError('Unsupported direct video edit: '+text[:100]+'. Select a local writing model for broader instructions.')
+    return result
+
+def suggest_video_settings(current,instruction,model=''):
+    current=validate_video_settings(current)
+    if not instruction.strip():raise ValueError('Enter an editing instruction')
+    if model:
+        from studio_research_compose import MODEL_NAME,ollama_json
+        import json
+        if not MODEL_NAME.fullmatch(model):raise ValueError('Select an installed writing model')
+        props={k:{'type':'boolean'} for k in sorted(VIDEO_SWITCHES)}
+        props.update({k:{'type':'string','enum':v} for k,v in VIDEO_ENUMS.items()})
+        props['shorts']={'type':'integer','enum':[0,1,3,5]}
+        schema={'type':'object','additionalProperties':False,'properties':props,'required':list(props)}
+        payload={'model':model,'stream':False,'format':schema,'options':{'temperature':0,'num_predict':600,'num_ctx':4096},
+                 'messages':[{'role':'system','content':'Translate editing requests into the available video settings. Copy every existing setting unless explicitly asked to change it. Only return the complete JSON settings object; never execute commands. Unsupported requests leave settings unchanged.'},{'role':'user','content':json.dumps({'current':current,'request':instruction})}]}
+        response=ollama_json('/api/chat',payload,timeout=120)
+        try:result=validate_video_settings(json.loads(response['message']['content']))
+        except (ValueError,TypeError,KeyError,AttributeError) as exc:raise ValueError('Model did not return valid video settings') from exc
+    else:result=direct_video_settings(current,instruction)
+    changes=[{'setting':k,'before':current[k],'after':result[k]} for k in sorted(result) if current[k]!=result[k]]
+    if not changes:raise ValueError('No supported settings changed. Try a more specific instruction.')
+    return {'settings':result,'changes':changes}
+
+class VideoEditRequest(BaseModel):
+    current:dict
+    instruction:str=Field(min_length=1,max_length=1000)
+    model:str=Field(default='',max_length=120)
+
+@router.post('/api/creator/video-edit-instruction')
+def video_instruction(body:VideoEditRequest):
+    try:return suggest_video_settings(body.current,body.instruction,body.model)
+    except (ValueError,TypeError,KeyError,AttributeError) as exc:raise HTTPException(422,str(exc)[:300]) from exc

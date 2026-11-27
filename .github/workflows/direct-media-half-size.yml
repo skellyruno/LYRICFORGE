@@ -4,6 +4,13 @@ on:
     branches: [feature/field-notes-production-20261126]
     paths:
       - 'packaging/direct-media/**'
+      - 'studio_research_*.py'
+      - 'static/quick-create.js'
+      - 'static/autoclip.js'
+      - 'static/index.html'
+      - 'static/welcome-brand.css'
+      - 'tests/test_research_edits.py'
+      - 'tests/autoclip_smoke.mjs'
       - '.github/workflows/direct-media-half-size.yml'
   workflow_dispatch:
 permissions:

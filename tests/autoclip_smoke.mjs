@@ -56,6 +56,7 @@ async function fakeFetch(path, options = {}) {
   const body = options.body && typeof options.body === 'string' ? JSON.parse(options.body) : options.body;
   calls.push({ path, method: options.method || 'GET', body });
   const ok = (data) => ({ ok: true, status: 200, json: async () => data });
+  if (path === '/api/creator/video-edit-instruction') return ok({settings:{...body.current,music:false},changes:[{setting:'music',before:body.current.music,after:false}]});
   if (path === '/api/clips/capabilities') return ok({ ai_rerank: false, ai_text: true, watch: true, languages: { es: 'Spanish', fr: 'French' }, max_source_mb: 2048, max_source_minutes: 180 });
   if (path === '/api/clip-sources') return ok({ id: 'b'.repeat(32), status: 'transcribing' });
   if (path === '/api/projects/' + 'b'.repeat(32)) {
@@ -600,6 +601,17 @@ assert.ok(calls.some((c) => c.path === '/api/makes' && c.method === 'DELETE'));
 assert.ok(toasts.some(([m]) => /removed, 1 still rendering/.test(m)));
 assert.equal(byId.get('makeRecent').children.length, 0, 'the list is empty afterwards');
 byId.get('makeClose').click(); assert.ok(byId.get('makeOverlay').classList.contains('hidden'));
+
+// ---- Conversational settings preview: no automatic render ----------------
+byId.get('aeMusic').checked=true;
+byId.get('aeInstruction').value='music off';
+const beforeInstructionJobs=calls.filter(c=>c.path.endsWith('/autoedit')).length;
+byId.get('aeSuggest').click(); await settle();
+assert.match(byId.get('aeSuggested').textContent,/music/);
+assert.equal(byId.get('aeMusic').checked,true);
+byId.get('aeApplySuggestion').click();
+assert.equal(byId.get('aeMusic').checked,false);
+assert.equal(calls.filter(c=>c.path.endsWith('/autoedit')).length,beforeInstructionJobs);
 
 // ---- cancelling a running job from the shared status line ----------------------------------------------------------------------
 const statusNode = byId.get('makeStatus');
