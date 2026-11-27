@@ -1,0 +1,5 @@
+# V22 exact-base gate (test-only)
+
+V21 is a partial reconciliation, not a production overlay. This gate recreates the original V20 proposal from the hash-pinned V6 comparison and Creator b37a857, then checks the V21 archive and every member hash, verifies all proposal files against their ledger, and copies into a new directory. It preserves unresolved source and workflows; only the six known patch paths may change. Server remains partial. No executable or release is uploaded by this gate.
+
+Local evidence: 5 staging tests passed against the actual V21 archive using fixture proposals; 5 component tests passed against a disposable V19 overlay. The V19 overlay's HTTP test failed because studio_theme.py is missing; it is a Creator-only dependency present at the pinned Creator revision. This is not evidence of failure in the full Creator proposal. The exact-base workflow must run before any packaging claim. Actual Whisper and vision inference, final narrated master and all seven unresolved files/three workflow differences remain open. Do not merge automatically.

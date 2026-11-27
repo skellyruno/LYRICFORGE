@@ -1,0 +1,72 @@
+name: V21 Creator exact-base integration gate
+on:
+  push:
+    branches: [feature/field-notes-production-20261126]
+    paths:
+      - 'field-notes/v21-staging/**'
+      - 'field-notes/candidates/SkellyMotion-V21-Reconciliation-Patch.zip'
+      - '.github/workflows/v21-creator-integration.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: v21-creator-${{ github.ref }}-${{ github.event_name == 'push' && 'push' || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'push' && github.ref == 'refs/heads/feature/field-notes-production-20261126' }}
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v6
+        with:
+          ref: b37a857e4be4cf5dc7f13337452fdbdcb033e29b
+          path: creator-original
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Verify archive and stage exact patch without modifying source
+        run: |
+          printf '%s  %s\n' '4ba17dd5cdca24a040a05453706cda1881934d0d1e8704080e292e398ace6462' 'field-notes/candidates/SkellyMotion-Editorial-V20-Source-Candidate.zip' '11092c43d5be71a13ce081b5e88984575a08f7a38a870e7f8bf1180672616632' 'field-notes/reconciliation-reference/SkellyMotion-Editorial-V6-Source-Candidate.zip' | sha256sum -c -
+          python -m pip install pytest
+          python -m pytest -q field-notes/v21-staging/tools/test_stage_v21.py
+          python field-notes/v20-staging/tools/reconcile_creator.py creator-original field-notes/reconciliation-reference/SkellyMotion-Editorial-V6-Source-Candidate.zip field-notes/candidates/SkellyMotion-Editorial-V20-Source-Candidate.zip reconciliation
+          git -C creator-original rev-parse HEAD > reconciliation/creator-revision.txt
+          mkdir evidence
+          python field-notes/v21-staging/tools/stage_v21.py reconciliation field-notes/candidates/SkellyMotion-V21-Reconciliation-Patch.zip candidate evidence/staged.json
+          git -C creator-original diff --exit-code
+          git rev-parse HEAD > evidence/producer-revision.txt
+      - name: Install candidate test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg fonts-dejavu-core
+          python -m pip install -r candidate/requirements.txt httpx pytest av
+      - name: Verify integrated component and server contracts
+        working-directory: candidate
+        run: |
+          set -o pipefail
+          python -m pytest -q tests/test_v21_reconciled_components.py tests/test_creator.py tests/test_voice_studio.py tests/test_presenter_intent.py tests/test_visual_sources.py tests/test_director_intelligence.py | tee ../evidence/components.log
+      - name: Verify frontend contracts
+        working-directory: candidate
+        run: |
+          set -o pipefail
+          for file in static/app.js static/autoclip.js static/make.js static/hub-brand.js; do node --check "$file"; done
+          for file in tests/editor_smoke.mjs tests/autoclip_smoke.mjs tests/compressor_lab_smoke.mjs; do node "$file"; done 2>&1 | tee ../evidence/frontend.log
+      - name: Full source regression gate
+        working-directory: candidate
+        run: |
+          set -o pipefail
+          python -m pytest -q tests | tee ../evidence/full-suite.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: V21-partial-integration-evidence
+          path: |
+            evidence/
+            reconciliation/report.json
+            reconciliation/creator-revision.txt
+          retention-days: 14
+          if-no-files-found: warn
