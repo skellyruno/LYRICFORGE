@@ -95,7 +95,7 @@ try {
     $exe=Join-Path $target 'SkellyMotion.exe'
     foreach ($arg in @('--self-test','--ai-self-test','--native-self-test')) { Run-Checked $exe @($arg) 120000 }
     Run-Checked $exe @('--direct-media-proof','snapshot',$fixtures,$model,(Join-Path $evidence 'installed-ai-proof.json')) 900000
-    & "$root/packaging/capture-rendered-ui.ps1" $exe (Join-Path $evidence 'SkellyMotion-Installed-WebView2.png')
+    & "$root/packaging/direct-media/capture_stable_welcome.ps1" $exe (Join-Path $evidence 'SkellyMotion-Installed-WebView2.png')
     Run-Checked (Join-Path $target 'unins000.exe') @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART') 120000
     if ((Test-Path $exe) -or (Test-Path "$target/_internal/tools/ffprobe.exe") -or -not (Test-Path $sentinel) -or (Get-FileHash $sentinel).Hash -ne $before) { throw 'Uninstall or workspace safety failed' }
 } finally {
