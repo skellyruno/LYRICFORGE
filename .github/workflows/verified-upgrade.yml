@@ -1,0 +1,54 @@
+name: Verified installer in-place upgrade and reinstall
+on:
+  push:
+    branches: [feature/field-notes-production-20261126]
+    paths: ['packaging/release-audit/upgrade.ps1','packaging/release-audit/verify_upgrade.py','.github/workflows/verified-upgrade.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: verified-upgrade-${{ github.ref }}-${{ github.event_name == 'push' && 'push' || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'push' && github.ref == 'refs/heads/feature/field-notes-production-20261126' }}
+jobs:
+  upgrade:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@v4
+        with:
+          name: SkellyMotion-Restored-Header-Windows-Setup
+          run-id: 46055109253
+          github-token: ${{ github.token }}
+          path: prior
+      - uses: actions/download-artifact@v4
+        with:
+          name: restored-header-compact-installer-evidence
+          run-id: 46055109253
+          github-token: ${{ github.token }}
+          path: prior-proof
+      - uses: actions/download-artifact@v4
+        with:
+          name: SkellyMotion-Direct-Half-Size-Windows-Setup
+          run-id: 46061531369
+          github-token: ${{ github.token }}
+          path: half
+      - uses: actions/download-artifact@v4
+        with:
+          name: direct-media-half-size-evidence
+          run-id: 46061531369
+          github-token: ${{ github.token }}
+          path: half-proof
+      - name: Actual in-place upgrade and repeat install, without deleting user files
+        shell: pwsh
+        run: ./packaging/release-audit/upgrade.ps1 -Old prior/SkellyMotion-Setup.exe -New half/SkellyMotion-Setup.exe -OldLedger prior-proof/payload-manifest.json -NewLedger half-proof/shared-payload-manifest.json
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: verified-upgrade-evidence
+          path: upgrade-evidence/
+          if-no-files-found: warn

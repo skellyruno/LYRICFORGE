@@ -20,6 +20,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: actions/setup-python@v6
         with:
           python-version: '3.11'
@@ -61,7 +62,9 @@ jobs:
       - name: Install exact AI and app packages
         run: python -m pip install -r requirements-desktop.txt "faster-whisper==1.2.1" "av==18.1.1" "ctranslate2==4.9.1" "numpy==2.4.6" "tokenizers==0.23.3" "pywebview==6.2.1" "pythonnet==3.0.5" "clr-loader==0.2.7.post0" pyinstaller pytest httpx
       - name: Check AAC priming and full decoded tail contract
-        run: python -m unittest discover -s packaging/direct-media -p test_aac_tail.py -v
+        run: python -m unittest discover -s packaging/direct-media -p 'test_aac_tail.py' -v
+      - name: Check bounded metadata cache and invalidation
+        run: python -m unittest discover -s packaging/direct-media -p 'test_media_cache.py' -v
       - name: Generate actual PyAV and Small-model reference
         shell: pwsh
         run: |
@@ -72,6 +75,12 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Pinned model failed' }
           python packaging/shared-media/shared_media_proof.py snapshot direct-evidence/fixtures direct-model direct-evidence/original-ai.json
           if ($LASTEXITCODE -ne 0) { throw 'Original inference failed' }
+      - name: Benchmark exact released vs optimized PCM on Windows
+        shell: pwsh
+        run: |
+          $env:PATH="$((Resolve-Path direct-tools).Path);$env:PATH"
+          python packaging/direct-media/benchmark_decode.py . direct-evidence/fixtures direct-evidence/decode-performance.json
+          if ($LASTEXITCODE -ne 0) { throw 'Measured decoding improvement gate failed' }
       - name: Isolate direct decoder candidate source
         shell: pwsh
         run: |

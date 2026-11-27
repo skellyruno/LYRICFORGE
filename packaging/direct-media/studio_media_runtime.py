@@ -3,7 +3,7 @@ from __future__ import annotations
 from contextlib import contextmanager
 from fractions import Fraction
 from functools import lru_cache
-import json,math,os,shutil,subprocess,sys,tempfile
+import copy,json,math,os,shutil,subprocess,sys,tempfile
 from pathlib import Path
 import numpy as np
 from studio_probe_delta import BASE_SHA,PROBE_SHA,sha,restore_probe
@@ -44,7 +44,31 @@ def probe_json(path,options):
     except (subprocess.SubprocessError,OSError,ValueError) as exc:
         raise ValueError("Unreadable media metadata") from exc
 
-def media_info(path):return probe_json(path,["-show_format","-show_streams"])
+def file_identity(path):
+    p=Path(path).resolve(strict=True)
+    s=p.stat()
+    return (str(p),s.st_dev,s.st_ino,s.st_size,s.st_mtime_ns,s.st_ctime_ns)
+
+@lru_cache(maxsize=32)
+def _media_info(identity):
+    path=identity[0]
+    value=probe_json(path,["-show_format","-show_streams"])
+    if file_identity(path)!=identity:raise ValueError("Media changed during probe")
+    return value
+
+def media_info(path):
+    return copy.deepcopy(_media_info(file_identity(path)))
+
+def clear_probe_cache():
+    _media_info.cache_clear()
+    _aac_trim.cache_clear()
+
+def direct_container(path):
+    # These magic bytes cannot be ISO-BMFF. No extra FFprobe process is
+    # needed for their audio decode; FFmpeg still validates the stream.
+    with Path(path).open("rb") as f:header=f.read(12)
+    return ((header[:4] in (b"RIFF",b"RF64",b"BW64") and header[8:12]==b"WAVE")
+            or header[:4] in (b"fLaC",b"OggS"))
 
 def positive(value):
     try:
@@ -74,6 +98,11 @@ def video_stream_width(path):
     raise ValueError("Background file has no readable video/image stream")
 
 def aac_trim(path):
+    return _aac_trim(file_identity(path))
+
+@lru_cache(maxsize=32)
+def _aac_trim(identity):
+    path=identity[0]
     info=probe_json(path,["-select_streams","a:0","-show_streams","-show_packets"])
     streams=info.get("streams",[])
     if len(streams)!=1 or streams[0].get("codec_name")!="aac":raise ValueError("Unexpected selected audio stream")
@@ -95,25 +124,29 @@ def aac_trim(path):
     # the container edit duration. Do not impose that newer trimming law
     # on the Whisper input. This is the exact prior held-out parity mode.
     # Keep the discard validation above, but only remove initial priming.
+    if file_identity(path)!=identity:raise ValueError("Media changed during AAC probe")
     return skip
 
 def decode_audio(input_file,sampling_rate=16000,split_stereo=False):
     if not isinstance(sampling_rate,int) or not 1<=sampling_rate<=384000:raise ValueError("Invalid sampling rate")
     ffmpeg,_=tools();channels=2 if split_stereo else 1
     with local_path(input_file) as path:
-        info=media_info(path)
-        stream=next((s for s in info.get("streams",[]) if s.get("codec_type")=="audio"),None)
-        if stream is None:raise ValueError("Media has no audio")
+        identity=file_identity(path)
         pre=[];filters=["asetpts=N/SR/TB"]
-        names=set(info.get("format",{}).get("format_name","").split(","))
-        if stream.get("codec_name")=="aac" and names.intersection({"mov","mp4","m4a","3gp","3g2","mj2"}):
-            skip=aac_trim(path);pre=["-flags2","+skip_manual"]
-            filters.insert(0,f"atrim=start_sample={skip}")
+        if not direct_container(path):
+            info=media_info(path)
+            stream=next((s for s in info.get("streams",[]) if s.get("codec_type")=="audio"),None)
+            if stream is None:raise ValueError("Media has no audio")
+            names=set(info.get("format",{}).get("format_name","").split(","))
+            if stream.get("codec_name")=="aac" and names.intersection({"mov","mp4","m4a","3gp","3g2","mj2"}):
+                skip=aac_trim(path);pre=["-flags2","+skip_manual"]
+                filters.insert(0,f"atrim=start_sample={skip}")
         try:
             raw=execute(ffmpeg,["-hide_banner","-nostdin","-v","error",*pre,"-i",str(path),"-map","0:a:0",
                 "-vn","-sn","-dn","-af",",".join(filters),"-ac",str(channels),"-ar",str(sampling_rate),
                 "-c:a","pcm_s16le","-f","s16le","pipe:1"],1800)
         except (subprocess.SubprocessError,OSError) as exc:raise ValueError("Audio decoding failed") from exc
+        if file_identity(path)!=identity:raise ValueError("Media changed during decode")
     if not raw or len(raw)%(2*channels):raise ValueError("Invalid decoded PCM")
     audio=np.frombuffer(raw,dtype="<i2").astype(np.float32)/32768.0
     return (audio[::2],audio[1::2]) if split_stereo else audio
