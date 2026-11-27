@@ -18,10 +18,12 @@ permissions:
   contents: read
   actions: read
 concurrency:
-  group: compact-ffmpeg-${{ github.ref }}-${{ github.event_name == 'push' && 'push' || github.run_id }}
+  group: compact-ffmpeg-retry-${{ github.ref }}-${{ github.event_name == 'push' && 'push' || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'push' && github.ref == 'refs/heads/feature/field-notes-production-20261126' }}
 jobs:
   recapture:
+    # Previous run's independent screenshot job may finish without interruption.
+    if: github.event_name == 'workflow_dispatch'
     runs-on: windows-latest
     timeout-minutes: 15
     steps:
@@ -66,7 +68,7 @@ jobs:
             mingw-w64-x86_64-toolchain mingw-w64-x86_64-pkgconf mingw-w64-x86_64-nasm
             mingw-w64-x86_64-x264 mingw-w64-x86_64-libass mingw-w64-x86_64-zlib mingw-w64-x86_64-libiconv
             mingw-w64-x86_64-libvpx mingw-w64-x86_64-dav1d mingw-w64-x86_64-opus mingw-w64-x86_64-libvorbis
-            mingw-w64-x86_64-nv-codec-headers mingw-w64-x86_64-amf-headers mingw-w64-x86_64-libvpl
+            mingw-w64-x86_64-ffnvcodec-headers mingw-w64-x86_64-amf-headers mingw-w64-x86_64-libvpl
       - name: Build compact FFmpeg with full native decoder and filter sets
         shell: msys2 {0}
         run: |
@@ -141,6 +143,12 @@ jobs:
           $env:PYTHONPATH=(Get-Location).Path
           python packaging/compact-media/audit_media.py dist/SkellyMotion/_internal/tools/ffmpeg.exe compact-ffmpeg/ffmpeg.exe compact-media-evidence
           if ($LASTEXITCODE -ne 0) { throw 'Candidate media comparison failed' }
+      - name: Compare actual encoded ASS cinematic and audio filter output
+        shell: pwsh
+        run: |
+          $env:PYTHONPATH=(Get-Location).Path
+          python packaging/compact-media/render_parity.py dist/SkellyMotion/_internal/tools/ffmpeg.exe compact-ffmpeg/ffmpeg.exe compact-media-evidence
+          if ($LASTEXITCODE -ne 0) { throw 'Encoded media parity failed' }
       - name: Run full consolidated test suite using compact FFmpeg only
         shell: pwsh
         run: |
