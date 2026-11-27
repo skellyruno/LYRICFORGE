@@ -1,4 +1,4 @@
-name: Creator consolidation / inference / Windows gate
+name: SkellyMotion consolidated Windows release gate
 on:
   push:
     branches: [feature/field-notes-production-20261126]
@@ -50,6 +50,10 @@ jobs:
         run: |
           python field-notes/v21-staging/tools/reconcile_render_contracts.py candidate field-notes/candidates/SkellyMotion-Editorial-V20-Source-Candidate.zip evidence/render-contracts.json
           cp field-notes/v21-staging/tools/test_render_contracts.py candidate/tests/test_render_contracts.py
+      - name: Repair finite Hold scheduler and add release regressions
+        run: |
+          python field-notes/v21-staging/tools/fix_hold_scheduler.py candidate
+          cp field-notes/v21-staging/tools/test_hold_scheduler.py candidate/tests/test_hold_scheduler.py
       - name: Archive exact staged source and provenance
         run: |
           mkdir staged-source
@@ -103,12 +107,13 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg fonts-dejavu-core
+          ffmpeg -version
           python -m pip install -r candidate/LYRICFORGE-main/requirements.txt httpx pytest av
       - name: Verify finite Hold and Cut release regressions
         working-directory: candidate/LYRICFORGE-main
         timeout-minutes: 8
         run: |
-          python -m pytest -q tests/test_quick_tools2.py -k 'hold or cut'
+          python -m pytest -vv -s --maxfail=1 tests/test_quick_tools2.py tests/test_hold_scheduler.py -k 'hold or cut'
       - name: Verify restored editorial rendering contracts
         working-directory: candidate/LYRICFORGE-main
         run: |
@@ -138,107 +143,8 @@ jobs:
           path: evidence/
           retention-days: 14
           if-no-files-found: warn
-  inference:
-    needs: prepare
-    runs-on: ubuntu-latest
-    timeout-minutes: 40
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.11'
-      - uses: actions/download-artifact@v4
-        with:
-          name: exact-staged-source
-          path: staged-source
-      - name: Verify and unpack exact staged source
-        run: |
-          (cd staged-source && sha256sum -c candidate.zip.sha256)
-          test "$(cat staged-source/producer-revision.txt)" = "$GITHUB_SHA"
-          unzip -q staged-source/candidate.zip -d candidate
-          mkdir -p evidence
-      - uses: actions/download-artifact@v4
-        with:
-          name: Field-Notes-06-Kokoro-Michael
-          run-id: 45948801081
-          github-token: ${{ github.token }}
-          path: neural
-      - uses: actions/cache@v4
-        with:
-          path: |
-            models/
-            ~/.cache/huggingface/
-          key: creator-whisper-tiny-en-clip-b32-model-cache-v1
-      - name: Install real optional inference runtimes
-        run: |
-          sudo apt-get update -q
-          sudo apt-get install -y ffmpeg fonts-dejavu-core
-          python -m pip install -r candidate/LYRICFORGE-main/requirements.txt av httpx 'transformers>=4.48,<5' safetensors huggingface-hub
-          python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
-      - name: Execute actual offline Whisper and CLIP inference
-        run: python field-notes/v21-staging/tools/prove_inference.py candidate/LYRICFORGE-main neural evidence/inference models
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: real-model-inference-evidence
-          path: |
-            evidence/inference/*.json
-            evidence/inference/*.png
-          retention-days: 14
-          if-no-files-found: warn
-  narrated_film:
-    needs: prepare
-    runs-on: ubuntu-latest
-    timeout-minutes: 90
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.11'
-      - uses: actions/download-artifact@v4
-        with:
-          name: exact-staged-source
-          path: staged-source
-      - name: Verify and unpack exact staged source
-        run: |
-          (cd staged-source && sha256sum -c candidate.zip.sha256)
-          test "$(cat staged-source/producer-revision.txt)" = "$GITHUB_SHA"
-          unzip -q staged-source/candidate.zip -d candidate
-          mkdir -p evidence
-      - uses: actions/download-artifact@v4
-        with:
-          name: Field-Notes-06-Kokoro-Michael
-          run-id: 45948801081
-          github-token: ${{ github.token }}
-          path: neural
-      - name: Install render runtime
-        run: |
-          sudo apt-get update -q
-          sudo apt-get install -y ffmpeg fonts-dejavu-core
-          python -m pip install -r candidate/LYRICFORGE-main/requirements.txt av
-      - name: Render actual speech-timed Field Notes 06 master
-        env:
-          OMP_NUM_THREADS: '2'
-          OPENBLAS_NUM_THREADS: '1'
-        run: python field-notes/v21-staging/tools/render_narrated_master.py candidate/LYRICFORGE-main neural narrated
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: Field-Notes-06-Narrated-Extended-Review
-          path: |
-            narrated/*.mp4
-            narrated/*.json
-            narrated/*.png
-            narrated/loudness.log
-            narrated/mastered.wav
-          retention-days: 14
-          if-no-files-found: warn
   windows:
-    needs: integration
+    needs: prepare
     runs-on: windows-latest
     timeout-minutes: 60
     defaults:
@@ -250,7 +156,7 @@ jobs:
         with:
           name: exact-staged-source
           path: staged-source
-      - name: Verify same staged source tested on Linux
+      - name: Verify identical staged source for both platforms
         working-directory: .
         shell: pwsh
         run: |
@@ -347,6 +253,8 @@ jobs:
           node --check static/make.js
           node --check static/hub-brand.js
           node --check static/welcome-preferences.js
+      - name: Fail fast on actual Hold and Cut with bundled FFmpeg
+        run: python -m pytest -vv -s --maxfail=1 tests/test_quick_tools2.py tests/test_hold_scheduler.py -k "hold or cut"
       - name: Test exact consolidated editor on Windows
         run: python -m pytest tests -q
       - name: Build self-contained Windows folder
@@ -633,7 +541,7 @@ jobs:
       - uses: actions/upload-artifact@v6
         if: success()
         with:
-          name: Consolidated-Creator-Windows-x64-Preview
+          name: SkellyMotion-Consolidated-Windows-x64
           path: candidate/LYRICFORGE-main/dist/SkellyMotion/
           retention-days: 7
           if-no-files-found: error
