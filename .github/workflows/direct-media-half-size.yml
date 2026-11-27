@@ -1,0 +1,121 @@
+name: Exact FFprobe delta and direct decoder half-size candidate
+on:
+  push:
+    branches: [feature/field-notes-production-20261126]
+    paths:
+      - 'packaging/direct-media/**'
+      - '.github/workflows/direct-media-half-size.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: direct-media-half-size-${{ github.ref }}-${{ github.event_name == 'push' && 'push' || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'push' && github.ref == 'refs/heads/feature/field-notes-production-20261126' }}
+jobs:
+  candidate:
+    runs-on: windows-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Verify exact prior artifacts
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $repo="${{ github.repository }}"
+          foreach ($entry in @(@{id=15220591812;sha='12e763d9ff2e50221eb821835dda2875542ca95fdd14b2702b113c23e7003748'},@{id=15175289212;sha='a91297c2b41b0e8fe94067dba90aa0da1d74d01da6af05454fe5227b711580b0'},@{id=15215018868;sha='832c297bce2ff4f836c5de29a6080232299a781390782ec7e977f46755b06f74'})) {
+            $a=gh api "repos/$repo/actions/artifacts/$($entry.id)" | ConvertFrom-Json
+            if ($LASTEXITCODE -ne 0 -or $a.expired -or $a.digest -ne ('sha256:'+$entry.sha)) { throw "Unexpected artifact $($entry.id)" }
+          }
+      - uses: actions/download-artifact@v4
+        with:
+          name: compact-ffmpeg-runtime-and-source
+          run-id: 46040313923
+          github-token: ${{ github.token }}
+          path: direct-tools
+      - uses: actions/download-artifact@v4
+        with:
+          name: SkellyMotion-Consolidated-Windows-x64
+          run-id: 46032977554
+          github-token: ${{ github.token }}
+          path: original
+      - uses: actions/download-artifact@v4
+        with:
+          name: Field-Notes-06-Kokoro-Michael
+          run-id: 45948801081
+          github-token: ${{ github.token }}
+          path: narration
+      - name: Generate and verify exact FFprobe delta
+        shell: pwsh
+        run: |
+          python packaging/direct-media/generate_probe_delta.py direct-tools/ffmpeg.exe direct-tools/ffprobe.exe direct-tools/ffprobe.delta
+          if ($LASTEXITCODE -ne 0) { throw 'Probe delta failed' }
+      - name: Install exact AI and app packages
+        run: python -m pip install -r requirements-desktop.txt "faster-whisper==1.2.1" "av==18.1.1" "ctranslate2==4.9.1" "numpy==2.4.6" "tokenizers==0.23.3" "pywebview==6.2.1" "pythonnet==3.0.5" "clr-loader==0.2.7.post0" pyinstaller pytest httpx
+      - name: Generate actual PyAV and Small-model reference
+        shell: pwsh
+        run: |
+          $env:PYTHONPATH=(Get-Location).Path
+          python packaging/shared-media/shared_media_proof.py generate original/_internal/tools/ffmpeg.exe narration/take-1.00/narration.wav direct-evidence/fixtures
+          if ($LASTEXITCODE -ne 0) { throw 'Reference fixtures failed' }
+          python packaging/shared-media/shared_media_proof.py model direct-model
+          if ($LASTEXITCODE -ne 0) { throw 'Pinned model failed' }
+          python packaging/shared-media/shared_media_proof.py snapshot direct-evidence/fixtures direct-model direct-evidence/original-ai.json
+          if ($LASTEXITCODE -ne 0) { throw 'Original inference failed' }
+      - name: Isolate direct decoder candidate source
+        shell: pwsh
+        run: |
+          python packaging/direct-media/stage_direct_candidate.py . direct-stage
+          if ($LASTEXITCODE -ne 0) { throw 'Candidate staging failed' }
+          python -m pip uninstall -y av
+          if ($LASTEXITCODE -ne 0) { throw 'Dependency isolation failed' }
+          Add-Content $env:GITHUB_PATH (Resolve-Path direct-tools).Path
+          Add-Content $env:GITHUB_ENV "PYTHONPATH=$((Resolve-Path direct-stage).Path)"
+      - name: Compare real direct PCM, probes, and Small inference
+        shell: pwsh
+        working-directory: direct-stage
+        run: |
+          python shared_media_proof.py snapshot ../direct-evidence/fixtures ../direct-model ../direct-evidence/direct-ai.json
+          if ($LASTEXITCODE -ne 0) { throw 'Candidate inference failed' }
+          python shared_media_proof.py compare ../direct-evidence/original-ai.json ../direct-evidence/direct-ai.json ../direct-evidence/source-parity.json
+          if ($LASTEXITCODE -ne 0) { throw 'Direct decoder parity failed' }
+      - name: Full Windows regression with the exact compact FFmpeg
+        shell: pwsh
+        working-directory: direct-stage
+        run: |
+          $dir=(Resolve-Path ../direct-tools).Path
+          if ((Get-Command ffmpeg).Source -ne (Join-Path $dir 'ffmpeg.exe') -or (Get-Command ffprobe).Source -ne (Join-Path $dir 'ffprobe.exe')) { throw 'Wrong native media stack' }
+          python -m pytest -q tests
+          if ($LASTEXITCODE -ne 0) { throw 'Windows regression failed' }
+      - name: Freeze candidate with lossless probe delta
+        shell: pwsh
+        working-directory: direct-stage
+        run: ./packaging/direct-media/package_direct.ps1 -Tools ../direct-tools
+      - name: Verify installed bytes, real inference, UI and half-size ceiling
+        shell: pwsh
+        working-directory: direct-stage
+        run: ./packaging/direct-media/test_direct_installer.ps1 -Fixtures ../direct-evidence/fixtures -Model ../direct-model -Reference ../direct-evidence/original-ai.json
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: direct-media-half-size-evidence
+          path: |
+            direct-evidence/*.json
+            direct-evidence/*.png
+            direct-evidence/*.log
+          if-no-files-found: warn
+          retention-days: 30
+      - uses: actions/upload-artifact@v6
+        if: success()
+        with:
+          name: SkellyMotion-Direct-Half-Size-Windows-Setup
+          path: direct-stage/dist/installer/SkellyMotion-Setup.exe
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 30
