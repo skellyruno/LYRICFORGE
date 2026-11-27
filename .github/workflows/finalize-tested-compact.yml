@@ -1,10 +1,12 @@
-name: Finalize compact installer with original SkellHub icon
+name: Finalize compact installer with restored editor logo
 on:
   push:
     branches: [feature/field-notes-production-20261126]
     paths:
       - 'packaging/finalize-tested-compact.ps1'
       - 'packaging/restore_original_icon.py'
+      - 'packaging/restore_editor_header.py'
+      - 'static/index.html'
       - 'packaging/append_icon_resources.py'
       - 'studio_icon.py'
       - '.github/workflows/finalize-tested-compact.yml'
@@ -77,14 +79,14 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: restored-icon-compact-installer-evidence
+          name: restored-header-compact-installer-evidence
           path: compact-media-evidence/
           retention-days: 14
           if-no-files-found: warn
       - uses: actions/upload-artifact@v6
         if: success()
         with:
-          name: SkellyMotion-Original-Icon-Windows-Setup
+          name: SkellyMotion-Restored-Header-Windows-Setup
           path: dist/installer/SkellyMotion-Setup.exe
           compression-level: 0
           if-no-files-found: error

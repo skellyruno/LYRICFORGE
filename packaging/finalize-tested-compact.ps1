@@ -36,6 +36,9 @@ if ($ExistingSetup) {
     # Restore approved icon in the already-tested executable; its frozen Python archive is unchanged.
     python "$PSScriptRoot/restore_original_icon.py" stage "$root/dist/SkellyMotion" "$root/static/skellyhub.ico" --ledger $ledger --evidence (Join-Path $evidence 'icon-provenance.json')
     if ($LASTEXITCODE -ne 0) { throw 'Original icon restoration failed' }
+    # Change only the two stale logo references; reuse the verified original PNG.
+    python "$PSScriptRoot/restore_editor_header.py" "$root/dist/SkellyMotion" "$root/static/index.html" $ledger (Join-Path $evidence 'editor-header-provenance.json')
+    if ($LASTEXITCODE -ne 0) { throw 'Editor header restoration failed' }
     $compiler=Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
     if (-not (Test-Path -LiteralPath $compiler)) {
         choco install innosetup --yes --no-progress
