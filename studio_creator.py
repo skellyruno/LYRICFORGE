@@ -103,6 +103,7 @@ def validate_script(chapters,production_mode='plugin'):
         if production_mode=='research' or row.get('source_url'):
             entry['source_url']=source_url(row.get('source_url'))
         if row.get('graphic'):entry['graphic']=validate_graphic(row['graphic'])
+        if 'voice_direction' in row:entry['voice_direction']=vs.voice_direction(row['voice_direction'])
         out.append(entry)
     if count>MAX_SCRIPT_WORDS:raise ValueError('Script exceeds 3300 words')
     return out
@@ -224,8 +225,8 @@ def narration(chapters, output, voice='auto', speed=1., check_cancel=lambda:None
         if voice in KOKORO_VOICES:
             phrases=[vs.spoken(phrase,pronunciation) for chapter in chapters for phrase in split_phrases(chapter['narration'])]
             check_cancel();progress(0,len(chapters))
-            if delivery=='presenter':
-                speeds=[vs.presenter_pace(phrase,speed,chapter['title'])[0] for chapter in chapters for phrase in split_phrases(chapter['narration'])]
+            if delivery in ('presenter','cinematic') or any(c.get('voice_direction') for c in chapters):
+                speeds=[vs.directed_pace(phrase,speed,chapter['title'],delivery,chapter.get('voice_direction'))[0] for chapter in chapters for phrase in split_phrases(chapter['narration'])]
                 neural=kokoro_batch(phrases,root,voice,speed,check_cancel,speeds=speeds)
             else:
                 neural=kokoro_batch(phrases,root,voice,speed,check_cancel)
@@ -236,7 +237,7 @@ def narration(chapters, output, voice='auto', speed=1., check_cancel=lambda:None
             for i,chapter in enumerate(chapters):
                 check_cancel();progress(i,len(chapters));phrases=split_phrases(chapter['narration'])
                 for j,phrase in enumerate(phrases):
-                    local_speed,pause_factor,pitch_delta=vs.presenter_pace(phrase,speed,chapter['title']) if delivery=='presenter' else (speed,1.,0)
+                    local_speed,pause_factor,pitch_delta=vs.directed_pace(phrase,speed,chapter['title'],delivery,chapter.get('voice_direction'))
                     src=root/'phrase.wav';dst=root/'pcm.wav';src.unlink(missing_ok=True);dst.unlink(missing_ok=True)
                     if neural:
                         src=neural[len(lines)];native_pace=True

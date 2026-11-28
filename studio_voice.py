@@ -18,6 +18,7 @@ DELIVERY = {
     'energetic': (1.07, .09, .18, 49),
     'documentary': (.91, .22, .40, 38),
     'presenter': (1.0, .14, .33, 45),
+    'cinematic': (.97, .16, .40, 43),
 }
 FORMATS = {'tutorial', 'review', 'advertisement', 'documentary'}
 # Common audio initialisms only; owner-supplied pronunciations override these.
@@ -149,3 +150,22 @@ def prepare_recording(source, target, chapters, chapter_starts, run_checked, spl
     warnings=['Review '+('estimated word timing' if chapters else 'the recognized transcript and word timing')+' against the recording before publishing.']
     if clipped:warnings.append('Recording contains clipped samples; consider recording another take.')
     return {'duration':duration,'lines':lines,'provider':'recorded','word_timing':origin,'peak_dbfs':round(20*math.log10(peak/32768),2),'rms_dbfs':round(10*math.log10(total/n/32768**2),2),'clipped_samples':clipped,'warnings':warnings}
+
+# These are explicit production directions, not model emotion embeddings.
+VOICE_DIRECTIONS={'reveal':(.92,1.45,-1),'detail':(1.01,.95,0),'compare':(.90,1.55,-2),'close':(.88,1.65,-1),'steady':(1.,1.,0)}
+
+def voice_direction(value):
+    if not isinstance(value,str) or value not in VOICE_DIRECTIONS:raise ValueError('Unknown chapter voice direction')
+    return value
+
+def directed_pace(text, base_speed, title, delivery, direction=None):
+    if direction is not None:factor,pause,pitch=VOICE_DIRECTIONS[voice_direction(direction)]
+    elif delivery=='cinematic':
+        context=(str(title)+' '+str(text)).casefold()
+        if re.search(r'\b(listen|compare|before|after|proof)\b',context):factor,pause,pitch=VOICE_DIRECTIONS['compare']
+        elif re.search(r'\b(reveal|introducing|meet|discover)\b',context):factor,pause,pitch=VOICE_DIRECTIONS['reveal']
+        elif re.search(r'\b(final|closing|shape the sound)\b',context):factor,pause,pitch=VOICE_DIRECTIONS['close']
+        else:return presenter_pace(text,base_speed,title)
+    elif delivery=='presenter':return presenter_pace(text,base_speed,title)
+    else:return base_speed,1.,0
+    return min(1.25,max(.75,float(base_speed)*factor)),pause,pitch

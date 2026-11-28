@@ -5,6 +5,7 @@ import studio_timeline as tl
 import studio_sequence as seq
 import studio_edit as edit
 import studio_performance as perf
+import studio_sequence_quality as quality
 
 def run(args, cancel, timeout=1800):
     with tempfile.TemporaryFile() as err:
@@ -26,7 +27,10 @@ def render(state,assets,target,*,width=1280,height=720,cancel=lambda:None,progre
     def media(key):return str(Path(assets[key]['path']).resolve())
     with tempfile.TemporaryDirectory(prefix='sequence-',dir=target.parent) as tmp:
         tmp=Path(tmp);base=tmp/'base.mp4'
-        tl.render(state['base'],assets,base,width=width,height=height,check_cancel=cancel,progress=lambda n,t:progress(round(65*n/t)))
+        prepared=quality.picture_copy_source(state,assets,width,height)
+        copy_picture=prepared is not None
+        if copy_picture:base=prepared;progress(65)
+        else:tl.render(state['base'],assets,base,width=width,height=height,check_cancel=cancel,progress=lambda n,t:progress(round(65*n/t)))
         args=['-i',str(base)]; filters=['[0:v]setpts=PTS-STARTPTS[v0]','[0:a]aresample=48000,aformat=channel_layouts=stereo,asetpts=N/SR/TB,apad,atrim=end_sample='+str(samples)+'[voice]'];video='v0';idx=1;audio=[];music=[]
         for i,x in enumerate(state['layers']):
             n=x['length'];at=x['at'];dur=n/30;label=f'l{i}'
@@ -66,23 +70,28 @@ def render(state,assets,target,*,width=1280,height=720,cancel=lambda:None,progre
             filters.append(f'[{bed}][key]sidechaincompress=threshold=0.025:ratio=5:attack=20:release=250[ducked]');audio.append('ducked')
         mix=[voice]+audio
         filters.append(''.join(f'[{x}]' for x in mix)+f'amix=inputs={len(mix)}:normalize=0,alimiter=limit=0.95:level=0:latency=1,aresample=48000,apad,atrim=end_sample={samples},asetpts=N/SR/TB[aout]')
-        filters.append(f'[{video}]format=yuv420p,trim=end_frame={total},settb=1/30,setpts=N[vout]')
+        if copy_picture:filters.pop(0)
+        else:filters.append(f'[{video}]format=yuv420p,trim=end_frame={total},settb=1/30,setpts=N[vout]')
         out=tmp/'result.mp4';graph=tmp/'graph.txt';graph.write_text(';'.join(filters),encoding='utf-8')
         # Only the final H.264 encode can be accelerated. Base decoding,
         # compositing and the audio mix remain on CPU. Reuse the app's real
         # encoder probe; an advertised codec is not a working GPU.
-        installed=perf.available_gpu_encoders() if encoder!='cpu' else ()
+        installed=perf.available_gpu_encoders() if encoder!='cpu' and not copy_picture else ()
         selected=perf.choose_encoder(encoder,installed);fallback=''
-        if encoder=='gpu' and selected=='libx264':fallback='No working hardware encoder detected'
+        if encoder=='gpu' and selected=='libx264' and not copy_picture:fallback='No working hardware encoder detected'
         cpu_args=['-c:v','libx264','-crf','18','-preset','veryfast','-threads','2']
         def encode(codec):
             opts=cpu_args if codec=='libx264' else perf.encode_args(codec,'quality',width,height,2)
             run([*args,'-filter_complex_threads','1',*edit.graph_file_args(str(graph)),'-map','[vout]','-map','[aout]',*opts,'-c:a','aac','-b:a','192k','-r','30','-fps_mode','cfr','-video_track_timescale','30000','-movflags','+faststart',str(out)],cancel)
-        try:encode(selected)
+        try:
+            if copy_picture:
+                selected='copy'
+                run([*args,'-filter_complex_threads','1',*edit.graph_file_args(str(graph)),'-map','0:v:0','-map','[aout]','-c:v','copy','-c:a','aac','-b:a','192k','-video_track_timescale','30000','-movflags','+faststart',str(out)],cancel)
+            else:encode(selected)
         except RuntimeError as exc:
             cancel()
-            if selected=='libx264':raise
+            if selected in ('libx264','copy'):raise
             fallback=f'{selected} failed during sequence encoding; retried on CPU'
             out.unlink(missing_ok=True);selected='libx264';encode(selected)
-        cancel();seq.validate(state,assets);os.replace(out,target);progress(100)
-        return {"encoder":selected,"fallback":fallback,"gpu_scope":"Final H.264 encoding only"}
+        cancel();review=quality.verify(out,total,width,height);seq.validate(state,assets);os.replace(out,target);progress(100)
+        return {"encoder":selected,"fallback":fallback,"gpu_scope":"No picture re-encode" if copy_picture else "Final H.264 encoding only","review":review}
