@@ -1,0 +1,91 @@
+name: Motion actual semantic montage and speech alignment
+on:
+  push:
+    branches: [staging/motion-semantic-alignment-20261127]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: motion-semantic-alignment-${{ github.ref }}-${{ github.event_name == 'push' && 'push' || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'push' }}
+jobs:
+  proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        kind: [regression, vision, voice]
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - run: sudo apt-get update -q && sudo apt-get install -y ffmpeg libespeak-ng1
+      - run: python -m pip install -r requirements-desktop.txt pytest httpx
+      - name: Verify exact application source and regression tests
+        if: matrix.kind == 'regression'
+        run: |
+          node --check static/autoclip.js
+          node tests/autoclip_smoke.mjs
+          python -m pytest -q tests/test_sequence* tests/test_studio_sequence.py tests/test_studio_timeline.py tests/test_studio_timeline_api.py tests/test_studio_timeline_assistant.py tests/test_voice_direction.py tests/test_voice_alignment.py
+      - uses: actions/cache@v4
+        if: matrix.kind == 'vision'
+        with:
+          path: models/
+          key: creator-real-model-vision-hash-pinned-v1
+      - name: Install isolated vision runtime
+        if: matrix.kind == 'vision'
+        run: |
+          python -m pip install 'transformers>=4.48,<5' safetensors huggingface-hub
+          python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+      - name: Install optional voice and ASR runtimes
+        if: matrix.kind == 'voice'
+        run: python -m pip install 'kokoro-onnx==0.6.1' 'onnxruntime==1.22.1' 'numpy==2.2.6' 'faster-whisper==1.2.1'
+      - uses: actions/cache@v4
+        if: matrix.kind == 'voice'
+        with:
+          path: .voice-model-cache
+          key: kokoro-v1.0-fp32-beb0d184-voices-bca610b8
+      - uses: actions/cache@v4
+        if: matrix.kind == 'voice'
+        with:
+          path: models/whisper
+          key: skelly-whisper-small-3e305921506d8872816023e4c273e75d2419fb89b24da97b4fe7bce14170d671
+      - name: Verify previously pinned model files
+        if: matrix.kind == 'voice'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .voice-model-cache
+          cd .voice-model-cache
+          base=https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1
+          printf '%s  %s\n' beb0d1848dee9a49da392cc3df26958d46cfa35d321edf434f52949153f0df3a kokoro-v1.0.onnx bca610b8308e8d99f32e6fe4197e7ec01679264efed0cac9140fe9c29f1fbf7d voices-v1.0.bin > SHA256SUMS
+          for file in kokoro-v1.0.onnx voices-v1.0.bin; do
+            if ! grep "  $file$" SHA256SUMS | sha256sum -c -; then
+              curl --fail --location --retry 2 --max-time 180 "$base/$file" -o "$file.tmp"
+              mv "$file.tmp" "$file"
+            fi
+          done
+          sha256sum -c SHA256SUMS
+      - name: Execute actual local model proof
+        if: matrix.kind != 'regression'
+        env:
+          OMP_NUM_THREADS: '2'
+          OPENBLAS_NUM_THREADS: '1'
+          LYRICFORGE_KOKORO_THREADS: '2'
+          PYTHONPATH: .
+        run: |
+          export LYRICFORGE_KOKORO_PYTHON=$(command -v python)
+          export LYRICFORGE_KOKORO_MODEL=$PWD/.voice-model-cache/kokoro-v1.0.onnx
+          export LYRICFORGE_KOKORO_VOICES=$PWD/.voice-model-cache/voices-v1.0.bin
+          python field-notes/inference/semantic_alignment_live.py "${{ matrix.kind }}" evidence models
+      - uses: actions/upload-artifact@v6
+        if: always() && matrix.kind != 'regression'
+        with:
+          name: semantic-alignment-${{ matrix.kind }}-proof
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 7
