@@ -13,7 +13,7 @@ from studio_editorial_motion import validate_graphic
 MAX_CHAPTERS=120
 MAX_SCRIPT_WORDS=3300
 KOKORO_VOICES={'kokoro':'am_michael','kokoro_smooth':'am_adam','kokoro_clear':'af_sarah'}
-VOICES={'auto','piper','system','draft',*KOKORO_VOICES}
+VOICES={'auto','piper','system','draft','expressive',*KOKORO_VOICES}
 PRODUCTION_MODES={'plugin','research'}
 
 
@@ -113,15 +113,15 @@ def voice_options():
     exe=os.environ.get('LYRICFORGE_PIPER_EXE') or shutil.which('piper')
     model=os.environ.get('LYRICFORGE_PIPER_MODEL','')
     piper=bool(exe and (Path(exe).is_file() or shutil.which(exe)) and model and Path(model).is_file() and Path(model+'.json').is_file())
-    kokoro=bool(kokoro_config())
-    return {'piper':piper,'system':os.name=='nt' and bool(shutil.which('powershell.exe')),'draft':bool(shutil.which('espeak-ng') or shutil.which('espeak')),**{name:kokoro for name in KOKORO_VOICES}}
+    kokoro=bool(kokoro_config());expressive=bool(expression_config())
+    return {'piper':piper,'expressive':expressive,'system':os.name=='nt' and bool(shutil.which('powershell.exe')),'draft':bool(shutil.which('espeak-ng') or shutil.which('espeak')),**{name:kokoro for name in KOKORO_VOICES}}
 
 def resolve_voice(voice, *, allow_draft=True):
     if voice not in VOICES:raise ValueError('Unknown narration provider')
     options=voice_options()
     if voice=='auto':
         voice=next((name for name in ('kokoro','piper','system','draft') if options.get(name) and (allow_draft or name!='draft')),'')
-    if not options.get(voice):raise ValueError('Requested narrator is unavailable. Configure a local Kokoro or Piper voice or choose another available provider; recorded narration is supported by the regular editor.')
+    if not options.get(voice):raise ValueError('Requested narrator is unavailable. Configure the selected local voice runtime and model, or choose another available provider; recorded narration is supported by the regular editor.')
     return voice
 
 def run_checked(args, *, input_text=None, check_cancel=lambda:None, timeout=120):
@@ -145,6 +145,29 @@ def run_checked(args, *, input_text=None, check_cancel=lambda:None, timeout=120)
                     raise RuntimeError(f'Narration/media process failed (exit {proc.returncode})')
             finally:
                 if proc.poll() is None:proc.kill();proc.wait()
+
+def expression_config():
+    runtime=os.getenv('LYRICFORGE_EXPRESSION_PYTHON','')
+    model=os.getenv('LYRICFORGE_EXPRESSION_MODEL','')
+    worker=Path(getattr(sys,'_MEIPASS',Path(__file__).resolve().parent))/'studio_expression_worker.py'
+    files=('ve.safetensors','t3_cfg.safetensors','s3gen.safetensors','tokenizer.json','conds.pt')
+    if runtime and model and Path(runtime).is_file() and worker.is_file() and Path(model).is_dir() and all((Path(model)/f).is_file() for f in files):
+        return runtime,str(worker),model
+    return None
+
+
+def expressive_batch(phrases,root,directions,check_cancel):
+    config=expression_config()
+    if not config:raise ValueError('Configure the optional expressive neural runtime and model first')
+    if not 1<=len(phrases)<=60 or len(directions)!=len(phrases):raise ValueError('Expressive narration supports up to 60 phrases per project; use Kokoro for longer drafts')
+    if any(len(p)>240 for p in phrases):raise ValueError('Pronunciation expanded an expressive phrase beyond 240 characters; shorten the phrase')
+    runtime,worker,model=config
+    request={'phrases':phrases,'directions':directions}
+    run_checked([runtime,worker,model,str(root)],input_text=json.dumps(request),check_cancel=check_cancel,timeout=3600)
+    files=[root/f'expressive-{i:04d}.wav' for i in range(len(phrases))]
+    if any(not p.is_file() or p.is_symlink() or not 44<p.stat().st_size<=5*1024*1024 for p in files):raise RuntimeError('Incomplete expressive narration output')
+    return files
+
 
 def kokoro_config():
     runtime=os.getenv('LYRICFORGE_KOKORO_PYTHON','')
@@ -217,6 +240,7 @@ def split_phrases(text):
 
 def narration(chapters, output, voice='auto', speed=1., check_cancel=lambda:None, progress=lambda i,n:None, *, delivery='neutral', pronunciation=None):
     chapters=validate_script(chapters);voice=resolve_voice(voice)
+    requested_speed=float(speed)
     speed,phrase_gap,chapter_gap,pitch=vs.delivery(delivery,speed);pronunciation=vs.speech_dictionary(pronunciation or {})
     rate=24000;lines=[];cursor=0;output=Path(output).resolve();output.parent.mkdir(parents=True,exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='creator-',dir=output.parent) as root:
@@ -232,6 +256,11 @@ def narration(chapters, output, voice='auto', speed=1., check_cancel=lambda:None
                 neural=kokoro_batch(phrases,root,voice,speed,check_cancel)
             neural=list(neural)
             if len(neural)!=len(phrases):raise RuntimeError('Incomplete neural narration output')
+        elif voice=='expressive':
+            phrases=[vs.spoken(phrase,pronunciation) for chapter in chapters for phrase in split_phrases(chapter['narration'])]
+            directions=[vs.expression_direction(phrase,chapter['title'],delivery,chapter.get('voice_direction')) for chapter in chapters for phrase in split_phrases(chapter['narration'])]
+            check_cancel();progress(0,len(chapters))
+            neural=expressive_batch(phrases,root,directions,check_cancel)
         with wave.open(str(staged),'wb') as wav:
             wav.setnchannels(1);wav.setsampwidth(2);wav.setframerate(rate)
             for i,chapter in enumerate(chapters):
@@ -246,7 +275,11 @@ def narration(chapters, output, voice='auto', speed=1., check_cancel=lambda:None
                     # Native neural duration control avoids a second time stretch.
                     # Older/unknown Piper versions retain the existing atempo fallback.
                     stretch=voice=='piper' and local_speed!=1. and not native_pace
-                    run_checked(['ffmpeg','-v','error','-nostdin','-y','-threads','1','-i',str(src),'-ac','1','-ar',str(rate),*(['-af',f'atempo={local_speed:.3f}'] if stretch else []),'-c:a','pcm_s16le',str(dst)],check_cancel=check_cancel)
+                    # Native expression sets delivery. Apply only the explicit
+                    # global speed, not a second chapter pace multiplier.
+                    stretch_speed=requested_speed if voice=='expressive' else local_speed
+                    stretch=stretch or (voice=='expressive' and requested_speed!=1.)
+                    run_checked(['ffmpeg','-v','error','-nostdin','-y','-threads','1','-i',str(src),'-ac','1','-ar',str(rate),*(['-af',f'atempo={stretch_speed:.3f}'] if stretch else []),'-c:a','pcm_s16le',str(dst)],check_cancel=check_cancel)
                     with wave.open(str(dst),'rb') as reader:
                         n=reader.getnframes()
                         if not 0<n<=rate*100:raise ValueError('Invalid synthesized phrase length')
@@ -267,4 +300,4 @@ def narration(chapters, output, voice='auto', speed=1., check_cancel=lambda:None
                     wav.writeframes(pcm);cursor+=n
                     gap=round(rate*pause_factor*vs.pause_after(phrase,phrase_gap,chapter_gap,j+1==len(phrases)));wav.writeframes(b'\0\0'*gap);cursor+=gap
         check_cancel();perf.publish_staged_file(staged,output)
-    return {'duration':cursor/rate,'lines':lines,'provider':voice,'delivery':delivery,'word_timing':'estimated within measured phrase audio','warnings':(['Draft synthesizer, not neural narration.'] if voice=='draft' else ['System voice quality depends on installed Windows speech voices.'] if voice=='system' else [])}
+    return {'duration':cursor/rate,'lines':lines,'provider':voice,'delivery':delivery,'word_timing':'estimated within measured phrase audio','warnings':(['Optional expressive neural voice; review delivery, pronunciation and pacing.'] if voice=='expressive' else ['Draft synthesizer, not neural narration.'] if voice=='draft' else ['System voice quality depends on installed Windows speech voices.'] if voice=='system' else [])}

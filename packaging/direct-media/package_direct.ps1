@@ -5,7 +5,7 @@ python studio_icon.py
 if ($LASTEXITCODE -ne 0) { throw 'Original icon guard failed' }
 $flags=@('--noconfirm','--clean','--onedir','--windowed','--name','SkellyMotion',
  '--icon','static/skull.ico','--add-data','static;static','--add-data','studio_ai_worker.py;.',
- '--add-data','studio_kokoro_worker.py;.',
+ '--add-data','studio_kokoro_worker.py;.','--add-data','studio_expression_worker.py;.',
  '--add-binary',"$tools/ffmpeg.exe;tools",'--add-data',"$tools/ffprobe.delta;tools",
  '--hidden-import','clr','--hidden-import','webview','--collect-all','webview','--collect-all','pythonnet','--collect-all','clr_loader',
  '--hidden-import','faster_whisper','--collect-all','faster_whisper','--collect-all','ctranslate2','--collect-all','tokenizers',

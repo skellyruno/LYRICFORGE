@@ -169,3 +169,15 @@ def directed_pace(text, base_speed, title, delivery, direction=None):
     elif delivery=='presenter':return presenter_pace(text,base_speed,title)
     else:return base_speed,1.,0
     return min(1.25,max(.75,float(base_speed)*factor)),pause,pitch
+
+
+def expression_direction(text, title, delivery_name, explicit=None):
+    """Native expression presets for the optional voice; never rewrite spoken text."""
+    if explicit is not None:return voice_direction(explicit)
+    context=(str(title)+' '+str(text)).casefold()
+    if re.search(r'\b(listen|compare|before|after|proof)\b',context):return 'compare'
+    if re.search(r'\b(final|closing|shape the sound)\b',context):return 'close'
+    if re.search(r'\b(reveal|introducing|meet|discover)\b',context):return 'reveal'
+    if delivery_name=='energetic':return 'reveal'
+    if delivery_name in ('tutorial','documentary'):return 'detail'
+    return 'steady'
