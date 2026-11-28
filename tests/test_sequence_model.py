@@ -99,3 +99,22 @@ def test_no_ambiguous_frame_fields_or_nonfinite_seconds(assets,no_decode):
         with pytest.raises(ValueError):model.seconds_to_frames(value)
     assert model.seconds_to_frames(.05)==2
     assert model.frame_action({'op':'transition','at_seconds':1,'kind':'dip','half_seconds':.1})=={'op':'transition','at':30,'kind':'dip','half':3}
+
+
+def test_explicit_target_schema_has_one_exact_operation(assets,no_decode):
+    state=seq.initial(assets)
+    target={'at':30,'length':30,'asset':'city'}
+    schema=model.proposal_schema(assets,set(assets),True,False,False,target)
+    actions=schema['properties']['actions'];fields=actions['items']['properties']['layer']['properties']
+    assert actions['minItems']==actions['maxItems']==1
+    assert fields['asset']['enum']==['city']
+    assert fields['at_seconds']['enum']==fields['duration_seconds']['enum']==[1.]
+    with pytest.raises(ValueError,match='unavailable'):
+        model.proposal_schema(assets,set(assets),True,False,False,{**target,'asset':'missing'})
+    # The model can still violate its schema; validation rejects extra layers.
+    good={'op':'put','layer':{'id':'ai-city','kind':'visual','asset':'city','at':30,'length':30}}
+    extra={'op':'put','layer':{'id':'ai-extra','kind':'visual','asset':'source','at':0,'length':120}}
+    with pytest.raises(ValueError,match='explicitly requested'):
+        model.propose(state,assets,[],'Insert a visual layer at 1 second for 1 second. Use asset city.','test:3b',mock([good,extra]))
+    assert not state['layers']
+    assert model.proposal_schema(assets,set(assets),False,False,False)['properties']['actions']['maxItems']==6
