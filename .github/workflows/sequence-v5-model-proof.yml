@@ -1,0 +1,66 @@
+name: Sequence V5 actual local model proof
+on:
+  push:
+    branches: [staging/sequence-v5-model-proof-20261127]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: sequence-v5-model-proof-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'push' }}
+jobs:
+  real-inference:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        kind: [vision, planner]
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Verify product source is exact V5
+        run: |
+          test "$(git hash-object studio_sequence_vision.py)" = d6729ef1ce2a4e3c51c208d42ad47f4ac320f738
+          test "$(git hash-object studio_sequence_model.py)" = 452436f538fc2ecc33253769817b6c54e135e18b
+          test "$(git hash-object studio_sequence_render.py)" = a53d41a73517128e8d812da897033f10e0704854
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: python -m pip install numpy Pillow psutil fastapi
+      - uses: actions/cache@v4
+        if: matrix.kind == 'vision'
+        with:
+          path: models/
+          key: creator-real-model-vision-hash-pinned-v1
+      - name: Install optional isolated vision runtime
+        if: matrix.kind == 'vision'
+        run: |
+          python -m pip install 'transformers>=4.48,<5' safetensors huggingface-hub
+          python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+      - name: Start isolated local Ollama service
+        if: matrix.kind == 'planner'
+        run: |
+          docker run -d --name skelly-model -p 127.0.0.1:11434:11434 ollama/ollama:0.13.0
+          for i in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:11434/api/tags >/dev/null; then break; fi
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:11434/api/tags >/dev/null
+          docker exec skelly-model ollama pull qwen2.5:3b
+      - name: Execute actual inference and validate proposal
+        env:
+          OMP_NUM_THREADS: '2'
+          PYTHONPATH: .
+        run: python field-notes/inference/sequence_v5_live.py "${{ matrix.kind }}" evidence models
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: sequence-v5-${{ matrix.kind }}-proof
+          path: evidence/*.json
+          if-no-files-found: warn
+          retention-days: 7
+      - if: always() && matrix.kind == 'planner'
+        run: docker rm -f skelly-model || true
