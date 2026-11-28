@@ -1,4 +1,4 @@
-name: Sequence V5 actual local model proof
+name: Sequence V6 actual local model proof
 on:
   push:
     branches: [staging/sequence-v5-model-proof-20261127]
@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kind: [vision, planner]
+        kind: [planner]
     steps:
       - uses: actions/checkout@v6
         with:
@@ -23,10 +23,10 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.11'
-      - name: Verify product source is exact V5
+      - name: Verify product source is exact V6
         run: |
           test "$(git hash-object studio_sequence_vision.py)" = d6729ef1ce2a4e3c51c208d42ad47f4ac320f738
-          test "$(git hash-object studio_sequence_model.py)" = 452436f538fc2ecc33253769817b6c54e135e18b
+          test "$(git hash-object studio_sequence_model.py)" = 27135a7e7af6e76fd4cd31d316ba0add826fe35d
           test "$(git hash-object studio_sequence_render.py)" = a53d41a73517128e8d812da897033f10e0704854
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - run: python -m pip install numpy Pillow psutil fastapi
@@ -58,7 +58,7 @@ jobs:
       - uses: actions/upload-artifact@v6
         if: always()
         with:
-          name: sequence-v5-${{ matrix.kind }}-proof
+          name: sequence-v6-${{ matrix.kind }}-proof
           path: evidence/*.json
           if-no-files-found: warn
           retention-days: 7

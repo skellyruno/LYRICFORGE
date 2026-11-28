@@ -55,9 +55,17 @@ def run(kind, out, models):
             from studio_timeline_assistant import local_json
             tags=local_json('/api/tags');write(out/'model-provenance.json',tags)
             state=sequence.initial(assets)
-            r=planner.propose(state,assets,[],'Insert the diagram as a visual layer at 1 second for 1 second. Keep the original audio and timing. Use asset diagram.','qwen2.5:3b')
+            attempts=[]
+            def traced(path,payload=None,timeout=4):
+                response=local_json(path,payload,timeout)
+                if path=='/api/chat':
+                    attempts.append(response.get('message',{}).get('content',''))
+                    write(out/'model-attempts.json',attempts)
+                return response
+            r=planner.propose(state,assets,[],'Insert the diagram as a visual layer at 1 second for 1 second. Keep the original audio and timing. Use asset diagram.','qwen2.5:3b',traced)
             write(out/'planning-evidence.json',r)
             assert r['preview']['before_frames']==r['preview']['after_frames']==120
+            assert len(r['preview']['layers'])==1 and not r['preview']['transitions'],r
             assert any(x['kind']=='visual' and x['asset']=='diagram' and x['at']==30 and x['length']==30 for x in r['preview']['layers']),r
             result=sequence.apply(state,r['action'],assets)
             assert result['layers'] and not state['layers']

@@ -36,3 +36,35 @@ def test_invalid_batch_leaves_store_unchanged(tmp_path,assets):
     s=seq.Store(tmp_path,assets);s.get();before=s.path.read_bytes()
     with pytest.raises(ValueError):s.mutate(0,{'op':'batch','actions':[layer(),{'op':'transition','at':1,'kind':'dip','half':1}]})
     assert before==s.path.read_bytes()
+
+
+def test_visual_only_schema_retry_preserves_clock(assets,no_decode):
+    state=seq.initial(assets);calls=[]
+    def get(path,payload=None,timeout=4):
+        if path=='/api/tags':return {'models':[{'name':'test:3b'}]}
+        calls.append(len(payload['messages']))
+        item=payload['format']['properties']['actions']['items']
+        assert item['properties']['op']['enum']==['put']
+        assert item['properties']['layer']['properties']['kind']['enum']==['visual']
+        assert 'asset' in item['properties']['layer']['required']
+        if len(calls)==1:actions=[{'op':'transition','at':30,'kind':'dip','half':5}]
+        else:
+            assert 'Visual-only request' in payload['messages'][-1]['content']
+            actions=[layer()]
+        return {'message':{'content':json.dumps({'reason':'review','actions':actions})}}
+    r=model.propose(state,assets,[],'Insert a visual layer and keep the original timing','test:3b',get)
+    assert calls==[2,3] and r['preview']['before_frames']==r['preview']['after_frames']
+    assert len(r['preview']['layers'])==1 and state['layers']==[]
+
+
+def test_timing_lock_rejects_ripple(assets,no_decode):
+    state=seq.initial(assets)
+    with pytest.raises(ValueError,match='after retry'):
+        model.propose(state,assets,[],'Insert footage but keep original duration','test:3b',mock([{'op':'ripple','instruction':'cut 0 to 1'}]))
+
+
+def test_missing_and_malformed_model_fields_rejected(assets,no_decode):
+    state=seq.initial(assets)
+    for bad in [{'id':'ai-bad','kind':'visual','asset':'city','length':45}, {**layer()['layer'],'at':'30'}]:
+        with pytest.raises(ValueError,match='Unexpected model layer field'):
+            model.propose(state,assets,[],'make cinematic','test:3b',mock([{'op':'put','layer':bad}]))
