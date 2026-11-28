@@ -1,0 +1,7 @@
+# Final Skell Science research film / music-video handoff
+
+Verified compact installer baseline: eec45326cfaa704c9084d6786005091cc402a695, Windows run 46142838936, 67,436,770 bytes. SHA256 1bca3b450250282f7c2322bd52633a49819708be2f183ded8ed1bbda5f16a7ab.
+
+Final local Auto-Tune research film: 1920x1080, 30fps, 3600 exact frames, 120 seconds, 24,174,004 bytes, SHA256 c12bb575d6a77f6b5139b8810f46faf146298390824a5d1a66a0fb5d919819dd. Audio compressed-packet payload identical to V3, measured -16.35 LUFS and -1.74 dBTP. All 33 scenes rebuilt, 14 motion handles, clean single-title reveals, 58 existing speech-aligned cues. Full decode passed. Original synthetic listening demonstrations protected; no private recording or rejected avatar in film.
+
+These two reusable helpers were exercised in the local film renderer, with 4 local regression tests passing. They are staged for future production integration, not included in the above installer. Handles sample fractional source frame positions for continuously animated graphics; they do not implement optical flow on live footage. Energy envelope is sample-clocked RMS with attack/release, not beat detection. Keep actual music and user recordings local. Next: song section analysis, beat/downbeat/onset grid with confidence, lyrics-aware shot planning, synchronized motion and original audio preservation, independent real-footage testing. Do not claim photoreal cinema or autonomous editorial quality from the authored 2D film.

@@ -1,0 +1,23 @@
+name: Motion research-to-music motion primitives
+on:
+  push:
+    branches: [staging/motion-final-film-to-music-20261128]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: motion-primitives-${{ github.ref }}-${{ github.event_name == 'push' && 'push' || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'push' }}
+jobs:
+  primitives:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - run: python -m pip install numpy pytest
+      - run: python -m pytest -q tests/test_motion_handles.py tests/test_motion_envelope.py
