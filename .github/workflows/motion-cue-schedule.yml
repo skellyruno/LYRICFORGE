@@ -1,0 +1,33 @@
+name: Motion cue-aligned editing verification
+on:
+  push:
+    branches: [staging/motion-cue-schedule-20261127]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: motion-cue-schedule-${{ github.ref }}-${{ github.event_name == 'push' && 'push' || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'push' }}
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Install local media and test runtime
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y ffmpeg
+          python -m pip install -r requirements-desktop.txt pytest httpx
+      - name: Verify exact scheduler blobs
+        run: |
+          test "$(git hash-object studio_sequence_film_schedule.py)" = ce03f8c35c47a34eabf2801514d1987f55a97a3c
+          test "$(git hash-object studio_sequence_autofilm.py)" = 31ff05b22dac99b81fa24b03da1325b4e088ce22
+          test "$(git hash-object tests/test_sequence_autofilm.py)" = 2efdf8873674f40838840173005ba0f2e2d8daed
+      - name: Run sequence and timeline regression
+        run: python -m pytest -q tests/test_sequence* tests/test_studio_sequence.py tests/test_studio_timeline.py tests/test_studio_timeline_api.py tests/test_studio_timeline_assistant.py
