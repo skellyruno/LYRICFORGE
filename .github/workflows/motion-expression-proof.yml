@@ -1,7 +1,7 @@
 name: Motion expressive production integration
 on:
   push:
-    branches: [staging/motion-expressive-production-20261128]
+    branches: [staging/motion-temporal-vision-20261128]
   workflow_dispatch:
 permissions:
   contents: read
@@ -38,8 +38,22 @@ jobs:
           PYTHONPATH: .
           OMP_NUM_THREADS: '4'
           OPENBLAS_NUM_THREADS: '1'
-        run: python field-notes/inference/expression_live.py expression-model evidence
+        run: |
+          set -euo pipefail
+          python field-notes/inference/expression_live.py expression-model evidence
           python field-notes/inference/expression_creator_live.py expression-model evidence/creator
+          python - <<'PY'
+          import json, hashlib
+          from pathlib import Path
+          root=Path('evidence/creator')
+          takes=json.loads((root/'creator-report.json').read_text())
+          assert set(takes)=={'detail','reveal','close'}
+          for key,take in takes.items():
+              assert take['result']['provider']=='expressive'
+              assert hashlib.sha256((root/(key+'.wav')).read_bytes()).hexdigest()==take['sha256']
+          assert len({r['sha256'] for r in takes.values()})==3
+          print('Verified all three end-to-end Creator voice outputs')
+          PY
       - uses: actions/upload-artifact@v6
         if: always()
         with:
