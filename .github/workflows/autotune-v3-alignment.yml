@@ -1,0 +1,42 @@
+name: Skell Science V3 original narration recognition
+on:
+  push:
+    branches: [staging/skell-science-v3-alignment-20261128]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  alignment:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Verify actual narration artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(gh api repos/${{ github.repository }}/actions/artifacts/15263424793 --jq .digest)" = sha256:03132bbed25b6eeb08c00a1e9a3d17cde1a4348d4c3dcbdb8f1aad521bdbabf0
+      - uses: actions/download-artifact@v4
+        with:
+          name: SkellScience-AutoTune-V2-Voice
+          run-id: 46146732905
+          github-token: ${{ github.token }}
+          path: narration
+      - run: python -m pip install 'faster-whisper==1.2.1'
+      - uses: actions/cache@v4
+        with:
+          path: whisper-model
+          key: skelly-whisper-small-3e305921506d8872816023e4c273e75d2419fb89b24da97b4fe7bce14170d671
+      - name: Actual Whisper word recognition
+        run: PYTHONPATH=. python field-notes/inference/autotune_v3_alignment.py narration evidence
+      - uses: actions/upload-artifact@v6
+        with:
+          name: SkellScience-V3-Word-Timing
+          path: evidence/
+          if-no-files-found: error
