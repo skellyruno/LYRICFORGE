@@ -9,6 +9,7 @@ from studio_sequence_film_schedule import protected_intervals,terms
 import studio_sequence as seq
 import studio_timeline as tl
 import studio_sequence_creative as creative
+import studio_sequence_shot_scan as scout
 
 
 def cues(words):
@@ -38,14 +39,17 @@ def match(windows, phrases, model, request=None):
                     if r.returncode==0 and p.is_file():pair.append(str(p))
                 except (OSError,subprocess.TimeoutExpired):pass
             if len(pair)==2:valid.append((key,offset,length));files.extend(pair)
-        if len(valid)<2:return [] # no meaningful competitor
+        if len({x[0] for x in valid})<2:return [] # require a distinct source competitor
         texts=['A relevant illustration of: '+p[2][:180] for p in phrases]+['A blank screen, unrelated decorative image, or generic background']
         scores=request({'operation':'match','model':str(Path(model).resolve()),'images':files,'texts':texts},timeout=180).get('scores')
         if not isinstance(scores,list) or len(scores)!=len(texts) or any(not isinstance(row,list) or len(row)!=len(files) or any(type(x) not in (int,float) or not math.isfinite(x) for x in row) for row in scores):raise ValueError('Invalid semantic scores')
     result=[]
     for i,(start,end,text) in enumerate(phrases):
         row=scores[i];ranked=sorted(((min(row[2*j:2*j+2]),j) for j in range(len(valid))),reverse=True)
-        score,j=ranked[0];margin=score-ranked[1][0]
+        score,j=ranked[0]
+        other=next(((value,k) for value,k in ranked[1:] if valid[k][0]!=valid[j][0]),None)
+        if other is None:continue
+        margin=score-other[0]
         negative=min(row[2*j+k]-scores[-1][2*j+k] for k in range(2))
         if margin<.7 or negative<.5:continue
         # Also reject if the same window scores better against a different cue.
@@ -62,19 +66,30 @@ def propose(state,assets,words,instruction,*,model=None,request=None):
     if not model or not (Path(model)/'config.json').is_file():return empty('Install and configure the optional local vision model first. No tag-based fallback in semantic mode.')
     phrases=cues(spoken)
     if not phrases:return empty('Semantic montage needs a usable timed transcript.')
-    windows=[];scanned=0
+    groups=[];scanned=0
     for key,a in sorted(assets.items()):
         if scanned>=6:break
         if key=='source' or a.get('music') or not a.get('has_video') or {str(x).casefold() for x in a.get('keywords',[])}&{'finished','captioned','baked-titles','baked-subtitles','a-b-proof'}:continue
         scanned+=1
         n=min(60 if terms(instruction)&{'fast','energetic','punchy'} else 90,tl.duration_frames(a['duration']))
         if n<30:continue
+        if a['duration']>24:
+            try:alternatives=scout.scan(a['path'],a['duration'],n)
+            except (ValueError,OSError,RuntimeError,subprocess.TimeoutExpired):continue
+            if alternatives:groups.append([(key,a['path'],off,n) for q,off in alternatives])
+            continue
         try:v=creative.visual(a)
         except (ValueError,OSError,RuntimeError,subprocess.TimeoutExpired):continue
         q=v.get('sample_quality') or [v['quality']];count=max(1,math.ceil(n/15));ranges=[(sum(q[i:i+count])/count,i*15) for i in range(max(0,len(q)-count+1)) if i*15+n<=tl.duration_frames(a['duration']) and not any(i*.5<t<(i*15+n)/30 for t in v.get('scene_changes',[]))]
         if ranges:
             quality,off=max(ranges)
-            if math.isfinite(quality) and quality>=.35:windows.append((key,a['path'],off,n))
+            if math.isfinite(quality) and quality>=.35:
+                alternatives=[(key,a['path'],off,n)]
+                for q,other in sorted(ranges,reverse=True):
+                    if math.isfinite(q) and q>=.35 and abs(other-off)>=max(n,150):
+                        alternatives.append((key,a['path'],other,n));break
+                groups.append(alternatives)
+    windows=scout.allocate(groups)
     try:matches=match(windows,phrases,model,request)
     except (ValueError,RuntimeError,OSError,TypeError,AttributeError,subprocess.TimeoutExpired):return empty('Local semantic inference failed; original edit preserved.')
     occupied=protected_intervals(state,spoken);used=set();ids={x['id'] for x in state['layers']};actions=[];evidence=[]
@@ -86,4 +101,4 @@ def propose(state,assets,words,instruction,*,model=None,request=None):
         actions.append({'op':'put','layer':{'id':ident,'kind':'visual','asset':key,'at':at,'length':n,'offset':row['offset'],'fade':3}});evidence.append({**row,'at_seconds':at/30})
     if not actions:return empty('No sufficiently distinct semantic match outside protected regions. No changes proposed.')
     action={'op':'batch','actions':sorted(actions,key=lambda a:a['layer']['at'])};candidate=seq.apply(state,action,assets)
-    return {'suggestions':[{'reason':'Compose cutaways using contrastive local vision evidence from two frames per selected source window.','action':action,'preview':{'before_frames':total,'after_frames':candidate['base']['frames'],'layers':candidate['layers'],'transitions':candidate['transitions']},'evidence':sorted(evidence,key=lambda r:r['at_seconds'])}],'warning':'Local CLIP relative matches, not verified object identity or full temporal understanding. Review cue relevance and embedded text; no filename or tag matching used for selection.'}
+    return {'suggestions':[{'reason':'Compose cutaways using contrastive local vision evidence from two frames per selected source window.','action':action,'preview':{'before_frames':total,'after_frames':candidate['base']['frames'],'layers':candidate['layers'],'transitions':candidate['transitions']},'evidence':sorted(evidence,key=lambda r:r['at_seconds'])}],'warning':'Local CLIP relative matches, not verified object identity or full temporal understanding. Review cue relevance and embedded text; no filename or tag matching used for selection. Long sources are sampled sparsely across four regions, not exhaustively.'}
