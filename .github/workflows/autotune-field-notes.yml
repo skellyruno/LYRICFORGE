@@ -1,7 +1,7 @@
-name: Skell Science AutoTune research narration
+name: Skell Science AutoTune V2 directed narration
 on:
   push:
-    branches: [staging/autotune-field-notes-20261128]
+    branches: [staging/skell-science-autotune-v2-20261128]
   workflow_dispatch:
 permissions:
   contents: read
@@ -49,11 +49,11 @@ jobs:
           OPENBLAS_NUM_THREADS: '1'
           LYRICFORGE_KOKORO_THREADS: '2'
         run: |
-          python field-notes/inference/autotune_field_notes_voice.py .voice-model-cache/kokoro-v1.0.onnx .voice-model-cache/voices-v1.0.bin narration
+          python field-notes/inference/autotune_v2_voice.py .voice-model-cache/kokoro-v1.0.onnx .voice-model-cache/voices-v1.0.bin narration
           git rev-parse HEAD > narration/producer-revision.txt
       - uses: actions/upload-artifact@v6
         with:
-          name: SkellScience-AutoTune-Neural-Narration
+          name: SkellScience-AutoTune-V2-Voice
           path: narration/
           if-no-files-found: error
           retention-days: 7
