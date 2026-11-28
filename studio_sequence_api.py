@@ -18,7 +18,7 @@ class Request(BaseModel):
     revision:int=Field(ge=0)
     instruction:str=Field(default='',max_length=500)
     model:str=Field(default='',max_length=120)
-    mode:str=Field(default='direct',pattern=r'^(direct|film)$')
+    mode:str=Field(default='direct',pattern=r'^(direct|film|semantic)$')
     encoder:str=Field(default='auto',pattern=r'^(auto|cpu|gpu)$')
     format:str=Field(default='720p',pattern=r'^(720p|1080p|portrait|square)$')
 
@@ -103,6 +103,9 @@ def build_router(*,project_dir,read_project,broll_library,brand_asset,probe_medi
     def suggest(pid:str,body:Request):
         def f():
             _,data,a,store=context(pid);s=store.snapshot(body.revision)
+            if body.mode=='semantic':
+                from studio_sequence_semantic import propose
+                return {**propose(s,a,data.get('original_words') or [],body.instruction),'revision':body.revision}
             if body.mode=='film':
                 from studio_sequence_autofilm import propose
                 return {**propose(s,a,data.get('original_words') or [],body.instruction),'revision':body.revision}

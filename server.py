@@ -4504,6 +4504,7 @@ class CreatorRequest(CreatorBrief):
     delivery: str = "neutral"
     pronunciation: dict[str,str] = Field(default_factory=dict,max_length=40)
     chapter_starts: list[float] = Field(default_factory=list,max_length=120)
+    align_narration: bool = False
     auto_render: bool = True
     preview: bool = False
     format: str = "youtube"
@@ -4662,6 +4663,20 @@ def run_creator(project_id,job_id,body,script,voice):
             result=voice_studio.prepare_recording(p/'narration_source',p/'voice.wav',script,body.chapter_starts,creator.run_checked,creator.split_phrases,lambda:check_cancel(job_id),transcriber=recognize_creator_recording)
         else:
             result=creator.narration(script,p/'voice.wav',voice,body.speed,lambda:check_cancel(job_id),progress,delivery=body.delivery,pronunciation=body.pronunciation)
+        check_cancel(job_id)
+        if body.align_narration and result.get('lines') and not (voice=='recorded' and not script):
+            from studio_voice_alignment import align
+            with job_lock:jobs[job_id].update(stage='narration_alignment')
+            recognized=None
+            try:
+                recognized=recognize_creator_recording(p/'voice.wav',result['duration'],lambda:check_cancel(job_id))
+            except (ValueError,RuntimeError,OSError,TimeoutError):
+                check_cancel(job_id)
+            aligned=align(result,recognized,body.pronunciation) if recognized else None
+            if aligned is not None:result=aligned
+            else:
+                result['alignment']={'status':'unmatched' if recognized else 'unavailable'}
+                result.setdefault('warnings',[]).append('Speech recognition could not be reconciled with the script; estimated timing retained. Review narration before publishing.')
         check_cancel(job_id)
         if (p/'proof_before').is_file() and (p/'proof_after').is_file():
             import studio_audio_proof
