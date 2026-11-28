@@ -4529,6 +4529,7 @@ class CreatorVoicePreview(BaseModel):
     speed: float = Field(default=1.,ge=.8,le=1.2)
     delivery: str = "neutral"
     pronunciation: dict[str,str] = Field(default_factory=dict,max_length=40)
+    voice_direction: str | None = None
 
 
 @app.post("/api/creator/voice-preview")
@@ -4537,7 +4538,7 @@ def creator_voice_preview(body: CreatorVoicePreview):
         voice=creator.resolve_voice(body.voice)
         with tempfile.TemporaryDirectory(prefix='skelly-voice-') as tmp:
             path=Path(tmp)/'sample.wav'
-            creator.narration([{'title':'Voice preview','narration':body.text}],path,voice,body.speed,delivery=body.delivery,pronunciation=body.pronunciation)
+            creator.narration([{'title':'Voice preview','narration':body.text,**({'voice_direction':body.voice_direction} if body.voice_direction is not None else {})}],path,voice,body.speed,delivery=body.delivery,pronunciation=body.pronunciation)
             if path.stat().st_size>8*1024*1024:raise ValueError('Voice preview too long')
             return Response(path.read_bytes(),media_type='audio/wav',headers={'X-Skelly-Voice':voice,'Cache-Control':'no-store'})
     except (ValueError,RuntimeError,OSError,TimeoutError) as exc: raise HTTPException(400,str(exc)[:300]) from exc
