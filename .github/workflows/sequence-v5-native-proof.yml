@@ -1,0 +1,94 @@
+name: Sequence V5 installed native UI proof
+on:
+  push:
+    branches: [staging/sequence-v5-native-proof-20261127]
+    paths: ['.github/workflows/sequence-v5-native-proof.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: sequence-v5-native-proof-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'push' }}
+jobs:
+  installed-window:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Verify the upstream Windows build and revision
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $expected = '19b1daacbefb2fb361b5ac65cfa3dbbd231d0f9e'
+          $finished = $false
+          for ($i=0; $i -lt 90; $i++) {
+            $json = gh run view 46095569968 --repo 'skellyruno/LYRICFORGE' --json headSha,status,conclusion
+            if ($LASTEXITCODE -ne 0) { throw 'Cannot inspect upstream build' }
+            $run = $json | ConvertFrom-Json
+            if ($run.headSha -ne $expected) { throw 'Upstream build revision mismatch' }
+            if ($run.status -eq 'completed') {
+              if ($run.conclusion -ne 'success') { throw "Upstream Windows build did not pass: $($run.conclusion)" }
+              $finished = $true
+              break
+            }
+            Start-Sleep -Seconds 10
+          }
+          if (-not $finished) { throw 'Upstream Windows build did not finish within the verification budget' }
+      - uses: actions/download-artifact@v4
+        with:
+          name: SkellyMotion-Windows-Setup
+          run-id: 46095569968
+          github-token: ${{ github.token }}
+          path: installer
+      - name: Install exact verified payload and inspect native window
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force evidence | Out-Null
+          $evidence = (Resolve-Path evidence).Path
+          $setup = (Resolve-Path installer/SkellyMotion-Setup.exe).Path
+          $target = Join-Path $env:RUNNER_TEMP ('SkellyMotion-NativeProof-' + [Guid]::NewGuid().ToString('N'))
+          $env:LYRICFORGE_DATA = Join-Path $env:RUNNER_TEMP ('SkellyMotion-ProofWorkspace-' + [Guid]::NewGuid().ToString('N'))
+          New-Item -ItemType Directory -Force $env:LYRICFORGE_DATA | Out-Null
+          $sentinel = Join-Path $env:LYRICFORGE_DATA 'preserve.txt'
+          Set-Content -LiteralPath $sentinel -Value 'preserve workspace'
+          $sentinelHash = (Get-FileHash $sentinel -Algorithm SHA256).Hash
+          function Run-Checked([string]$Path,[string]$Arguments,[int]$Milliseconds) {
+            $p = Start-Process -FilePath $Path -ArgumentList $Arguments -WorkingDirectory (Split-Path $Path) -PassThru
+            if (-not $p.WaitForExit($Milliseconds)) { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue; throw "Timed out: $Path" }
+            if ($p.ExitCode -ne 0) { throw "$Path exit code $($p.ExitCode)" }
+          }
+          $installArgs = '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /TASKS="" /DIR="' + $target + '" /LOG="' + (Join-Path $evidence 'install.log') + '"'
+          try {
+            Run-Checked $setup $installArgs 300000
+            $exe = Join-Path $target 'SkellyMotion.exe'
+            Run-Checked $exe '--self-test' 120000
+            & ./packaging/capture-installed-ui.ps1 $exe (Join-Path $evidence 'SkellyMotion-V5-Installed-WebView2.png')
+            if (-not (Test-Path (Join-Path $evidence 'SkellyMotion-V5-Installed-WebView2.png'))) { throw 'No native screenshot was produced' }
+            Run-Checked (Join-Path $target 'unins000.exe') '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART' 120000
+            if (Test-Path $exe) { throw 'Uninstall left executable' }
+            if (-not (Test-Path $sentinel) -or (Get-FileHash $sentinel -Algorithm SHA256).Hash -ne $sentinelHash) { throw 'External workspace changed' }
+            [ordered]@{
+              source_commit='19b1daacbefb2fb361b5ac65cfa3dbbd231d0f9e'
+              upstream_run=46095569968
+              installer_sha256=(Get-FileHash $setup -Algorithm SHA256).Hash.ToLowerInvariant()
+              installed_self_test='passed'
+              native_window_smoke='passed'
+              workspace_preserved=$true
+              scope='Actual installed welcome window capture and existing native timeline smoke; sequence panel visual inspection still separate.'
+            } | ConvertTo-Json | Set-Content (Join-Path $evidence 'verification.json') -Encoding utf8
+          } finally {
+            $log = Join-Path $env:LOCALAPPDATA 'LyricForge/logs/desktop.log'
+            if (Test-Path $log) { Copy-Item $log (Join-Path $evidence 'desktop.log') }
+          }
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: sequence-v5-installed-native-evidence
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 7
