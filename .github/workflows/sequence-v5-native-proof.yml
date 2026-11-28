@@ -67,6 +67,10 @@ jobs:
             Run-Checked $setup $installArgs 300000
             $exe = Join-Path $target 'SkellyMotion.exe'
             Run-Checked $exe '--self-test' 120000
+            # Isolated hosted runner: prevent a stale document-ready log from
+            # satisfying this capture's fresh paint check.
+            $priorLog = Join-Path $env:LOCALAPPDATA 'LyricForge/logs/desktop.log'
+            if (Test-Path $priorLog) { Move-Item $priorLog (Join-Path $evidence 'self-test.log') -Force }
             & ./packaging/capture-installed-ui.ps1 $exe (Join-Path $evidence 'SkellyMotion-V5-Installed-WebView2.png')
             if (-not (Test-Path (Join-Path $evidence 'SkellyMotion-V5-Installed-WebView2.png'))) { throw 'No native screenshot was produced' }
             Run-Checked (Join-Path $target 'unins000.exe') '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART' 120000
