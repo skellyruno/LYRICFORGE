@@ -9,6 +9,14 @@ if __name__=="__main__":
         try:restore_probe(Path(sys._MEIPASS)/"tools")
         except Exception:raise SystemExit(8)
         raise SystemExit(0)
+    if len(sys.argv)>1 and sys.argv[1]=="--sequence-self-test":
+        desktop_launcher.configure()
+        from sequence_installed_proof import run
+        try:run(sys.argv[2],sys.argv[3])
+        except Exception as exc:
+            print("Installed sequence proof failed: "+repr(exc),file=sys.stderr,flush=True)
+            raise SystemExit(9)
+        raise SystemExit(0)
     if len(sys.argv)>1 and sys.argv[1]=="--direct-media-proof":
         desktop_launcher.configure()
         from shared_media_proof import main

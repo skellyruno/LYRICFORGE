@@ -57,11 +57,12 @@ if ($LASTEXITCODE -ne 0) { throw 'Installer compilation failed' }
 $setup=(Resolve-Path 'dist/installer/SkellyMotion-Setup.exe').Path
 $bytes=(Get-Item $setup).Length
 $record=[ordered]@{installer_bytes=$bytes;installer_sha256=(Get-FileHash $setup -Algorithm SHA256).Hash.ToLowerInvariant();
- original_zip_bytes=141018522;prior_verified_installer_bytes=84779843;target_bytes=70509261;
+ original_zip_bytes=141018522;prior_verified_installer_bytes=84779843;target_bytes=70000000;
  reduction_percent=[Math]::Round(100*(1-$bytes/141018522),2);
- half_size_target_met=($bytes -le 70509261);verified_installation=$false}
+ half_size_target_met=($bytes -le 70000000);verified_installation=$false}
 $record | ConvertTo-Json | Set-Content (Join-Path $evidence 'direct-installer-size.json') -Encoding utf8
 $record | ConvertTo-Json | Write-Host
+if ($bytes -gt 70000000) { throw 'Installer exceeds strict 70,000,000 byte development ceiling' }
 # Size is recorded even if a later gate fails. No experimental installer
 # reaches the stable artifact unless every gate and the exact target pass.
 function Run-Checked([string]$Exe,[string[]]$LaunchArguments,[int]$TimeoutMs) {
@@ -95,6 +96,7 @@ try {
     $exe=Join-Path $target 'SkellyMotion.exe'
     foreach ($arg in @('--self-test','--ai-self-test','--native-self-test')) { Run-Checked $exe @($arg) 120000 }
     Run-Checked $exe @('--direct-media-proof','snapshot',$fixtures,$model,(Join-Path $evidence 'installed-ai-proof.json')) 900000
+    Run-Checked $exe @('--sequence-self-test',$fixtures,(Join-Path $evidence 'installed-sequence-proof.json')) 180000
     & "$root/packaging/direct-media/capture_stable_welcome.ps1" $exe (Join-Path $evidence 'SkellyMotion-Installed-WebView2.png')
     Run-Checked (Join-Path $target 'unins000.exe') @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART') 120000
     if ((Test-Path $exe) -or (Test-Path "$target/_internal/tools/ffprobe.exe") -or -not (Test-Path $sentinel) -or (Get-FileHash $sentinel).Hash -ne $before) { throw 'Uninstall or workspace safety failed' }
@@ -108,6 +110,7 @@ $record.verified_installation=$true
 $record.painted_native_ui=$true
 $record.workspace_preserved=$true
 $record.installed_inference_parity=$true
+$record.installed_sequence_passed=$true
 $record | ConvertTo-Json | Set-Content (Join-Path $evidence 'direct-installer-size.json') -Encoding utf8
 $record | ConvertTo-Json | Write-Host
 if (-not $record.half_size_target_met) { throw 'Verified candidate exceeds the exact half-size target; do not publish' }

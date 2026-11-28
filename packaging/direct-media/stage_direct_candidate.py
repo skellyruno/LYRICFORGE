@@ -3,15 +3,34 @@ import argparse,hashlib,importlib.util,io,shutil,subprocess,zipfile
 from pathlib import Path
 HERE=Path(__file__).resolve().parent
 
+def checked_media_region(text,reference):
+    def bounds(s):
+        a="def media_duration(path: Path) -> float:"
+        b="async def save_upload("
+        if s.count(a)!=1 or s.count(b)!=1:
+            raise ValueError("Missing or ambiguous media replacement anchors")
+        start=s.index(a);end=s.index(b)
+        if start>=end:
+            raise ValueError("Unexpected media replacement order")
+        return start,end
+    start,end=bounds(text);a,b=bounds(reference)
+    if text[start:end]!=reference[a:b]:
+        raise ValueError("Unexpected change inside verified media replacement region")
+    return start,end
+
 def stage(root,dest):
     root,dest=Path(root).resolve(),Path(dest).resolve()
     if dest.exists():raise ValueError("Staging already exists")
     dest.mkdir()
     with zipfile.ZipFile(io.BytesIO(subprocess.check_output(["git","-C",str(root),"archive","--format=zip","HEAD"]))) as z:z.extractall(dest)
     server=dest/"server.py";text=server.read_text(encoding="utf-8")
-    if hashlib.sha256(text.encode()).hexdigest()!="38dd2e1c32ea59cd36ff9e08b8219fd02a65e1379fd2a6eb144365ddd1f78a98":
-        raise ValueError("Unexpected original server")
-    start=text.index("def media_duration(path: Path) -> float:");end=text.index("async def save_upload(",start)
+    # The previous verified compact source is immutable. Verify its whole
+    # checksum, then compare the exact region we replace. New routes outside
+    # this region pass through unchanged; unexpected changes inside fail closed.
+    reference=subprocess.check_output(["git","-C",str(root),"show","c5b9e5ceccfab26f77c0f0b6e0c3926c905d3cd0:server.py"]).decode("utf-8").replace("\r\n","\n")
+    if hashlib.sha256(reference.encode()).hexdigest()!="38dd2e1c32ea59cd36ff9e08b8219fd02a65e1379fd2a6eb144365ddd1f78a98":
+        raise ValueError("Unexpected verified server reference")
+    start,end=checked_media_region(text,reference)
     replacement='''def media_duration(path: Path) -> float:
     from studio_media_runtime import media_duration as read_duration
     return read_duration(path)
@@ -31,7 +50,7 @@ def video_stream_width(path: Path) -> int:
     new='    from studio_media_runtime import tools, decode_audio\n    assert callable(WhisperModel) and VadOptions is not None\n    assert get_supported_compute_types("cpu")\n    tools()\n    check_subtitle_renderer()\n    assert callable(decode_audio)\n    print("SkellyMotion bundled Whisper/CTranslate2/verified media tools passed", flush=True)'
     if text.count(old)!=1:raise ValueError("AI self-test anchor missing")
     launcher.write_text(text.replace(old,new),encoding="utf-8",newline="\n")
-    for name in ("studio_probe_delta.py","studio_media_runtime.py","direct_entry.py"):shutil.copy2(HERE/name,dest/name)
+    for name in ("studio_probe_delta.py","studio_media_runtime.py","direct_entry.py","sequence_installed_proof.py"):shutil.copy2(HERE/name,dest/name)
     proof=(root/"packaging/shared-media/shared_media_proof.py").read_text(encoding="utf-8")
     proof=proof.replace("    import av\n","    av = None\n").replace('"av_version":av.__version__,"libraries":{k:list(v) for k,v in av.library_versions.items()},','"av_version":"explicit-native-ffmpeg","libraries":{},')
     if "av.__version__" in proof:raise ValueError("Unpatched reference-only proof")

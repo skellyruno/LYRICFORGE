@@ -1,7 +1,7 @@
-name: Exact FFprobe delta and direct decoder half-size candidate
+name: Sequence V5 compact installer verification
 on:
   push:
-    branches: [feature/field-notes-production-20261126]
+    branches: [staging/sequence-v5-compact-20261127]
     paths:
       - 'packaging/direct-media/**'
       - 'studio_research_*.py'
@@ -18,7 +18,7 @@ permissions:
   actions: read
 concurrency:
   group: direct-media-half-size-${{ github.ref }}-${{ github.event_name == 'push' && 'push' || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'push' && github.ref == 'refs/heads/feature/field-notes-production-20261126' }}
+  cancel-in-progress: ${{ github.event_name == 'push' && github.ref == 'refs/heads/staging/sequence-v5-compact-20261127' }}
 jobs:
   candidate:
     runs-on: windows-latest
@@ -31,6 +31,13 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.11'
+      - name: Verify exact product revision
+        shell: pwsh
+        run: |
+          $expected=@{'server.py'='44a0d6517862ef48a4b2571c31ecfcd17fd9e9fb';'studio_sequence_api.py'='701e65549ecfa1e1d5e4e74fdfd52291140c9a55';'studio_sequence_model.py'='452436f538fc2ecc33253769817b6c54e135e18b';'studio_sequence_render.py'='a53d41a73517128e8d812da897033f10e0704854';'studio_sequence_vision.py'='d6729ef1ce2a4e3c51c208d42ad47f4ac320f738'}
+          foreach ($file in $expected.Keys) {
+            if ((git hash-object $file) -ne $expected[$file]) { throw "Unexpected product source: $file" }
+          }
       - name: Check creation interface source
         run: |
           node --check static/quick-create.js
@@ -73,6 +80,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Probe delta corruption guards failed' }
       - name: Install exact AI and app packages
         run: python -m pip install -r requirements-desktop.txt "faster-whisper==1.2.1" "av==18.1.1" "ctranslate2==4.9.1" "numpy==2.4.6" "tokenizers==0.23.3" "pywebview==6.2.1" "pythonnet==3.0.5" "clr-loader==0.2.7.post0" pyinstaller pytest httpx
+      - name: Check media staging guards
+        run: python -m unittest discover -s packaging/direct-media -p 'test_stage_direct_candidate.py' -v
       - name: Check AAC priming and full decoded tail contract
         run: python -m unittest discover -s packaging/direct-media -p 'test_aac_tail.py' -v
       - name: Check bounded metadata cache and invalidation
@@ -139,7 +148,7 @@ jobs:
       - uses: actions/upload-artifact@v6
         if: success()
         with:
-          name: SkellyMotion-Direct-Half-Size-Windows-Setup
+          name: SkellyMotion-Sequence-V5-Compact-Windows-Setup
           path: direct-stage/dist/installer/SkellyMotion-Setup.exe
           compression-level: 0
           if-no-files-found: error
