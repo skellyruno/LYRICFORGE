@@ -1,0 +1,82 @@
+{
+  "documentary": {
+    "observations": 7,
+    "techniques": {
+      "hook": {
+        "typography": 1
+      },
+      "evidence": {
+        "document": 3
+      },
+      "comparison": {
+        "diagram": 1,
+        "collage": 1
+      },
+      "explanation": {
+        "diagram": 1
+      }
+    },
+    "role_transitions": {
+      "hook>evidence": 1,
+      "evidence>comparison": 2,
+      "comparison>evidence": 1,
+      "evidence>evidence": 1,
+      "comparison>explanation": 1
+    },
+    "basis": "Human-confirmed reference observations; no automated semantic recognition."
+  },
+  "technical_showcase": {
+    "observations": 6,
+    "techniques": {
+      "hook": {
+        "product": 1
+      },
+      "context": {
+        "collage": 1,
+        "typography": 1
+      },
+      "demonstration": {
+        "product": 1
+      },
+      "comparison": {
+        "product": 1
+      },
+      "resolution": {
+        "collage": 1
+      }
+    },
+    "role_transitions": {
+      "hook>context": 1,
+      "context>demonstration": 1,
+      "demonstration>comparison": 1,
+      "comparison>context": 1,
+      "context>resolution": 1
+    },
+    "basis": "Human-confirmed reference observations; no automated semantic recognition."
+  },
+  "cinematic_trailer": {
+    "observations": 6,
+    "techniques": {
+      "hook": {
+        "product": 1
+      },
+      "demonstration": {
+        "product": 2
+      },
+      "context": {
+        "product": 1
+      },
+      "resolution": {
+        "typography": 2
+      }
+    },
+    "role_transitions": {
+      "hook>demonstration": 1,
+      "demonstration>context": 1,
+      "context>demonstration": 1,
+      "demonstration>resolution": 1,
+      "resolution>resolution": 1
+    },
+    "basis": "Human-confirmed reference observations; no automated semantic recognition."
+  }
+}

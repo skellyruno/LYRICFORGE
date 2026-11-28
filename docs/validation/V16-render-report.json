@@ -1,0 +1,221 @@
+{
+  "render": {
+    "picture_review": {
+      "samples": 55,
+      "near_empty": 0,
+      "static_pair_fraction": 0.1481,
+      "median_luma": 12.72,
+      "warnings": 0,
+      "issues": [],
+      "basis": "Decoded-frame heuristic review; not a semantic, text-legibility or artistic approval.",
+      "layout": {
+        "checked_text_samples": 54,
+        "warnings": 0,
+        "issues": [],
+        "basis": "Actual glyph bounds at representative layer-clock positions; intentional overlaps need review."
+      },
+      "repair": {
+        "before": 0,
+        "after": 0,
+        "corrections": [],
+        "basis": "Bounded sampled glyph review; does not guarantee all-frame or artistic quality."
+      }
+    },
+    "scenes": 4,
+    "rendered": 4,
+    "cached": 0,
+    "duration": 27.266666666666666,
+    "crossfades": 0,
+    "guided_replays": 0,
+    "recorded_scenes": 0,
+    "beat_locked_cuts": [
+      {
+        "frame": 409,
+        "beat": 10,
+        "shift_frames": 0
+      },
+      {
+        "frame": 818,
+        "beat": 20,
+        "shift_frames": 0
+      },
+      {
+        "frame": 1227,
+        "beat": 30,
+        "shift_frames": 0
+      }
+    ],
+    "score_bpm": 88,
+    "spatial_shots": 0
+  },
+  "review": {
+    "errors": 0,
+    "warnings": 0,
+    "caption_overlaps": 0,
+    "repeated_shots": 0,
+    "issues": []
+  },
+  "tone_at": 8.616666666666667,
+  "measurements": [
+    [
+      0.025,
+      0.0
+    ],
+    [
+      0.075,
+      -3.0
+    ],
+    [
+      0.125,
+      -6.0
+    ],
+    [
+      0.175,
+      -9.0
+    ],
+    [
+      0.225,
+      -12.0
+    ],
+    [
+      0.275,
+      -15.0
+    ],
+    [
+      0.325,
+      -18.0
+    ],
+    [
+      0.375,
+      -21.0
+    ],
+    [
+      0.425,
+      -24.0
+    ],
+    [
+      0.475,
+      -27.0
+    ],
+    [
+      0.525,
+      -30.0
+    ],
+    [
+      0.575,
+      -33.0
+    ],
+    [
+      0.625,
+      -36.0
+    ],
+    [
+      0.675,
+      -39.0
+    ],
+    [
+      0.725,
+      -42.0
+    ],
+    [
+      0.775,
+      -45.0
+    ],
+    [
+      0.825,
+      -48.0
+    ],
+    [
+      0.875,
+      -51.0
+    ],
+    [
+      0.925,
+      -54.0
+    ],
+    [
+      0.975,
+      -57.0
+    ],
+    [
+      1.025,
+      -60.0
+    ],
+    [
+      1.075,
+      -63.0
+    ],
+    [
+      1.125,
+      -66.0
+    ],
+    [
+      1.175,
+      -69.0
+    ],
+    [
+      1.225,
+      -72.0
+    ],
+    [
+      1.275,
+      -75.0
+    ],
+    [
+      1.325,
+      -78.0
+    ],
+    [
+      1.375,
+      -81.0
+    ],
+    [
+      1.425,
+      -84.0
+    ],
+    [
+      1.475,
+      -87.0
+    ],
+    [
+      1.525,
+      -90.0
+    ],
+    [
+      1.575,
+      -93.0
+    ],
+    [
+      1.625,
+      -96.0
+    ],
+    [
+      1.675,
+      -99.0
+    ],
+    [
+      1.725,
+      -102.0
+    ],
+    [
+      1.775,
+      -105.0
+    ],
+    [
+      1.825,
+      -108.0
+    ],
+    [
+      1.875,
+      -111.0
+    ],
+    [
+      1.925,
+      -114.0
+    ],
+    [
+      1.975,
+      -117.0
+    ]
+  ]
+}

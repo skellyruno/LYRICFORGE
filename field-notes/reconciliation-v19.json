@@ -1,0 +1,2141 @@
+{
+  "creator": "b37a857e4be4cf5dc7f13337452fdbdcb033e29b",
+  "archive_sha256": "c687d9558d64000f972a5c740697d3669d1457cbb09fd5e4f7fe286e9a00b4e4",
+  "policy": "Local V6 snapshot is a comparison reference, not a proven Git merge base. Preserve Creator-only paths and all divergent files pending manual integration. No automatic overwrite.",
+  "counts": {
+    "identical": 91,
+    "candidate-matches-local-v6": 30,
+    "divergent": 15,
+    "candidate-only": 110,
+    "creator-matches-local-v6": 1,
+    "creator-only": 25
+  },
+  "paths": [
+    {
+      "path": ".dockerignore",
+      "candidate": "be81dc038d95ec15f2bef0f2a6144abe3c32366a",
+      "creator": "be81dc038d95ec15f2bef0f2a6144abe3c32366a",
+      "v18": "be81dc038d95ec15f2bef0f2a6144abe3c32366a",
+      "v6": "be81dc038d95ec15f2bef0f2a6144abe3c32366a",
+      "classification": "identical"
+    },
+    {
+      "path": ".env.example",
+      "candidate": "65ea571ace9524f4739b37e1a04bdac827bca396",
+      "creator": "65ea571ace9524f4739b37e1a04bdac827bca396",
+      "v18": "65ea571ace9524f4739b37e1a04bdac827bca396",
+      "v6": "65ea571ace9524f4739b37e1a04bdac827bca396",
+      "classification": "identical"
+    },
+    {
+      "path": ".github/workflows/build-minimal-ffmpeg.yml",
+      "candidate": "6b3a1a7e06f0df1c71e701a226ce6c3f1537b009",
+      "creator": "a6d22df8adce9254a356e078d912a61682753f00",
+      "v18": "6b3a1a7e06f0df1c71e701a226ce6c3f1537b009",
+      "v6": "6b3a1a7e06f0df1c71e701a226ce6c3f1537b009",
+      "classification": "candidate-matches-local-v6"
+    },
+    {
+      "path": ".github/workflows/test.yml",
+      "candidate": "36de53ef2ed86c859a92055d7a24f7a234548858",
+      "creator": "c20e8307d79817898d40936c809deec1b012f18b",
+      "v18": "de379d12af1e0408de2e1a7a58e48dfd79113138",
+      "v6": "de379d12af1e0408de2e1a7a58e48dfd79113138",
+      "classification": "divergent"
+    },
+    {
+      "path": ".github/workflows/windows-release.yml",
+      "candidate": "a33c3843f054a1f7fa2b512db373aa7fd48b6491",
+      "creator": "f706827f6b87d832b957adb3a5d114a5a5e06887",
+      "v18": "7d0ac581904839a6bc763dfaecb532f2b3b392d7",
+      "v6": "6b2a92c7754904d2c9cb0faa72c0505d6ab142cd",
+      "classification": "divergent"
+    },
+    {
+      "path": ".gitignore",
+      "candidate": "d7ace15cad6ff93cd278950430a5b4b081ce42a5",
+      "creator": "d7ace15cad6ff93cd278950430a5b4b081ce42a5",
+      "v18": "d7ace15cad6ff93cd278950430a5b4b081ce42a5",
+      "v6": "d7ace15cad6ff93cd278950430a5b4b081ce42a5",
+      "classification": "identical"
+    },
+    {
+      "path": "Dockerfile",
+      "candidate": "0587ab91984da5bc17b082df0704daf8b2b3a4a1",
+      "creator": "0587ab91984da5bc17b082df0704daf8b2b3a4a1",
+      "v18": "0587ab91984da5bc17b082df0704daf8b2b3a4a1",
+      "v6": "0587ab91984da5bc17b082df0704daf8b2b3a4a1",
+      "classification": "identical"
+    },
+    {
+      "path": "README.md",
+      "candidate": "6ee39d9bc4814f9bf9e7257cd2e8a9b100389820",
+      "creator": "4fec2320602a285ce5e559e3f218bc7239545c2c",
+      "v18": "6ee39d9bc4814f9bf9e7257cd2e8a9b100389820",
+      "v6": "6ee39d9bc4814f9bf9e7257cd2e8a9b100389820",
+      "classification": "candidate-matches-local-v6"
+    },
+    {
+      "path": "RELEASE-WINDOWS.bat",
+      "candidate": "a6295ba8549f781d66f44f3d65f39a6ed38c3bc7",
+      "creator": "a6295ba8549f781d66f44f3d65f39a6ed38c3bc7",
+      "v18": "a6295ba8549f781d66f44f3d65f39a6ed38c3bc7",
+      "v6": "a6295ba8549f781d66f44f3d65f39a6ed38c3bc7",
+      "classification": "identical"
+    },
+    {
+      "path": "RUN-WINDOWS.bat",
+      "candidate": "cf71bdfe967dab17f9d8daa87522c950324de7ec",
+      "creator": "cf71bdfe967dab17f9d8daa87522c950324de7ec",
+      "v18": "cf71bdfe967dab17f9d8daa87522c950324de7ec",
+      "v6": "cf71bdfe967dab17f9d8daa87522c950324de7ec",
+      "classification": "identical"
+    },
+    {
+      "path": "Repair-SkellyMotion.cmd",
+      "candidate": "5ab18376fd441ffbc90f07a54b34f452adbb2911",
+      "creator": "5ab18376fd441ffbc90f07a54b34f452adbb2911",
+      "v18": "5ab18376fd441ffbc90f07a54b34f452adbb2911",
+      "v6": "5ab18376fd441ffbc90f07a54b34f452adbb2911",
+      "classification": "identical"
+    },
+    {
+      "path": "SkellyMotion-BrowserMode.cmd",
+      "candidate": "435cada4a028cd9461beb3edad969630a850964f",
+      "creator": "435cada4a028cd9461beb3edad969630a850964f",
+      "v18": "435cada4a028cd9461beb3edad969630a850964f",
+      "v6": "435cada4a028cd9461beb3edad969630a850964f",
+      "classification": "identical"
+    },
+    {
+      "path": "SkellyMotion-SafeMode.cmd",
+      "candidate": "8ffccd3c5f6e79fda224e19b9ffca02f2d7c821b",
+      "creator": "8ffccd3c5f6e79fda224e19b9ffca02f2d7c821b",
+      "v18": "8ffccd3c5f6e79fda224e19b9ffca02f2d7c821b",
+      "v6": "8ffccd3c5f6e79fda224e19b9ffca02f2d7c821b",
+      "classification": "identical"
+    },
+    {
+      "path": "desktop_launcher.py",
+      "candidate": "24049f00628837e7930ba731301da38d683bf71f",
+      "creator": "e1995d694c6810835977fcf4033a732e7350a6de",
+      "v18": "24049f00628837e7930ba731301da38d683bf71f",
+      "v6": "24049f00628837e7930ba731301da38d683bf71f",
+      "classification": "candidate-matches-local-v6"
+    },
+    {
+      "path": "desktop_watchdog.py",
+      "candidate": "d0b68a0b95561d5b3fd124442c870ff7d04b1da5",
+      "creator": "d0b68a0b95561d5b3fd124442c870ff7d04b1da5",
+      "v18": "d0b68a0b95561d5b3fd124442c870ff7d04b1da5",
+      "v6": "d0b68a0b95561d5b3fd124442c870ff7d04b1da5",
+      "classification": "identical"
+    },
+    {
+      "path": "docker-entrypoint.sh",
+      "candidate": "6c79b5b778d8fb1cc428325151b7210171882373",
+      "creator": "6c79b5b778d8fb1cc428325151b7210171882373",
+      "v18": "6c79b5b778d8fb1cc428325151b7210171882373",
+      "v6": "6c79b5b778d8fb1cc428325151b7210171882373",
+      "classification": "identical"
+    },
+    {
+      "path": "docs/AUTONOMOUS_CREATOR_2026-11-26.md",
+      "candidate": "58595a74f0ff4751cb35e4e111e347052546468f",
+      "creator": "58595a74f0ff4751cb35e4e111e347052546468f",
+      "v18": "58595a74f0ff4751cb35e4e111e347052546468f",
+      "v6": "58595a74f0ff4751cb35e4e111e347052546468f",
+      "classification": "identical"
+    },
+    {
+      "path": "docs/AUTO_PICTURES_2026-11-26.md",
+      "candidate": "459be2876f180ae424305efd69f1e38d4d943bd9",
+      "creator": "466ef56ab7d8284f04565fb525611d9a17a41cb8",
+      "v18": "459be2876f180ae424305efd69f1e38d4d943bd9",
+      "v6": "459be2876f180ae424305efd69f1e38d4d943bd9",
+      "classification": "candidate-matches-local-v6"
+    },
+    {
+      "path": "docs/CINEMATIC_LIVE_VISUALS_2026-11-26.md",
+      "candidate": "74d2327e4788ce9f7b9d925c42b6ca533258f212",
+      "creator": "74d2327e4788ce9f7b9d925c42b6ca533258f212",
+      "v18": "74d2327e4788ce9f7b9d925c42b6ca533258f212",
+      "v6": "74d2327e4788ce9f7b9d925c42b6ca533258f212",
+      "classification": "identical"
+    },
+    {
+      "path": "docs/CONSOLIDATION_AUDIT_2026-11-23.md",
+      "candidate": "fddfdae3d4267b45b88025ad1796ec6f5ab0929b",
+      "creator": "67005437f733d31a7106a38d0f5461e455e9e0d4",
+      "v18": "fddfdae3d4267b45b88025ad1796ec6f5ab0929b",
+      "v6": "fddfdae3d4267b45b88025ad1796ec6f5ab0929b",
+      "classification": "candidate-matches-local-v6"
+    },
+    {
+      "path": "docs/DEPLOY.md",
+      "candidate": "15f46d75dbbba16e0df66e922c6874d64d4c156f",
+      "creator": "aab16736fa399b3b38e008951f482bb259968c1e",
+      "v18": "15f46d75dbbba16e0df66e922c6874d64d4c156f",
+      "v6": "15f46d75dbbba16e0df66e922c6874d64d4c156f",
+      "classification": "candidate-matches-local-v6"
+    },
+    {
+      "path": "docs/EDITORIAL_MOTION_V7_2026-11-26.md",
+      "candidate": "b78ae9c8fbbc1c8b243a46442d3ad81b1403749c",
+      "creator": null,
+      "v18": "b78ae9c8fbbc1c8b243a46442d3ad81b1403749c",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "docs/EDITORIAL_REFERENCE_STUDY_2026-11-26.md",
+      "candidate": "bb4247f2ea42ca49585963ffd3e40c6ca9d8899f",
+      "creator": null,
+      "v18": "bb4247f2ea42ca49585963ffd3e40c6ca9d8899f",
+      "v6": "bb4247f2ea42ca49585963ffd3e40c6ca9d8899f",
+      "classification": "candidate-only"
+    },
+    {
+      "path": "docs/EDITORIAL_V10_SPATIAL_CINEMA.md",
+      "candidate": "4b8166f41aa9be45ba6ca65d34f18bf33501c8e8",
+      "creator": null,
+      "v18": "4b8166f41aa9be45ba6ca65d34f18bf33501c8e8",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "docs/EDITORIAL_V11_CINEMATIC_CHOREOGRAPHY.md",
+      "candidate": "7455d845cdb69d80577be9d00f746815e0a35e9c",
+      "creator": null,
+      "v18": "7455d845cdb69d80577be9d00f746815e0a35e9c",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "docs/EDITORIAL_V12_REFERENCE_CINEMA.md",
+      "candidate": "f591629fff96157ce6692cb448d8beba16abcaff",
+      "creator": null,
+      "v18": "f591629fff96157ce6692cb448d8beba16abcaff",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "docs/EDITORIAL_V13_LIVING_COMPOSITIONS.md",
+      "candidate": "71736bd3b3efcd84a044ed19c8463e371c4253ec",
+      "creator": null,
+      "v18": "71736bd3b3efcd84a044ed19c8463e371c4253ec",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "docs/EDITORIAL_V14_MIXED_MEDIA.md",
+      "candidate": "7f0b62cc15e8bba41881e62b24b8ae5d0952d8cc",
+      "creator": null,
+      "v18": "7f0b62cc15e8bba41881e62b24b8ae5d0952d8cc",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "docs/EDITORIAL_V15_FIELD_NOTES.md",
+      "candidate": "31503dd0f6ad4590ff2d01364f887581b245dbea",
+      "creator": null,
+      "v18": "31503dd0f6ad4590ff2d01364f887581b245dbea",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "docs/EDITORIAL_V18_LIGHT_AND_CLOCK.md",
+      "candidate": "1a8c19b0e8f890f7d58ca832248b1ab422893996",
+      "creator": null,
+      "v18": "1a8c19b0e8f890f7d58ca832248b1ab422893996",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "docs/EDITORIAL_V19_GEOMETRY_OF_TIME.md",
+      "candidate": "ec3f29b59983b13e37a6ca65379806f9ed90cdca",
+      "creator": null,
+      "v18": null,
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "docs/EDITORIAL_V8_2026-11-26.md",
+      "candidate": "38131f96bbb867aebc45bd21f1aa7a97309a43d5",
+      "creator": null,
+      "v18": "38131f96bbb867aebc45bd21f1aa7a97309a43d5",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "docs/EDITORIAL_V9_2026-11-26.md",
+      "candidate": "92a96fcea6ba595633538f2c8d1c5f89bf54cf37",
+      "creator": null,
+      "v18": "92a96fcea6ba595633538f2c8d1c5f89bf54cf37",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "docs/INTELLIGENT_DIRECTOR_2026-11-26.md",
+      "candidate": "9a7b47903906d63dba5c8d53cc3e09da5c800a10",
+      "creator": "9a7b47903906d63dba5c8d53cc3e09da5c800a10",
+      "v18": "9a7b47903906d63dba5c8d53cc3e09da5c800a10",
+      "v6": "9a7b47903906d63dba5c8d53cc3e09da5c800a10",
+      "classification": "identical"
+    },
+    {
+      "path": "docs/LIVE_DSP_DIRECTOR_2026-11-26.md",
+      "candidate": "6ffe88967150b14b0ffeb86fc2db2c0f7e0a5d96",
+      "creator": "6ffe88967150b14b0ffeb86fc2db2c0f7e0a5d96",
+      "v18": "6ffe88967150b14b0ffeb86fc2db2c0f7e0a5d96",
+      "v6": "6ffe88967150b14b0ffeb86fc2db2c0f7e0a5d96",
+      "classification": "identical"
+    },
+    {
+      "path": "docs/LYRICFORGE_DEMO_BRIDGE.md",
+      "candidate": "925d46320ed24fc18798d953eb3ee8b13e83a8bf",
+      "creator": "925d46320ed24fc18798d953eb3ee8b13e83a8bf",
+      "v18": "925d46320ed24fc18798d953eb3ee8b13e83a8bf",
+      "v6": "925d46320ed24fc18798d953eb3ee8b13e83a8bf",
+      "classification": "identical"
+    },
+    {
+      "path": "docs/RELEASE_FIX_2026-11-26.md",
+      "candidate": "4c9c6489f07a6aa437223527fc32f6866d352b3b",
+      "creator": null,
+      "v18": "4c9c6489f07a6aa437223527fc32f6866d352b3b",
+      "v6": "4c9c6489f07a6aa437223527fc32f6866d352b3b",
+      "classification": "candidate-only"
+    },
+    {
+      "path": "docs/STUDIO_THEME_POLISH_2026-11-26.md",
+      "candidate": "be7a9076bc163907d26cc73a71561ac9e3dd3697",
+      "creator": null,
+      "v18": "be7a9076bc163907d26cc73a71561ac9e3dd3697",
+      "v6": "be7a9076bc163907d26cc73a71561ac9e3dd3697",
+      "classification": "candidate-only"
+    },
+    {
+      "path": "docs/UPDATE_2026-11-23.md",
+      "candidate": "95304a1f7fe9ee1afaa6fb3ae1d2e4a5dbb87b84",
+      "creator": "95304a1f7fe9ee1afaa6fb3ae1d2e4a5dbb87b84",
+      "v18": "95304a1f7fe9ee1afaa6fb3ae1d2e4a5dbb87b84",
+      "v6": "95304a1f7fe9ee1afaa6fb3ae1d2e4a5dbb87b84",
+      "classification": "identical"
+    },
+    {
+      "path": "docs/VOICE_STUDIO_2026-11-26.md",
+      "candidate": "f5c6ff754470ae7fb01f9e1cc7d6baf1abb2663a",
+      "creator": "f5c6ff754470ae7fb01f9e1cc7d6baf1abb2663a",
+      "v18": "f5c6ff754470ae7fb01f9e1cc7d6baf1abb2663a",
+      "v6": "f5c6ff754470ae7fb01f9e1cc7d6baf1abb2663a",
+      "classification": "identical"
+    },
+    {
+      "path": "docs/WALKTHROUGH_50_IMPROVEMENTS_2026-11-26.md",
+      "candidate": "a702c17346d5f0c100811d29e75f957d5d0ba885",
+      "creator": "a702c17346d5f0c100811d29e75f957d5d0ba885",
+      "v18": "a702c17346d5f0c100811d29e75f957d5d0ba885",
+      "v6": "a702c17346d5f0c100811d29e75f957d5d0ba885",
+      "classification": "identical"
+    },
+    {
+      "path": "docs/demo/Moving_Compression_plan.json",
+      "candidate": "07a4b637f5fcb423310243757a018cb1e5f39747",
+      "creator": null,
+      "v18": "07a4b637f5fcb423310243757a018cb1e5f39747",
+      "v6": "07a4b637f5fcb423310243757a018cb1e5f39747",
+      "classification": "candidate-only"
+    },
+    {
+      "path": "docs/demo/Moving_Compression_script.txt",
+      "candidate": "5b7d0b39327e935fac2f53442e2bfd539f213583",
+      "creator": null,
+      "v18": "5b7d0b39327e935fac2f53442e2bfd539f213583",
+      "v6": "5b7d0b39327e935fac2f53442e2bfd539f213583",
+      "classification": "candidate-only"
+    },
+    {
+      "path": "docs/demo/SkellyTune_Explainer_plan.json",
+      "candidate": "0ce9ad0e4bbf123c2eac3dbef43a543d2a0f7c51",
+      "creator": null,
+      "v18": "0ce9ad0e4bbf123c2eac3dbef43a543d2a0f7c51",
+      "v6": "0ce9ad0e4bbf123c2eac3dbef43a543d2a0f7c51",
+      "classification": "candidate-only"
+    },
+    {
+      "path": "docs/demo/SkellyTune_Explainer_script.txt",
+      "candidate": "279daa3d91c759ade1e94c372366a9af595be9e1",
+      "creator": null,
+      "v18": "279daa3d91c759ade1e94c372366a9af595be9e1",
+      "v6": "279daa3d91c759ade1e94c372366a9af595be9e1",
+      "classification": "candidate-only"
+    },
+    {
+      "path": "docs/validation/V13-frontend.log",
+      "candidate": "047e1c248dca70b9be2260a43e3429c10630bd4f",
+      "creator": null,
+      "v18": "047e1c248dca70b9be2260a43e3429c10630bd4f",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "docs/validation/V13-pytest.log",
+      "candidate": "f822dec7a4fd8babc3dff40ccad1bd1478433d18",
+      "creator": null,
+      "v18": "f822dec7a4fd8babc3dff40ccad1bd1478433d18",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "docs/validation/V13-render-report.json",
+      "candidate": "78566f6191a38a2dbb81e63b326cc6c8f0893da7",
+      "creator": null,
+      "v18": "78566f6191a38a2dbb81e63b326cc6c8f0893da7",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "docs/validation/V14-film-plan.json",
+      "candidate": "d3c0acd4332a5d1d6a480e41e604d5438a8a2eca",
+      "creator": null,
+      "v18": "d3c0acd4332a5d1d6a480e41e604d5438a8a2eca",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "docs/validation/V14-frontend.log",
+      "candidate": "047e1c248dca70b9be2260a43e3429c10630bd4f",
+      "creator": null,
+      "v18": "047e1c248dca70b9be2260a43e3429c10630bd4f",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "docs/validation/V14-loudness.log",
+      "candidate": "c4e6ebfb9db74249d88f64b4a9c9e4e9a46ed729",
+      "creator": null,
+      "v18": "c4e6ebfb9db74249d88f64b4a9c9e4e9a46ed729",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "docs/validation/V14-original-script.json",
+      "candidate": "77d9e0a0b6fb671ba981c190589593b9d2ebb041",
+      "creator": null,
+      "v18": "77d9e0a0b6fb671ba981c190589593b9d2ebb041",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "docs/validation/V14-pytest.log",
+      "candidate": "e64190ccb27f9e3407451d0ebcfceb799c6ef7ab",
+      "creator": null,
+      "v18": "e64190ccb27f9e3407451d0ebcfceb799c6ef7ab",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "docs/validation/V14-render-report.json",
+      "candidate": "38f23f46851b21b877c4f0709d015628b3e9f6d1",
+      "creator": null,
+      "v18": "38f23f46851b21b877c4f0709d015628b3e9f6d1",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "docs/validation/V14-stream-probe.json",
+      "candidate": "d0b2a42790d80a7b684f4ba66f01c228fa281e2d",
+      "creator": null,
+      "v18": "d0b2a42790d80a7b684f4ba66f01c228fa281e2d",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "docs/validation/V15-frontend.log",
+      "candidate": "047e1c248dca70b9be2260a43e3429c10630bd4f",
+      "creator": null,
+      "v18": "047e1c248dca70b9be2260a43e3429c10630bd4f",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "docs/validation/V15-image-film-plan.json",
+      "candidate": "5df53c849ac71389347cd07beac11a7dea9871ba",
+      "creator": null,
+      "v18": "5df53c849ac71389347cd07beac11a7dea9871ba",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "docs/validation/V15-image-render-report.json",
+      "candidate": "20e927c763432ae9abaf3742b02b1790c8629bda",
+      "creator": null,
+      "v18": "20e927c763432ae9abaf3742b02b1790c8629bda",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "docs/validation/V15-image-stream-review.json",
+      "candidate": "50e1e627a921afad02f4c9de150767210dee4b26",
+      "creator": null,
+      "v18": "50e1e627a921afad02f4c9de150767210dee4b26",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "docs/validation/V15-pytest.log",
+      "candidate": "7d628a17a576f0c96a529ee1156bd84fe87a36f2",
+      "creator": null,
+      "v18": "7d628a17a576f0c96a529ee1156bd84fe87a36f2",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "docs/validation/V15-sound-film-plan.json",
+      "candidate": "989a786ce60f77373af0be5ca0ea1b96cf44a1db",
+      "creator": null,
+      "v18": "989a786ce60f77373af0be5ca0ea1b96cf44a1db",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "docs/validation/V15-sound-render-report.json",
+      "candidate": "9ec98130abfb771e86a01e46cf4dd951988770a7",
+      "creator": null,
+      "v18": "9ec98130abfb771e86a01e46cf4dd951988770a7",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "docs/validation/V15-sound-stream-review.json",
+      "candidate": "a86338f4e077df445c60a13ee2b5c24f078d5e42",
+      "creator": null,
+      "v18": "a86338f4e077df445c60a13ee2b5c24f078d5e42",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "docs/validation/V16-pytest.log",
+      "candidate": "d358f9ef4c5b7096b5fa4433e22e21034445c4d5",
+      "creator": null,
+      "v18": "d358f9ef4c5b7096b5fa4433e22e21034445c4d5",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "docs/validation/V16-render-report.json",
+      "candidate": "41712e2e87d1c63af6bbbb7c288b77e75388275f",
+      "creator": null,
+      "v18": "41712e2e87d1c63af6bbbb7c288b77e75388275f",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "docs/validation/V16-silence-plan.json",
+      "candidate": "40d2eef574464e7d10440f9754477ac0c2a8ca16",
+      "creator": null,
+      "v18": "40d2eef574464e7d10440f9754477ac0c2a8ca16",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "docs/validation/V16-silence-proof.json",
+      "candidate": "a15fb00b0b48b6e3f9749172b0f8e2c3a2060a38",
+      "creator": null,
+      "v18": "a15fb00b0b48b6e3f9749172b0f8e2c3a2060a38",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "docs/validation/V16-stream-review.json",
+      "candidate": "72870a5444c9683f651b723b3944cc918e44c834",
+      "creator": null,
+      "v18": "72870a5444c9683f651b723b3944cc918e44c834",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "docs/validation/V18-clock-repair.json",
+      "candidate": "e0238826d52c180fd8f538e9d62aff4fb4a542d6",
+      "creator": null,
+      "v18": "e0238826d52c180fd8f538e9d62aff4fb4a542d6",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "docs/validation/V18-color-plan.json",
+      "candidate": "0f9cedb28902590f9703f6f68ea71e3f03067b0f",
+      "creator": null,
+      "v18": "0f9cedb28902590f9703f6f68ea71e3f03067b0f",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "docs/validation/V18-color-render-report.json",
+      "candidate": "efea4e0ac4cf45222f3bee51e691ecf466883856",
+      "creator": null,
+      "v18": "efea4e0ac4cf45222f3bee51e691ecf466883856",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "docs/validation/V18-regression.log",
+      "candidate": "79980b1ff28b558b5d029044ce47f0d8c2939f43",
+      "creator": null,
+      "v18": "79980b1ff28b558b5d029044ce47f0d8c2939f43",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "docs/validation/V18-series-verification.json",
+      "candidate": "f52506cb0695093c47dc0ead626ed6b4916c7432",
+      "creator": null,
+      "v18": "f52506cb0695093c47dc0ead626ed6b4916c7432",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "examples/color_documentary.py",
+      "candidate": "e40443ee25ec234fb6b881aa544d54bea17d9753",
+      "creator": null,
+      "v18": "da19e83cd239656c7e8cb8724b187d71deb6050a",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "examples/image_documentary.py",
+      "candidate": "2e5a835b6db8c0e190d15b17db7fb8c528c7e0fc",
+      "creator": null,
+      "v18": "2e5a835b6db8c0e190d15b17db7fb8c528c7e0fc",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "examples/polished_films.py",
+      "candidate": "f423efe6ce52f192ea5160b49dbf843927ea7973",
+      "creator": null,
+      "v18": "f423efe6ce52f192ea5160b49dbf843927ea7973",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "examples/reference_story_grammar.json",
+      "candidate": "9f269c645576955e04ca3d5b8069a10da5bb37fd",
+      "creator": null,
+      "v18": "9f269c645576955e04ca3d5b8069a10da5bb37fd",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "examples/reference_story_notes.json",
+      "candidate": "15fc8f09dbd3da2f9f9c869a2d4cf07fdc769098",
+      "creator": null,
+      "v18": "15fc8f09dbd3da2f9f9c869a2d4cf07fdc769098",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "examples/silence_documentary.py",
+      "candidate": "f59d35a0ac40d59762f4192bef8ffe96682cdc6c",
+      "creator": null,
+      "v18": "f59d35a0ac40d59762f4192bef8ffe96682cdc6c",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "examples/sound_documentary.py",
+      "candidate": "8e7b42403fb46f7793ca52ae5c53039113cd7125",
+      "creator": null,
+      "v18": "8e7b42403fb46f7793ca52ae5c53039113cd7125",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "examples/time_documentary.py",
+      "candidate": "6d0c5cdcf0ff3168d3b857bbd47614a77dc99729",
+      "creator": null,
+      "v18": null,
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "examples/time_narration.py",
+      "candidate": "8fd203be4460db6baf82be3c0583a50e0546ec30",
+      "creator": null,
+      "v18": null,
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "packaging/SkellyMotion.iss",
+      "candidate": "77b2793ba336a051f440b2fe3fa06aaed13425bb",
+      "creator": "77b2793ba336a051f440b2fe3fa06aaed13425bb",
+      "v18": "77b2793ba336a051f440b2fe3fa06aaed13425bb",
+      "v6": "77b2793ba336a051f440b2fe3fa06aaed13425bb",
+      "classification": "identical"
+    },
+    {
+      "path": "packaging/test-installer.ps1",
+      "candidate": "637b23ee72d7b913c18b0dfa9e145ab5ad99eadd",
+      "creator": "637b23ee72d7b913c18b0dfa9e145ab5ad99eadd",
+      "v18": "637b23ee72d7b913c18b0dfa9e145ab5ad99eadd",
+      "v6": "637b23ee72d7b913c18b0dfa9e145ab5ad99eadd",
+      "classification": "identical"
+    },
+    {
+      "path": "references/original_director/README(1).md",
+      "candidate": "bc2ea0b9eede7d0912f51672ca68cc4a4ba23d8c",
+      "creator": null,
+      "v18": "bc2ea0b9eede7d0912f51672ca68cc4a4ba23d8c",
+      "v6": "bc2ea0b9eede7d0912f51672ca68cc4a4ba23d8c",
+      "classification": "candidate-only"
+    },
+    {
+      "path": "references/original_director/autoedit.py",
+      "candidate": "0ae541c2820de65300d3b991f34dfbdedf1c1c01",
+      "creator": null,
+      "v18": "0ae541c2820de65300d3b991f34dfbdedf1c1c01",
+      "v6": "0ae541c2820de65300d3b991f34dfbdedf1c1c01",
+      "classification": "candidate-only"
+    },
+    {
+      "path": "references/original_director/director_prompt.md",
+      "candidate": "aea776df04bd7f251a4f3f521113d23fb2dc4645",
+      "creator": null,
+      "v18": "aea776df04bd7f251a4f3f521113d23fb2dc4645",
+      "v6": "aea776df04bd7f251a4f3f521113d23fb2dc4645",
+      "classification": "candidate-only"
+    },
+    {
+      "path": "requirements-desktop.txt",
+      "candidate": "897070484c6b9dc1ffff737f5d5a018bbe8618ed",
+      "creator": "c59baf37d6b1ec85ceafb3602d03dc5d78aa18a7",
+      "v18": "897070484c6b9dc1ffff737f5d5a018bbe8618ed",
+      "v6": "897070484c6b9dc1ffff737f5d5a018bbe8618ed",
+      "classification": "candidate-matches-local-v6"
+    },
+    {
+      "path": "requirements.txt",
+      "candidate": "5a027cd08346a23fc6420f78fd1c7f5caee2cb92",
+      "creator": "5a027cd08346a23fc6420f78fd1c7f5caee2cb92",
+      "v18": "5a027cd08346a23fc6420f78fd1c7f5caee2cb92",
+      "v6": "5a027cd08346a23fc6420f78fd1c7f5caee2cb92",
+      "classification": "identical"
+    },
+    {
+      "path": "run-mac-linux.sh",
+      "candidate": "ae595c0c3766d4331977b54ba3a3e77e3ceeee3e",
+      "creator": "ae595c0c3766d4331977b54ba3a3e77e3ceeee3e",
+      "v18": "ae595c0c3766d4331977b54ba3a3e77e3ceeee3e",
+      "v6": "ae595c0c3766d4331977b54ba3a3e77e3ceeee3e",
+      "classification": "identical"
+    },
+    {
+      "path": "server.py",
+      "candidate": "01075f0c3812bd3b67f36257abd666edcfe9b983",
+      "creator": "60bac4362771362cdae30fae9b3e3dfb6c459f77",
+      "v18": "01075f0c3812bd3b67f36257abd666edcfe9b983",
+      "v6": "f276415e23f6046abdecc7ec15bc84695fc6e6d8",
+      "classification": "divergent"
+    },
+    {
+      "path": "static/app.js",
+      "candidate": "0241e7a5b88af6c9ffddc1d47066192d17cfdef3",
+      "creator": "e52ef6c286595f670dc167472be21bdfacc7b06f",
+      "v18": "0241e7a5b88af6c9ffddc1d47066192d17cfdef3",
+      "v6": "0241e7a5b88af6c9ffddc1d47066192d17cfdef3",
+      "classification": "candidate-matches-local-v6"
+    },
+    {
+      "path": "static/autoclip.css",
+      "candidate": "b48cd12b2c9c9d08f83371a32b5e38f545d80690",
+      "creator": "e9aa2768714084c259259ac58ee8cb02c1445d09",
+      "v18": "b48cd12b2c9c9d08f83371a32b5e38f545d80690",
+      "v6": "b48cd12b2c9c9d08f83371a32b5e38f545d80690",
+      "classification": "candidate-matches-local-v6"
+    },
+    {
+      "path": "static/autoclip.css.pre-dark-v5",
+      "candidate": "50aa99fdb14873ddb409b0758545b8953ea93da5",
+      "creator": null,
+      "v18": "50aa99fdb14873ddb409b0758545b8953ea93da5",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "static/autoclip.js",
+      "candidate": "5522fa1020173907e3c22d1c032f762577283b7b",
+      "creator": "f014dbd2c3d44bd6b507600aa939c4f7578e492d",
+      "v18": "5522fa1020173907e3c22d1c032f762577283b7b",
+      "v6": "c04524b12c303303b1f4544567bfb1653175f27d",
+      "classification": "divergent"
+    },
+    {
+      "path": "static/compressor_lab.html",
+      "candidate": "472c6d0cf4433b84a66af0b24f56a7c2b55ed426",
+      "creator": "472c6d0cf4433b84a66af0b24f56a7c2b55ed426",
+      "v18": "472c6d0cf4433b84a66af0b24f56a7c2b55ed426",
+      "v6": "472c6d0cf4433b84a66af0b24f56a7c2b55ed426",
+      "classification": "identical"
+    },
+    {
+      "path": "static/dark-studio.css",
+      "candidate": "c49b8df2cc8c8caa90175d742df8c55590e6f713",
+      "creator": null,
+      "v18": "c49b8df2cc8c8caa90175d742df8c55590e6f713",
+      "v6": "c49b8df2cc8c8caa90175d742df8c55590e6f713",
+      "classification": "candidate-only"
+    },
+    {
+      "path": "static/hub-brand.css",
+      "candidate": "1174ee7cd7a9bda77f0094a3f8b0c3aa2f550f1d",
+      "creator": null,
+      "v18": "1174ee7cd7a9bda77f0094a3f8b0c3aa2f550f1d",
+      "v6": "1174ee7cd7a9bda77f0094a3f8b0c3aa2f550f1d",
+      "classification": "candidate-only"
+    },
+    {
+      "path": "static/hub-brand.css.pre-dark-v5",
+      "candidate": "c3cc528455b763fa15a070f1bd8de5774694ce94",
+      "creator": null,
+      "v18": "c3cc528455b763fa15a070f1bd8de5774694ce94",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "static/hub-brand.js",
+      "candidate": "c74dbc3a190468f827c67995e3ace6847c387cb2",
+      "creator": null,
+      "v18": "c74dbc3a190468f827c67995e3ace6847c387cb2",
+      "v6": "c74dbc3a190468f827c67995e3ace6847c387cb2",
+      "classification": "candidate-only"
+    },
+    {
+      "path": "static/index.html",
+      "candidate": "3b161ceccf671b240c7b1c6a37d73b6fd37a203c",
+      "creator": "c82d91fa23be78c73bb596a16b52b459dafbc5fc",
+      "v18": "3b161ceccf671b240c7b1c6a37d73b6fd37a203c",
+      "v6": "d7cc9f629b732d8b4334434b26169afaeaaa1031",
+      "classification": "divergent"
+    },
+    {
+      "path": "static/make.js",
+      "candidate": "e97a982cd470a921bf9fc4cd5a36803777a357e5",
+      "creator": "e97a982cd470a921bf9fc4cd5a36803777a357e5",
+      "v18": "e97a982cd470a921bf9fc4cd5a36803777a357e5",
+      "v6": "e97a982cd470a921bf9fc4cd5a36803777a357e5",
+      "classification": "identical"
+    },
+    {
+      "path": "static/skelly-radar.png",
+      "candidate": "6654d5ac3575fd06b87a4c3015f8411f4d0fd90b",
+      "creator": null,
+      "v18": "6654d5ac3575fd06b87a4c3015f8411f4d0fd90b",
+      "v6": "6654d5ac3575fd06b87a4c3015f8411f4d0fd90b",
+      "classification": "candidate-only"
+    },
+    {
+      "path": "static/skelly-skull.png",
+      "candidate": "9c01d698558390e6568a2a051fad2b4f03ecda64",
+      "creator": null,
+      "v18": "9c01d698558390e6568a2a051fad2b4f03ecda64",
+      "v6": "9c01d698558390e6568a2a051fad2b4f03ecda64",
+      "classification": "candidate-only"
+    },
+    {
+      "path": "static/skellyhub.ico",
+      "candidate": "2f22bb51dca620fa539cf83c9e0cbc9f105acc53",
+      "creator": null,
+      "v18": "2f22bb51dca620fa539cf83c9e0cbc9f105acc53",
+      "v6": "2f22bb51dca620fa539cf83c9e0cbc9f105acc53",
+      "classification": "candidate-only"
+    },
+    {
+      "path": "static/skull-icon.sha256",
+      "candidate": "d94ab43b9111156e5bd754fecf77aec18ce2a506",
+      "creator": null,
+      "v18": "d94ab43b9111156e5bd754fecf77aec18ce2a506",
+      "v6": "d94ab43b9111156e5bd754fecf77aec18ce2a506",
+      "classification": "candidate-only"
+    },
+    {
+      "path": "static/skull.ico",
+      "candidate": "2f22bb51dca620fa539cf83c9e0cbc9f105acc53",
+      "creator": "d87404bd59c4de19d6b6b7b22ddcac645d23b17f",
+      "v18": "2f22bb51dca620fa539cf83c9e0cbc9f105acc53",
+      "v6": "2f22bb51dca620fa539cf83c9e0cbc9f105acc53",
+      "classification": "candidate-matches-local-v6"
+    },
+    {
+      "path": "static/skull.svg",
+      "candidate": "f0da7fc0532c7043ab6c246c3a97d93cae29ea35",
+      "creator": "741f53cd6c129f05cc427510ea9c9d8e52a460d3",
+      "v18": "f0da7fc0532c7043ab6c246c3a97d93cae29ea35",
+      "v6": "f0da7fc0532c7043ab6c246c3a97d93cae29ea35",
+      "classification": "candidate-matches-local-v6"
+    },
+    {
+      "path": "static/studio-appearance.js",
+      "candidate": "c85125d0705c0a34b40616a16a204df154fcccef",
+      "creator": null,
+      "v18": "c85125d0705c0a34b40616a16a204df154fcccef",
+      "v6": "c85125d0705c0a34b40616a16a204df154fcccef",
+      "classification": "candidate-only"
+    },
+    {
+      "path": "static/studio-theme.css",
+      "candidate": "61fbcb084b5cae65efa11b2e5d2d0f66c75eaa02",
+      "creator": null,
+      "v18": "61fbcb084b5cae65efa11b2e5d2d0f66c75eaa02",
+      "v6": "61fbcb084b5cae65efa11b2e5d2d0f66c75eaa02",
+      "classification": "candidate-only"
+    },
+    {
+      "path": "static/style.css",
+      "candidate": "d282302a4cab5c596d55a7008c16e230e3bef006",
+      "creator": "bfd6aedfb9e65eea9d12db7b2e86efa605ae910f",
+      "v18": "d282302a4cab5c596d55a7008c16e230e3bef006",
+      "v6": "d282302a4cab5c596d55a7008c16e230e3bef006",
+      "classification": "candidate-matches-local-v6"
+    },
+    {
+      "path": "static/style.css.pre-dark-v5",
+      "candidate": "e9fad48051e246c73c938807ce0c9d3ab8ddf6ef",
+      "creator": null,
+      "v18": "e9fad48051e246c73c938807ce0c9d3ab8ddf6ef",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "studio_3d.py",
+      "candidate": "d2dcd61668c06c7805c8181c2777b4023ec39a59",
+      "creator": "d2dcd61668c06c7805c8181c2777b4023ec39a59",
+      "v18": "d2dcd61668c06c7805c8181c2777b4023ec39a59",
+      "v6": "d2dcd61668c06c7805c8181c2777b4023ec39a59",
+      "classification": "identical"
+    },
+    {
+      "path": "studio_ai_worker.py",
+      "candidate": "a2010316289c45f8c8882852bb2e544e8e40299b",
+      "creator": "a2010316289c45f8c8882852bb2e544e8e40299b",
+      "v18": "a2010316289c45f8c8882852bb2e544e8e40299b",
+      "v6": "a2010316289c45f8c8882852bb2e544e8e40299b",
+      "classification": "identical"
+    },
+    {
+      "path": "studio_audio.py",
+      "candidate": "61f8a02458de86ec3c9c96c3c1b06e6a2c93e162",
+      "creator": "61f8a02458de86ec3c9c96c3c1b06e6a2c93e162",
+      "v18": "61f8a02458de86ec3c9c96c3c1b06e6a2c93e162",
+      "v6": "61f8a02458de86ec3c9c96c3c1b06e6a2c93e162",
+      "classification": "identical"
+    },
+    {
+      "path": "studio_auto_composition.py",
+      "candidate": "3f6ac831e826236dddc95d449f75599b378a3ba1",
+      "creator": null,
+      "v18": "3f6ac831e826236dddc95d449f75599b378a3ba1",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "studio_beat.py",
+      "candidate": "3f99a1bd6a8d789b9520109b6efc633e94a712ab",
+      "creator": "3f99a1bd6a8d789b9520109b6efc633e94a712ab",
+      "v18": "3f99a1bd6a8d789b9520109b6efc633e94a712ab",
+      "v6": "3f99a1bd6a8d789b9520109b6efc633e94a712ab",
+      "classification": "identical"
+    },
+    {
+      "path": "studio_broll.py",
+      "candidate": "d62574aec0699dc9fdc6d9c6f600647dddb22d72",
+      "creator": "d62574aec0699dc9fdc6d9c6f600647dddb22d72",
+      "v18": "d62574aec0699dc9fdc6d9c6f600647dddb22d72",
+      "v6": "d62574aec0699dc9fdc6d9c6f600647dddb22d72",
+      "classification": "identical"
+    },
+    {
+      "path": "studio_camera.py",
+      "candidate": "1527422a975f096992c2e42667de3d4c18927791",
+      "creator": null,
+      "v18": "1527422a975f096992c2e42667de3d4c18927791",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "studio_cinematic.py",
+      "candidate": "1b38fafcb5f7c3f5960e0a8b85ac57cff7f6bdc6",
+      "creator": "d64f85224d946e890bab3a22409a6465eb37d66a",
+      "v18": "1b38fafcb5f7c3f5960e0a8b85ac57cff7f6bdc6",
+      "v6": "2d334be5adc865cc967d7ceaeff9e15e37758263",
+      "classification": "divergent"
+    },
+    {
+      "path": "studio_cli.py",
+      "candidate": "45ae06a0e5d211f7d7c0288b4e6a1493ca1ba6ff",
+      "creator": "b94356987617a7ae3021b61427f45cb7196dd510",
+      "v18": "45ae06a0e5d211f7d7c0288b4e6a1493ca1ba6ff",
+      "v6": "f0663fd7803161ac3eb6350db57a7d8cc8b014f3",
+      "classification": "divergent"
+    },
+    {
+      "path": "studio_clips.py",
+      "candidate": "f20985c26f56cd7e0ce7b57086d35804378396d2",
+      "creator": "f20985c26f56cd7e0ce7b57086d35804378396d2",
+      "v18": "f20985c26f56cd7e0ce7b57086d35804378396d2",
+      "v6": "f20985c26f56cd7e0ce7b57086d35804378396d2",
+      "classification": "identical"
+    },
+    {
+      "path": "studio_color_light.py",
+      "candidate": "8f06ee46542bf947ba9f7eec7c1957ffe82d4d5d",
+      "creator": null,
+      "v18": "8f06ee46542bf947ba9f7eec7c1957ffe82d4d5d",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "studio_continuity.py",
+      "candidate": "61dbed2765c9d7fbf72e105545d0a9b42016ed21",
+      "creator": null,
+      "v18": "61dbed2765c9d7fbf72e105545d0a9b42016ed21",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "studio_creator.py",
+      "candidate": "158562ec61423c0449ba4eddd9a10f6591c7ecfd",
+      "creator": "f5bca7077d435acd9c0bc02bd3752f7b1956c892",
+      "v18": "158562ec61423c0449ba4eddd9a10f6591c7ecfd",
+      "v6": "2075076891ae432dd47366bb5db3dd9c7531fa6b",
+      "classification": "divergent"
+    },
+    {
+      "path": "studio_demo.py",
+      "candidate": "f2bd1d1e14778702d1c1b52769de9f52146989b0",
+      "creator": "f2bd1d1e14778702d1c1b52769de9f52146989b0",
+      "v18": "f2bd1d1e14778702d1c1b52769de9f52146989b0",
+      "v6": "f2bd1d1e14778702d1c1b52769de9f52146989b0",
+      "classification": "identical"
+    },
+    {
+      "path": "studio_director.py",
+      "candidate": "aa340f82d65e7abc71870bb8f89f4c99bd0f048b",
+      "creator": "aa3ca2ff9ed5612ff7ae96575ac2315df9b90a38",
+      "v18": "aa340f82d65e7abc71870bb8f89f4c99bd0f048b",
+      "v6": "b6cd4d85af82eba6fc6502fa4e7cc43678fe793c",
+      "classification": "divergent"
+    },
+    {
+      "path": "studio_director_intelligence.py",
+      "candidate": "1bc852d6fd6eb242f0e701aa3291abb292932068",
+      "creator": "d0952483d3d547121a88c4ee90d98948415ed943",
+      "v18": "1bc852d6fd6eb242f0e701aa3291abb292932068",
+      "v6": "cf84eaf67698406f74133bde1e4e062bbf45713e",
+      "classification": "divergent"
+    },
+    {
+      "path": "studio_edit.py",
+      "candidate": "dae6fa44a18f161aafd0ebc87ebeceb28361e29d",
+      "creator": "dae6fa44a18f161aafd0ebc87ebeceb28361e29d",
+      "v18": "dae6fa44a18f161aafd0ebc87ebeceb28361e29d",
+      "v6": "dae6fa44a18f161aafd0ebc87ebeceb28361e29d",
+      "classification": "identical"
+    },
+    {
+      "path": "studio_editor_demo.py",
+      "candidate": "d353a8bc47d57deb4f89132b1b7f8b5532de1180",
+      "creator": "44461b6587cf6c40a0c547bc69375a85b5f1e394",
+      "v18": "d353a8bc47d57deb4f89132b1b7f8b5532de1180",
+      "v6": "d353a8bc47d57deb4f89132b1b7f8b5532de1180",
+      "classification": "candidate-matches-local-v6"
+    },
+    {
+      "path": "studio_editorial.py",
+      "candidate": "5edea0bd06ae1a3841c3be00674c1c64227f4fd5",
+      "creator": "06166486dc9f0dd9617d2800b008cea4ecb9e04c",
+      "v18": "5edea0bd06ae1a3841c3be00674c1c64227f4fd5",
+      "v6": "5edea0bd06ae1a3841c3be00674c1c64227f4fd5",
+      "classification": "candidate-matches-local-v6"
+    },
+    {
+      "path": "studio_editorial_motion.py",
+      "candidate": "b5658794e2528bd141f23ab1246c1023f676f1e2",
+      "creator": null,
+      "v18": "b5658794e2528bd141f23ab1246c1023f676f1e2",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "studio_effect_visuals.py",
+      "candidate": "76ba5022d8705293220ee76688cbe96efd2fd008",
+      "creator": "6b86d978a9b0444af8c557608862af31539294a7",
+      "v18": "76ba5022d8705293220ee76688cbe96efd2fd008",
+      "v6": "76ba5022d8705293220ee76688cbe96efd2fd008",
+      "classification": "candidate-matches-local-v6"
+    },
+    {
+      "path": "studio_fluid.py",
+      "candidate": "275769f7c185ae539ae2e2646f688844f90b042a",
+      "creator": null,
+      "v18": "275769f7c185ae539ae2e2646f688844f90b042a",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "studio_focus.py",
+      "candidate": "fc865d8f34a11509ce45b157fbf4462948e75ce4",
+      "creator": "fc865d8f34a11509ce45b157fbf4462948e75ce4",
+      "v18": "fc865d8f34a11509ce45b157fbf4462948e75ce4",
+      "v6": "fc865d8f34a11509ce45b157fbf4462948e75ce4",
+      "classification": "identical"
+    },
+    {
+      "path": "studio_graphics.py",
+      "candidate": "9d3f8da036e43d9e01bc31e7093744ea10848971",
+      "creator": null,
+      "v18": "9d3f8da036e43d9e01bc31e7093744ea10848971",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "studio_icon.py",
+      "candidate": "02691d865d05d4149a386acb4cb5bd60ce6fa70e",
+      "creator": "a479bcd54e73bfc863b9644ec5cf3eee92e5fbd0",
+      "v18": "02691d865d05d4149a386acb4cb5bd60ce6fa70e",
+      "v6": "02691d865d05d4149a386acb4cb5bd60ce6fa70e",
+      "classification": "candidate-matches-local-v6"
+    },
+    {
+      "path": "studio_instrument_score.py",
+      "candidate": "cdbf7fea8057807fecba9451a86aaf97c832a5a3",
+      "creator": null,
+      "v18": "cdbf7fea8057807fecba9451a86aaf97c832a5a3",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "studio_kokoro_worker.py",
+      "candidate": "43a96240f437273e5be3fc3633a1b648462727e0",
+      "creator": "73d0eb0b6c88d0ba85286780affa30521750db29",
+      "v18": "43a96240f437273e5be3fc3633a1b648462727e0",
+      "v6": null,
+      "classification": "divergent"
+    },
+    {
+      "path": "studio_layers.py",
+      "candidate": "52a31dfec777bbff007b4580f454050760442413",
+      "creator": null,
+      "v18": "4cb2e20ee6501423f4f40dc320570dc7300e60ae",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "studio_live_diagrams.py",
+      "candidate": "041cb9e755c8194988442270b8ddca9657b09b44",
+      "creator": "86554fcb3b4f0e7e9230b91f7dc43fb0374f59bc",
+      "v18": "041cb9e755c8194988442270b8ddca9657b09b44",
+      "v6": "041cb9e755c8194988442270b8ddca9657b09b44",
+      "classification": "candidate-matches-local-v6"
+    },
+    {
+      "path": "studio_master_clock.py",
+      "candidate": "13b59fd21a99b7fe42145d52c6fbac81b7af2e23",
+      "creator": null,
+      "v18": "13b59fd21a99b7fe42145d52c6fbac81b7af2e23",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "studio_material.py",
+      "candidate": "22945f7602a070102d0ffa6952a46bb66259acd8",
+      "creator": null,
+      "v18": "22945f7602a070102d0ffa6952a46bb66259acd8",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "studio_media_layers.py",
+      "candidate": "9ecc569d70ff875e39582c33ddd027422597dd88",
+      "creator": null,
+      "v18": "9ecc569d70ff875e39582c33ddd027422597dd88",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "studio_mesh.py",
+      "candidate": "d240eea80c6e66405a78d864b64db06b262528ef",
+      "creator": null,
+      "v18": "d240eea80c6e66405a78d864b64db06b262528ef",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "studio_motion.py",
+      "candidate": "9810d1837b68d8776514ec32fc1a2e98a9e1295e",
+      "creator": "9810d1837b68d8776514ec32fc1a2e98a9e1295e",
+      "v18": "9810d1837b68d8776514ec32fc1a2e98a9e1295e",
+      "v6": "9810d1837b68d8776514ec32fc1a2e98a9e1295e",
+      "classification": "identical"
+    },
+    {
+      "path": "studio_music.py",
+      "candidate": "c999f8434db0a362a83be8ceff37b8c111520f7d",
+      "creator": "c999f8434db0a362a83be8ceff37b8c111520f7d",
+      "v18": "c999f8434db0a362a83be8ceff37b8c111520f7d",
+      "v6": "c999f8434db0a362a83be8ceff37b8c111520f7d",
+      "classification": "identical"
+    },
+    {
+      "path": "studio_musical_edit.py",
+      "candidate": "0bb976e52dc5f59351290c1a773ca807b7e59a64",
+      "creator": null,
+      "v18": "0bb976e52dc5f59351290c1a773ca807b7e59a64",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "studio_mv.py",
+      "candidate": "0cb32012d8ffe811e1d5d23499d22a045b39ce02",
+      "creator": "0cb32012d8ffe811e1d5d23499d22a045b39ce02",
+      "v18": "0cb32012d8ffe811e1d5d23499d22a045b39ce02",
+      "v6": "0cb32012d8ffe811e1d5d23499d22a045b39ce02",
+      "classification": "identical"
+    },
+    {
+      "path": "studio_optics.py",
+      "candidate": "119bb77c6d9753fac0a334614075a5011a4b8d07",
+      "creator": null,
+      "v18": null,
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "studio_performance.py",
+      "candidate": "997e0a027f82b301db7d3563abde13ee04a0259f",
+      "creator": "b233c80c6822743eb9335fdad6d75fb6bf0d492b",
+      "v18": "997e0a027f82b301db7d3563abde13ee04a0259f",
+      "v6": "997e0a027f82b301db7d3563abde13ee04a0259f",
+      "classification": "candidate-matches-local-v6"
+    },
+    {
+      "path": "studio_post.py",
+      "candidate": "285b8c7051aa47286eb8af6899d3cd7577321d79",
+      "creator": "285b8c7051aa47286eb8af6899d3cd7577321d79",
+      "v18": "285b8c7051aa47286eb8af6899d3cd7577321d79",
+      "v6": "285b8c7051aa47286eb8af6899d3cd7577321d79",
+      "classification": "identical"
+    },
+    {
+      "path": "studio_product_motion.py",
+      "candidate": "fb9d4dee5c696dfe9c428e09efb361d0628d228c",
+      "creator": null,
+      "v18": "fb9d4dee5c696dfe9c428e09efb361d0628d228c",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "studio_proof.py",
+      "candidate": "c22d54faf1b5e456dc6c11e69c6ec8c7a8973c78",
+      "creator": "c22d54faf1b5e456dc6c11e69c6ec8c7a8973c78",
+      "v18": "c22d54faf1b5e456dc6c11e69c6ec8c7a8973c78",
+      "v6": "c22d54faf1b5e456dc6c11e69c6ec8c7a8973c78",
+      "classification": "identical"
+    },
+    {
+      "path": "studio_quality.py",
+      "candidate": "135b14110732bac4e8300e0f4c52dbc4fd961404",
+      "creator": null,
+      "v18": "135b14110732bac4e8300e0f4c52dbc4fd961404",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "studio_quick.py",
+      "candidate": "3a137f0c7629e485dcde79d712e6b3301eb06f7c",
+      "creator": "3a137f0c7629e485dcde79d712e6b3301eb06f7c",
+      "v18": "3a137f0c7629e485dcde79d712e6b3301eb06f7c",
+      "v6": "3a137f0c7629e485dcde79d712e6b3301eb06f7c",
+      "classification": "identical"
+    },
+    {
+      "path": "studio_quick2.py",
+      "candidate": "5c135c608a1bb34b16bfc32d5b1a025814830a73",
+      "creator": "0e3f16707f3dea561a5bb8edad5c5e2e75f0db6b",
+      "v18": "5c135c608a1bb34b16bfc32d5b1a025814830a73",
+      "v6": "5c135c608a1bb34b16bfc32d5b1a025814830a73",
+      "classification": "candidate-matches-local-v6"
+    },
+    {
+      "path": "studio_reference.py",
+      "candidate": "03a5e4369fc271cf4841854c7bf1b21272af47db",
+      "creator": null,
+      "v18": "03a5e4369fc271cf4841854c7bf1b21272af47db",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "studio_reference_vision.py",
+      "candidate": "ef0cac670c5a89f33392a0de7d8c914bbdfdfc22",
+      "creator": null,
+      "v18": "875754f6f65ab5f47cee809ec912adf8df08c66c",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "studio_render_review.py",
+      "candidate": "38af3905f618778327f632f0a4db4790fd612d4c",
+      "creator": null,
+      "v18": "38af3905f618778327f632f0a4db4790fd612d4c",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "studio_score.py",
+      "candidate": "75323b9346715fbf33338606226b07ecedc91966",
+      "creator": null,
+      "v18": "75323b9346715fbf33338606226b07ecedc91966",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "studio_signal_story.py",
+      "candidate": "717bab1645e7e2b711bf9df8da038c1f1657abd9",
+      "creator": null,
+      "v18": "717bab1645e7e2b711bf9df8da038c1f1657abd9",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "studio_spatial.py",
+      "candidate": "37bb8dabae5dc0ce41254895e057b262e8d9f482",
+      "creator": null,
+      "v18": "37bb8dabae5dc0ce41254895e057b262e8d9f482",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "studio_story.py",
+      "candidate": "bb931186a195475e9a510d70d9ac2a118c582196",
+      "creator": null,
+      "v18": "bb931186a195475e9a510d70d9ac2a118c582196",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "studio_storyboard.py",
+      "candidate": "e3ffa5916043a8d9baed64ae15fe829b2041ca2f",
+      "creator": null,
+      "v18": "e3ffa5916043a8d9baed64ae15fe829b2041ca2f",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "studio_tools.py",
+      "candidate": "2cce813c1a49611e5c6ffcfd57bd0cd5bed4e0db",
+      "creator": "2cce813c1a49611e5c6ffcfd57bd0cd5bed4e0db",
+      "v18": "2cce813c1a49611e5c6ffcfd57bd0cd5bed4e0db",
+      "v6": "2cce813c1a49611e5c6ffcfd57bd0cd5bed4e0db",
+      "classification": "identical"
+    },
+    {
+      "path": "studio_updater.py",
+      "candidate": "3a88f6c15179b937031bef82d7bcb1ffc0f72cf7",
+      "creator": "3a88f6c15179b937031bef82d7bcb1ffc0f72cf7",
+      "v18": "3a88f6c15179b937031bef82d7bcb1ffc0f72cf7",
+      "v6": "3a88f6c15179b937031bef82d7bcb1ffc0f72cf7",
+      "classification": "identical"
+    },
+    {
+      "path": "studio_visual_sources.py",
+      "candidate": "18bf868e1463d95dc6bf0d97165476233006c9b3",
+      "creator": "78e244c457d78b0ee76b51f0d0929ce6d9749391",
+      "v18": "18bf868e1463d95dc6bf0d97165476233006c9b3",
+      "v6": "86cab3868f00440a91cf8f51c9264f919d040980",
+      "classification": "divergent"
+    },
+    {
+      "path": "studio_viz.py",
+      "candidate": "5b47da3bb4b826215ae2fce530a95b35d3076b5a",
+      "creator": "5b47da3bb4b826215ae2fce530a95b35d3076b5a",
+      "v18": "5b47da3bb4b826215ae2fce530a95b35d3076b5a",
+      "v6": "5b47da3bb4b826215ae2fce530a95b35d3076b5a",
+      "classification": "identical"
+    },
+    {
+      "path": "studio_voice.py",
+      "candidate": "c0588cc0498d36a66518a959c56f1121b00fa993",
+      "creator": "60fdf4f91e7176bed0ba10a93c07f3da5b7783bc",
+      "v18": "c0588cc0498d36a66518a959c56f1121b00fa993",
+      "v6": "e7cfb952ca15dc48dffb23d27986579e6e6783cd",
+      "classification": "divergent"
+    },
+    {
+      "path": "studio_walkthrough.py",
+      "candidate": "bef375bafc470b4c19c2c6819346a67eb0d178e0",
+      "creator": "1b9adaf2f7be151f56824e355d596ecfb91d67f0",
+      "v18": "bef375bafc470b4c19c2c6819346a67eb0d178e0",
+      "v6": "5f9d5f5006261001dac177f58c80303b24d7d6f0",
+      "classification": "divergent"
+    },
+    {
+      "path": "tests/autoclip_smoke.mjs",
+      "candidate": "b131cd753406c1a9818e7f5609a90c6ed714ac73",
+      "creator": "b131cd753406c1a9818e7f5609a90c6ed714ac73",
+      "v18": "b131cd753406c1a9818e7f5609a90c6ed714ac73",
+      "v6": "b131cd753406c1a9818e7f5609a90c6ed714ac73",
+      "classification": "identical"
+    },
+    {
+      "path": "tests/compressor_lab_smoke.mjs",
+      "candidate": "118b4450a6ce103e8aa8f41d6e8d60c64881e7fe",
+      "creator": "118b4450a6ce103e8aa8f41d6e8d60c64881e7fe",
+      "v18": "118b4450a6ce103e8aa8f41d6e8d60c64881e7fe",
+      "v6": "118b4450a6ce103e8aa8f41d6e8d60c64881e7fe",
+      "classification": "identical"
+    },
+    {
+      "path": "tests/editor_smoke.mjs",
+      "candidate": "837554041682d5b8bbfa21baf88d1a6a130e27c2",
+      "creator": "d04d46ace8dbd9d7527f1bc289d8d21c7507818c",
+      "v18": "a927ad638ffc27b2ed50bce8a1d4ef941d897dda",
+      "v6": "a927ad638ffc27b2ed50bce8a1d4ef941d897dda",
+      "classification": "divergent"
+    },
+    {
+      "path": "tests/test_autoedit_jobs.py",
+      "candidate": "5906ea3fd9a3371b266e400fed8b3af47977e258",
+      "creator": "5906ea3fd9a3371b266e400fed8b3af47977e258",
+      "v18": "5906ea3fd9a3371b266e400fed8b3af47977e258",
+      "v6": "5906ea3fd9a3371b266e400fed8b3af47977e258",
+      "classification": "identical"
+    },
+    {
+      "path": "tests/test_autonomous_api.py",
+      "candidate": "4127fd0d18de32c3ffa82f1d72c7acfe5376d87e",
+      "creator": "4127fd0d18de32c3ffa82f1d72c7acfe5376d87e",
+      "v18": "4127fd0d18de32c3ffa82f1d72c7acfe5376d87e",
+      "v6": "4127fd0d18de32c3ffa82f1d72c7acfe5376d87e",
+      "classification": "identical"
+    },
+    {
+      "path": "tests/test_autonomous_jobs.py",
+      "candidate": "028d7ff9fd4f77d7e96e5d9f99a86721e22ae421",
+      "creator": "028d7ff9fd4f77d7e96e5d9f99a86721e22ae421",
+      "v18": "028d7ff9fd4f77d7e96e5d9f99a86721e22ae421",
+      "v6": "028d7ff9fd4f77d7e96e5d9f99a86721e22ae421",
+      "classification": "identical"
+    },
+    {
+      "path": "tests/test_caption_overlap.py",
+      "candidate": "2c73d8ab2c6e8b61f0b12f1e094a92759eccd147",
+      "creator": "2c73d8ab2c6e8b61f0b12f1e094a92759eccd147",
+      "v18": "2c73d8ab2c6e8b61f0b12f1e094a92759eccd147",
+      "v6": "2c73d8ab2c6e8b61f0b12f1e094a92759eccd147",
+      "classification": "identical"
+    },
+    {
+      "path": "tests/test_cinematic_director.py",
+      "candidate": "982223ce2765e70e5b8d8afecf697c9cade2bb1f",
+      "creator": "b52803e4b0990a863e31010d65ac89d4ca57fffe",
+      "v18": "982223ce2765e70e5b8d8afecf697c9cade2bb1f",
+      "v6": "982223ce2765e70e5b8d8afecf697c9cade2bb1f",
+      "classification": "candidate-matches-local-v6"
+    },
+    {
+      "path": "tests/test_color_light.py",
+      "candidate": "8c23ec8a8458a9c29ff3c49aa609a91d808491cf",
+      "creator": null,
+      "v18": "dc3a3104633b1ebd1d5ad5a5902b6c8279937126",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "tests/test_creator.py",
+      "candidate": "e9cd563d5a32914f613c0336f8198a851f7c9f14",
+      "creator": "b461458ccecf983b74607cc7adf07708ffe9fedb",
+      "v18": "e9cd563d5a32914f613c0336f8198a851f7c9f14",
+      "v6": "e9cd563d5a32914f613c0336f8198a851f7c9f14",
+      "classification": "candidate-matches-local-v6"
+    },
+    {
+      "path": "tests/test_demo_bridge.py",
+      "candidate": "8d9809ba4c152142ff2216fbcf9c411db0c809d6",
+      "creator": "8d9809ba4c152142ff2216fbcf9c411db0c809d6",
+      "v18": "8d9809ba4c152142ff2216fbcf9c411db0c809d6",
+      "v6": "8d9809ba4c152142ff2216fbcf9c411db0c809d6",
+      "classification": "identical"
+    },
+    {
+      "path": "tests/test_desktop_watchdog.py",
+      "candidate": "f1334b98b5d23d24ed8618ef31e87bf76b1849ce",
+      "creator": "f1334b98b5d23d24ed8618ef31e87bf76b1849ce",
+      "v18": "f1334b98b5d23d24ed8618ef31e87bf76b1849ce",
+      "v6": "f1334b98b5d23d24ed8618ef31e87bf76b1849ce",
+      "classification": "identical"
+    },
+    {
+      "path": "tests/test_director_intelligence.py",
+      "candidate": "0e561b560b8ef6e6bf0106efeb4517bc18fb3707",
+      "creator": "893b9985ab3b12189ec8a46492f3486526e4c42a",
+      "v18": "0e561b560b8ef6e6bf0106efeb4517bc18fb3707",
+      "v6": "0e561b560b8ef6e6bf0106efeb4517bc18fb3707",
+      "classification": "candidate-matches-local-v6"
+    },
+    {
+      "path": "tests/test_editor_demo.py",
+      "candidate": "a6307ec439d1c68bcc84557314933798779f03f1",
+      "creator": "b327a73ba80e6ab0d0e67f6ced1b84cc53d25a75",
+      "v18": "a6307ec439d1c68bcc84557314933798779f03f1",
+      "v6": "a6307ec439d1c68bcc84557314933798779f03f1",
+      "classification": "candidate-matches-local-v6"
+    },
+    {
+      "path": "tests/test_editorial.py",
+      "candidate": "8b585b75c68250ad11d3a78aadc2036bc3c5be5b",
+      "creator": null,
+      "v18": "8b585b75c68250ad11d3a78aadc2036bc3c5be5b",
+      "v6": "8b585b75c68250ad11d3a78aadc2036bc3c5be5b",
+      "classification": "candidate-only"
+    },
+    {
+      "path": "tests/test_editorial_motion.py",
+      "candidate": "8637e11a8b1366cea1bf708577165b01b356eead",
+      "creator": null,
+      "v18": "8637e11a8b1366cea1bf708577165b01b356eead",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "tests/test_editorial_v10.py",
+      "candidate": "205817ebf901902c99bc75ac39b53187e0cd61d8",
+      "creator": null,
+      "v18": "205817ebf901902c99bc75ac39b53187e0cd61d8",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "tests/test_editorial_v11.py",
+      "candidate": "d7ef730aa1f82b840e2bad08feefbe4dfc2d00d4",
+      "creator": null,
+      "v18": "d7ef730aa1f82b840e2bad08feefbe4dfc2d00d4",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "tests/test_editorial_v12.py",
+      "candidate": "522787cc8f46680e1b152d4b33d2b5c9fb2d5b8c",
+      "creator": null,
+      "v18": "522787cc8f46680e1b152d4b33d2b5c9fb2d5b8c",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "tests/test_editorial_v13.py",
+      "candidate": "013f7858fa30582758cae2c5611dfe123e0ed928",
+      "creator": null,
+      "v18": "013f7858fa30582758cae2c5611dfe123e0ed928",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "tests/test_editorial_v14.py",
+      "candidate": "7ba2116d66c55383ec45de9b0129f0252e40dea3",
+      "creator": null,
+      "v18": "7ba2116d66c55383ec45de9b0129f0252e40dea3",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "tests/test_editorial_v15.py",
+      "candidate": "d50fc3c3970dba9ebaddbd611ba00a49ed3bce7a",
+      "creator": null,
+      "v18": "d50fc3c3970dba9ebaddbd611ba00a49ed3bce7a",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "tests/test_editorial_v8.py",
+      "candidate": "04e58dbf48da1edab5767ec231b9dc48a4e27d4a",
+      "creator": null,
+      "v18": "04e58dbf48da1edab5767ec231b9dc48a4e27d4a",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "tests/test_editorial_v9.py",
+      "candidate": "057cdfddd181e861c2e15577b76d59e13ef680f7",
+      "creator": null,
+      "v18": "057cdfddd181e861c2e15577b76d59e13ef680f7",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "tests/test_effect_visuals.py",
+      "candidate": "cd99c355a87663f6887d2ad8d0b7388a55d1013f",
+      "creator": "cd99c355a87663f6887d2ad8d0b7388a55d1013f",
+      "v18": "cd99c355a87663f6887d2ad8d0b7388a55d1013f",
+      "v6": "cd99c355a87663f6887d2ad8d0b7388a55d1013f",
+      "classification": "identical"
+    },
+    {
+      "path": "tests/test_explicit_save_and_updates.py",
+      "candidate": "d0a8a6455a19a33d1c66b515dc4ba8383a243ff4",
+      "creator": "d0a8a6455a19a33d1c66b515dc4ba8383a243ff4",
+      "v18": "d0a8a6455a19a33d1c66b515dc4ba8383a243ff4",
+      "v6": "d0a8a6455a19a33d1c66b515dc4ba8383a243ff4",
+      "classification": "identical"
+    },
+    {
+      "path": "tests/test_finishing_tools_jobs.py",
+      "candidate": "9f30aeb29ab17aa4fae50c2846ce56e09b6434d9",
+      "creator": "9f30aeb29ab17aa4fae50c2846ce56e09b6434d9",
+      "v18": "9f30aeb29ab17aa4fae50c2846ce56e09b6434d9",
+      "v6": "9f30aeb29ab17aa4fae50c2846ce56e09b6434d9",
+      "classification": "identical"
+    },
+    {
+      "path": "tests/test_fluid.py",
+      "candidate": "96bcf0888051e11e7519393f3343fc6ac95821b7",
+      "creator": null,
+      "v18": "96bcf0888051e11e7519393f3343fc6ac95821b7",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "tests/test_frontend_and_native_import.py",
+      "candidate": "fd94f2a8e529761ddee4732f085b3685d1599d9b",
+      "creator": "fd94f2a8e529761ddee4732f085b3685d1599d9b",
+      "v18": "fd94f2a8e529761ddee4732f085b3685d1599d9b",
+      "v6": "fd94f2a8e529761ddee4732f085b3685d1599d9b",
+      "classification": "identical"
+    },
+    {
+      "path": "tests/test_karaoke_gap_timing.py",
+      "candidate": "58454278dc4358e928b6c02c420f871146459e95",
+      "creator": "58454278dc4358e928b6c02c420f871146459e95",
+      "v18": "58454278dc4358e928b6c02c420f871146459e95",
+      "v6": "58454278dc4358e928b6c02c420f871146459e95",
+      "classification": "identical"
+    },
+    {
+      "path": "tests/test_live_diagrams.py",
+      "candidate": "56da1f64acbe9e4c1804a931eae03c38a357d055",
+      "creator": "56da1f64acbe9e4c1804a931eae03c38a357d055",
+      "v18": "56da1f64acbe9e4c1804a931eae03c38a357d055",
+      "v6": "56da1f64acbe9e4c1804a931eae03c38a357d055",
+      "classification": "identical"
+    },
+    {
+      "path": "tests/test_make_api.py",
+      "candidate": "6c32728f8c09e093ae5d2360739dec5dbd650f7f",
+      "creator": "6c32728f8c09e093ae5d2360739dec5dbd650f7f",
+      "v18": "6c32728f8c09e093ae5d2360739dec5dbd650f7f",
+      "v6": "6c32728f8c09e093ae5d2360739dec5dbd650f7f",
+      "classification": "identical"
+    },
+    {
+      "path": "tests/test_make_features_jobs.py",
+      "candidate": "e1f66359e520401436fb5d1365914e1d7705626a",
+      "creator": "e1f66359e520401436fb5d1365914e1d7705626a",
+      "v18": "e1f66359e520401436fb5d1365914e1d7705626a",
+      "v6": "e1f66359e520401436fb5d1365914e1d7705626a",
+      "classification": "identical"
+    },
+    {
+      "path": "tests/test_make_tabs_match_server.py",
+      "candidate": "9bccbed3ec8c9a292c88729b397c361403df18e3",
+      "creator": "9bccbed3ec8c9a292c88729b397c361403df18e3",
+      "v18": "9bccbed3ec8c9a292c88729b397c361403df18e3",
+      "v6": "9bccbed3ec8c9a292c88729b397c361403df18e3",
+      "classification": "identical"
+    },
+    {
+      "path": "tests/test_master_clock.py",
+      "candidate": "e3a837334f20e54e3fc50d523d7de10884963e4c",
+      "creator": null,
+      "v18": "e3a837334f20e54e3fc50d523d7de10884963e4c",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "tests/test_motion_render_and_speed.py",
+      "candidate": "9d3dacc6d3d3c26d02b42b94169bcf3eba0e107e",
+      "creator": "9d3dacc6d3d3c26d02b42b94169bcf3eba0e107e",
+      "v18": "9d3dacc6d3d3c26d02b42b94169bcf3eba0e107e",
+      "v6": "9d3dacc6d3d3c26d02b42b94169bcf3eba0e107e",
+      "classification": "identical"
+    },
+    {
+      "path": "tests/test_music_tools.py",
+      "candidate": "89e04efcd10697217fae0e46c82341f5de127441",
+      "creator": "89e04efcd10697217fae0e46c82341f5de127441",
+      "v18": "89e04efcd10697217fae0e46c82341f5de127441",
+      "v6": "89e04efcd10697217fae0e46c82341f5de127441",
+      "classification": "identical"
+    },
+    {
+      "path": "tests/test_native_bridge_exposure.py",
+      "candidate": "c344e9a4521a801628adf2778d9022045214119f",
+      "creator": "70c1f584af91e62092b265ffbefc83fc1d5aec1d",
+      "v18": "c344e9a4521a801628adf2778d9022045214119f",
+      "v6": "c344e9a4521a801628adf2778d9022045214119f",
+      "classification": "candidate-matches-local-v6"
+    },
+    {
+      "path": "tests/test_new_features_jobs.py",
+      "candidate": "53cce8e902379574cd3948feff4ffa56cc890ff6",
+      "creator": "53cce8e902379574cd3948feff4ffa56cc890ff6",
+      "v18": "53cce8e902379574cd3948feff4ffa56cc890ff6",
+      "v6": "53cce8e902379574cd3948feff4ffa56cc890ff6",
+      "classification": "identical"
+    },
+    {
+      "path": "tests/test_optics.py",
+      "candidate": "a2bd37fb2184d6219804a647615f0f4b8de4ec5a",
+      "creator": null,
+      "v18": null,
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "tests/test_optimization_suite.py",
+      "candidate": "c438010c6bf7d30cef99c5487024c882c2c49197",
+      "creator": "c438010c6bf7d30cef99c5487024c882c2c49197",
+      "v18": "c438010c6bf7d30cef99c5487024c882c2c49197",
+      "v6": "c438010c6bf7d30cef99c5487024c882c2c49197",
+      "classification": "identical"
+    },
+    {
+      "path": "tests/test_project_library.py",
+      "candidate": "0e021945100e7e6e194a2f9bdf57b24bd6adc444",
+      "creator": "0e021945100e7e6e194a2f9bdf57b24bd6adc444",
+      "v18": "0e021945100e7e6e194a2f9bdf57b24bd6adc444",
+      "v6": "0e021945100e7e6e194a2f9bdf57b24bd6adc444",
+      "classification": "identical"
+    },
+    {
+      "path": "tests/test_pyav_probing.py",
+      "candidate": "5f0b1f1eae09fee9d9d2547a65c4e4c3be5f343d",
+      "creator": "5f0b1f1eae09fee9d9d2547a65c4e4c3be5f343d",
+      "v18": "5f0b1f1eae09fee9d9d2547a65c4e4c3be5f343d",
+      "v6": "5f0b1f1eae09fee9d9d2547a65c4e4c3be5f343d",
+      "classification": "identical"
+    },
+    {
+      "path": "tests/test_quick_tools.py",
+      "candidate": "f4646972cb3a004a1fabe40dc7fe15e9147d3922",
+      "creator": "f4646972cb3a004a1fabe40dc7fe15e9147d3922",
+      "v18": "f4646972cb3a004a1fabe40dc7fe15e9147d3922",
+      "v6": "f4646972cb3a004a1fabe40dc7fe15e9147d3922",
+      "classification": "identical"
+    },
+    {
+      "path": "tests/test_quick_tools2.py",
+      "candidate": "236b42171d2e610a783a6f315fecabea197a8632",
+      "creator": "00f1f5f50326c5612987cc1c533e605e6a2f2aed",
+      "v18": "236b42171d2e610a783a6f315fecabea197a8632",
+      "v6": "236b42171d2e610a783a6f315fecabea197a8632",
+      "classification": "candidate-matches-local-v6"
+    },
+    {
+      "path": "tests/test_recovery_modes.py",
+      "candidate": "2fa1b0f8d4cd0cbd6271cc300eaf274f1f08fdb4",
+      "creator": "bccd5c44fbb5bd7508d952f009631786db459da9",
+      "v18": "bccd5c44fbb5bd7508d952f009631786db459da9",
+      "v6": "bccd5c44fbb5bd7508d952f009631786db459da9",
+      "classification": "creator-matches-local-v6"
+    },
+    {
+      "path": "tests/test_release_windows_regressions.py",
+      "candidate": "8d39d7b683e4eb3cd1eef15f6bbde10736eec527",
+      "creator": "8d39d7b683e4eb3cd1eef15f6bbde10736eec527",
+      "v18": "8d39d7b683e4eb3cd1eef15f6bbde10736eec527",
+      "v6": "8d39d7b683e4eb3cd1eef15f6bbde10736eec527",
+      "classification": "identical"
+    },
+    {
+      "path": "tests/test_scene_director.py",
+      "candidate": "7580b4a5f4be1f1dc2d83dc80f309b7911ef1a6d",
+      "creator": "65e4c8d6afca0c2ea8610466990e485b83c6df82",
+      "v18": "7580b4a5f4be1f1dc2d83dc80f309b7911ef1a6d",
+      "v6": "7580b4a5f4be1f1dc2d83dc80f309b7911ef1a6d",
+      "classification": "candidate-matches-local-v6"
+    },
+    {
+      "path": "tests/test_security.py",
+      "candidate": "45eb71c76b119b30799cabe76fe4dfb26f7c9270",
+      "creator": "45eb71c76b119b30799cabe76fe4dfb26f7c9270",
+      "v18": "45eb71c76b119b30799cabe76fe4dfb26f7c9270",
+      "v6": "45eb71c76b119b30799cabe76fe4dfb26f7c9270",
+      "classification": "identical"
+    },
+    {
+      "path": "tests/test_signal_story.py",
+      "candidate": "bebc44c3c0df7d3b266c341bdfc8d2a8e8b97811",
+      "creator": null,
+      "v18": "1b7198de9a7b2913093a572023e4315d0f4797be",
+      "v6": null,
+      "classification": "candidate-only"
+    },
+    {
+      "path": "tests/test_startup_packaging.py",
+      "candidate": "394ddb9924c63b019585e9977c1df1596b1f0413",
+      "creator": "394ddb9924c63b019585e9977c1df1596b1f0413",
+      "v18": "394ddb9924c63b019585e9977c1df1596b1f0413",
+      "v6": "394ddb9924c63b019585e9977c1df1596b1f0413",
+      "classification": "identical"
+    },
+    {
+      "path": "tests/test_storage_and_animations.py",
+      "candidate": "000849d01cce800076e9495028c5cd94f4ef4f02",
+      "creator": "000849d01cce800076e9495028c5cd94f4ef4f02",
+      "v18": "000849d01cce800076e9495028c5cd94f4ef4f02",
+      "v6": "000849d01cce800076e9495028c5cd94f4ef4f02",
+      "classification": "identical"
+    },
+    {
+      "path": "tests/test_storage_atomicity.py",
+      "candidate": "db0f9c839431036ad519f4f874f2d00cfbb3e810",
+      "creator": "db0f9c839431036ad519f4f874f2d00cfbb3e810",
+      "v18": "db0f9c839431036ad519f4f874f2d00cfbb3e810",
+      "v6": "db0f9c839431036ad519f4f874f2d00cfbb3e810",
+      "classification": "identical"
+    },
+    {
+      "path": "tests/test_studio.py",
+      "candidate": "a697d954dd8f554bb458a2680e382399d38867e6",
+      "creator": "a697d954dd8f554bb458a2680e382399d38867e6",
+      "v18": "a697d954dd8f554bb458a2680e382399d38867e6",
+      "v6": "a697d954dd8f554bb458a2680e382399d38867e6",
+      "classification": "identical"
+    },
+    {
+      "path": "tests/test_studio_3d_motion.py",
+      "candidate": "d19d7b16314f40a424e8f511b19bc207a296689e",
+      "creator": "d19d7b16314f40a424e8f511b19bc207a296689e",
+      "v18": "d19d7b16314f40a424e8f511b19bc207a296689e",
+      "v6": "d19d7b16314f40a424e8f511b19bc207a296689e",
+      "classification": "identical"
+    },
+    {
+      "path": "tests/test_studio_audio.py",
+      "candidate": "2dabe115665b1819068e8de4f8a9d6b23a05e399",
+      "creator": "2dabe115665b1819068e8de4f8a9d6b23a05e399",
+      "v18": "2dabe115665b1819068e8de4f8a9d6b23a05e399",
+      "v6": "2dabe115665b1819068e8de4f8a9d6b23a05e399",
+      "classification": "identical"
+    },
+    {
+      "path": "tests/test_studio_beat.py",
+      "candidate": "0b72de771b9ab59bbaf5b33c6b9b1377f627d1e1",
+      "creator": "0b72de771b9ab59bbaf5b33c6b9b1377f627d1e1",
+      "v18": "0b72de771b9ab59bbaf5b33c6b9b1377f627d1e1",
+      "v6": "0b72de771b9ab59bbaf5b33c6b9b1377f627d1e1",
+      "classification": "identical"
+    },
+    {
+      "path": "tests/test_studio_broll.py",
+      "candidate": "3af9130ee9d6a3958aa34f4c640b9e964f831a40",
+      "creator": "3af9130ee9d6a3958aa34f4c640b9e964f831a40",
+      "v18": "3af9130ee9d6a3958aa34f4c640b9e964f831a40",
+      "v6": "3af9130ee9d6a3958aa34f4c640b9e964f831a40",
+      "classification": "identical"
+    },
+    {
+      "path": "tests/test_studio_cli.py",
+      "candidate": "64c18aebb50438498d9116ca81a240894dffe346",
+      "creator": "64c18aebb50438498d9116ca81a240894dffe346",
+      "v18": "64c18aebb50438498d9116ca81a240894dffe346",
+      "v6": "64c18aebb50438498d9116ca81a240894dffe346",
+      "classification": "identical"
+    },
+    {
+      "path": "tests/test_studio_clips.py",
+      "candidate": "7f86a5f1954832777765218638c092977e47048e",
+      "creator": "7f86a5f1954832777765218638c092977e47048e",
+      "v18": "7f86a5f1954832777765218638c092977e47048e",
+      "v6": "7f86a5f1954832777765218638c092977e47048e",
+      "classification": "identical"
+    },
+    {
+      "path": "tests/test_studio_edit.py",
+      "candidate": "70531718a3f43c475f90ff2aeb1f59e8e2c74fbf",
+      "creator": "70531718a3f43c475f90ff2aeb1f59e8e2c74fbf",
+      "v18": "70531718a3f43c475f90ff2aeb1f59e8e2c74fbf",
+      "v6": "70531718a3f43c475f90ff2aeb1f59e8e2c74fbf",
+      "classification": "identical"
+    },
+    {
+      "path": "tests/test_studio_focus.py",
+      "candidate": "eed58179d2f3437e73827ea83b59edf6a2858231",
+      "creator": "eed58179d2f3437e73827ea83b59edf6a2858231",
+      "v18": "eed58179d2f3437e73827ea83b59edf6a2858231",
+      "v6": "eed58179d2f3437e73827ea83b59edf6a2858231",
+      "classification": "identical"
+    },
+    {
+      "path": "tests/test_studio_mv.py",
+      "candidate": "29435896bd65b00e5c5c6902c58219dd3f209a86",
+      "creator": "29435896bd65b00e5c5c6902c58219dd3f209a86",
+      "v18": "29435896bd65b00e5c5c6902c58219dd3f209a86",
+      "v6": "29435896bd65b00e5c5c6902c58219dd3f209a86",
+      "classification": "identical"
+    },
+    {
+      "path": "tests/test_studio_post.py",
+      "candidate": "d77b2845bdc856e68d94c160a59f9c80c819ec9f",
+      "creator": "d77b2845bdc856e68d94c160a59f9c80c819ec9f",
+      "v18": "d77b2845bdc856e68d94c160a59f9c80c819ec9f",
+      "v6": "d77b2845bdc856e68d94c160a59f9c80c819ec9f",
+      "classification": "identical"
+    },
+    {
+      "path": "tests/test_studio_proof.py",
+      "candidate": "0c06c84c3b0fad2b397a80665f7fc08bf0fce071",
+      "creator": "0c06c84c3b0fad2b397a80665f7fc08bf0fce071",
+      "v18": "0c06c84c3b0fad2b397a80665f7fc08bf0fce071",
+      "v6": "0c06c84c3b0fad2b397a80665f7fc08bf0fce071",
+      "classification": "identical"
+    },
+    {
+      "path": "tests/test_studio_tools.py",
+      "candidate": "8033c6981920b6205bd706a4289c94bd35b02589",
+      "creator": "8033c6981920b6205bd706a4289c94bd35b02589",
+      "v18": "8033c6981920b6205bd706a4289c94bd35b02589",
+      "v6": "8033c6981920b6205bd706a4289c94bd35b02589",
+      "classification": "identical"
+    },
+    {
+      "path": "tests/test_studio_viz.py",
+      "candidate": "8b46ec4efde14fc785234c95f224e1df6ec4f88c",
+      "creator": "8b46ec4efde14fc785234c95f224e1df6ec4f88c",
+      "v18": "8b46ec4efde14fc785234c95f224e1df6ec4f88c",
+      "v6": "8b46ec4efde14fc785234c95f224e1df6ec4f88c",
+      "classification": "identical"
+    },
+    {
+      "path": "tests/test_tool_performance_mode.py",
+      "candidate": "7190917af54224df8bcf71d29336e8012bc3f88a",
+      "creator": "75752d60ecd2c593d6b98d405b7d8f14a30653e1",
+      "v18": "7190917af54224df8bcf71d29336e8012bc3f88a",
+      "v6": "7190917af54224df8bcf71d29336e8012bc3f88a",
+      "classification": "candidate-matches-local-v6"
+    },
+    {
+      "path": "tests/test_transcript_cache.py",
+      "candidate": "20c1b924c679bded527ad4cf707cc2b21a32c078",
+      "creator": "20c1b924c679bded527ad4cf707cc2b21a32c078",
+      "v18": "20c1b924c679bded527ad4cf707cc2b21a32c078",
+      "v6": "20c1b924c679bded527ad4cf707cc2b21a32c078",
+      "classification": "identical"
+    },
+    {
+      "path": "tests/test_transcription_performance.py",
+      "candidate": "68355cc27b6458c3b259996ed729baf0cee25fa3",
+      "creator": "68355cc27b6458c3b259996ed729baf0cee25fa3",
+      "v18": "68355cc27b6458c3b259996ed729baf0cee25fa3",
+      "v6": "68355cc27b6458c3b259996ed729baf0cee25fa3",
+      "classification": "identical"
+    },
+    {
+      "path": "tests/test_upgrade_09.py",
+      "candidate": "416964a968c65115e1553be83826e30436ef1b77",
+      "creator": "416964a968c65115e1553be83826e30436ef1b77",
+      "v18": "416964a968c65115e1553be83826e30436ef1b77",
+      "v6": "416964a968c65115e1553be83826e30436ef1b77",
+      "classification": "identical"
+    },
+    {
+      "path": "tests/test_visual_sources.py",
+      "candidate": "30025a50ffa43bab22047744cc0ad243e6796838",
+      "creator": "1d48e4f88d92d2ba6270ab91481237c8d034c118",
+      "v18": "30025a50ffa43bab22047744cc0ad243e6796838",
+      "v6": "30025a50ffa43bab22047744cc0ad243e6796838",
+      "classification": "candidate-matches-local-v6"
+    },
+    {
+      "path": "tests/test_voice_studio.py",
+      "candidate": "6766552b95df7b421071dd15a3ecb8e86271a1b3",
+      "creator": "a83ef8275d5877158b033773f523afa73c77961e",
+      "v18": "6766552b95df7b421071dd15a3ecb8e86271a1b3",
+      "v6": "6766552b95df7b421071dd15a3ecb8e86271a1b3",
+      "classification": "candidate-matches-local-v6"
+    },
+    {
+      "path": "tests/test_walkthrough.py",
+      "candidate": "b80097d8860c3ec182e56178fd3e60e1f76a5228",
+      "creator": "b80097d8860c3ec182e56178fd3e60e1f76a5228",
+      "v18": "b80097d8860c3ec182e56178fd3e60e1f76a5228",
+      "v6": "b80097d8860c3ec182e56178fd3e60e1f76a5228",
+      "classification": "identical"
+    },
+    {
+      "path": "tests/test_waveform_envelope.py",
+      "candidate": "4adca513df4b81463eeefa9d6187e6f9b3aa3992",
+      "creator": "3da41613fc5b6c0628653dcebc12236381db0dd6",
+      "v18": "4adca513df4b81463eeefa9d6187e6f9b3aa3992",
+      "v6": "4adca513df4b81463eeefa9d6187e6f9b3aa3992",
+      "classification": "candidate-matches-local-v6"
+    },
+    {
+      "path": "update_apply.ps1",
+      "candidate": "ddb362ee0d075a6b1efd08d3c51502bf9f269fc2",
+      "creator": "ddb362ee0d075a6b1efd08d3c51502bf9f269fc2",
+      "v18": "ddb362ee0d075a6b1efd08d3c51502bf9f269fc2",
+      "v6": "ddb362ee0d075a6b1efd08d3c51502bf9f269fc2",
+      "classification": "identical"
+    },
+    {
+      "path": ".github/workflows/creator-media-proof.yml",
+      "creator": "8e2f73c418e691b35b994aeccb19631ccb9a7e4e",
+      "candidate": null,
+      "classification": "creator-only"
+    },
+    {
+      "path": "AGENTS.md",
+      "creator": "e50b897f91799dabf2a40e6a67373c9a79c3ac4e",
+      "candidate": null,
+      "classification": "creator-only"
+    },
+    {
+      "path": "docs/CREATOR_INTEGRATION_2026-11-26.md",
+      "creator": "d43ee8de7891b33cd1a8c75f93711997592481ed",
+      "candidate": null,
+      "classification": "creator-only"
+    },
+    {
+      "path": "docs/CREATOR_PRODUCTION_MEMORY_2026-11-26.md",
+      "creator": "3ce92fddd069300542afb5057ee356765aaf582c",
+      "candidate": null,
+      "classification": "creator-only"
+    },
+    {
+      "path": "docs/CREATOR_RELEASE_HARDENING_2026-11-26.md",
+      "creator": "b19648d28cc6074a23c59965f20df89e07c9f94f",
+      "candidate": null,
+      "classification": "creator-only"
+    },
+    {
+      "path": "docs/CREATOR_V5_2026-11-26.md",
+      "creator": "59abb4bac640e2ea43c8c9af4fd41ae718d52fad",
+      "candidate": null,
+      "classification": "creator-only"
+    },
+    {
+      "path": "docs/DIRECTOR_UPDATE_2026-11-26.md",
+      "creator": "35b8731dcce541e098b40cf1e6d645b38ba4571b",
+      "candidate": null,
+      "classification": "creator-only"
+    },
+    {
+      "path": "docs/EDITOR_DEMO_IMPORT.md",
+      "creator": "65e70079a5a41451c1f81241e48b78f77e6b4938",
+      "candidate": null,
+      "classification": "creator-only"
+    },
+    {
+      "path": "docs/LIVE_MOTION_CREATOR_2026-11-26.md",
+      "creator": "7590496f049b3e7a3e8a4f97d0afdea61f1914ea",
+      "candidate": null,
+      "classification": "creator-only"
+    },
+    {
+      "path": "docs/PERFORMANCE_THEME_PASS_2026-11-26.md",
+      "creator": "16ebb16723d3e5e2482f80ec60a126586615e2cb",
+      "candidate": null,
+      "classification": "creator-only"
+    },
+    {
+      "path": "docs/PLUGIN_LISTENING_PROOF_2026-11-26.md",
+      "creator": "9550dd2b420b66edc751a8d9fc1eb966a52bc93f",
+      "candidate": null,
+      "classification": "creator-only"
+    },
+    {
+      "path": "docs/REFERENCE_EDITORIAL_2026-11-26.md",
+      "creator": "3ed258c1fac140b80ceaa8d196c634c9e5c23111",
+      "candidate": null,
+      "classification": "creator-only"
+    },
+    {
+      "path": "docs/RELEASE_AUDIT_2026-11-26.md",
+      "creator": "21b928ddd18d33179b15a1acee5d6607605efce2",
+      "candidate": null,
+      "classification": "creator-only"
+    },
+    {
+      "path": "docs/RENDER_MEMORY_TIMELINE_2026-11-26.md",
+      "creator": "7e2c88f6e8c17cf60ae8f0ae5032fdcc2f6f5535",
+      "candidate": null,
+      "classification": "creator-only"
+    },
+    {
+      "path": "docs/WINDOWS_SINGLE_INSTALLER.md",
+      "creator": "4c1e06566607236b793d6cdaba771f4bd0e940f0",
+      "candidate": null,
+      "classification": "creator-only"
+    },
+    {
+      "path": "studio_audio_proof.py",
+      "creator": "ae18963d40a06a59461e35165cab40a661c7d920",
+      "candidate": null,
+      "classification": "creator-only"
+    },
+    {
+      "path": "studio_process_guard.py",
+      "creator": "8bba80812aaeaf819e99a82e984a7efec3e85ae4",
+      "candidate": null,
+      "classification": "creator-only"
+    },
+    {
+      "path": "studio_shot_motion.py",
+      "creator": "412f535d8e3b775f07564f29245ccc3997296110",
+      "candidate": null,
+      "classification": "creator-only"
+    },
+    {
+      "path": "studio_theme.py",
+      "creator": "0b746a5c90d2da208440e60825a9764087ee8c1d",
+      "candidate": null,
+      "classification": "creator-only"
+    },
+    {
+      "path": "studio_voice_audition.py",
+      "creator": "bc26b19cb9b32519bc832ab63a1e6ef97fa3cb26",
+      "candidate": null,
+      "classification": "creator-only"
+    },
+    {
+      "path": "tests/preview_clock.mjs",
+      "creator": "a0dfa0a24ce3d8f0189c905b281f04d8b09d00aa",
+      "candidate": null,
+      "classification": "creator-only"
+    },
+    {
+      "path": "tests/test_audio_proof.py",
+      "creator": "89ab160511dce73a488ffe5688fa50a8826f1b99",
+      "candidate": null,
+      "classification": "creator-only"
+    },
+    {
+      "path": "tests/test_presenter_intent.py",
+      "creator": "3fc7010ffaf11f8e8c42b16ff3bced7c5302f804",
+      "candidate": null,
+      "classification": "creator-only"
+    },
+    {
+      "path": "tests/test_process_guard.py",
+      "creator": "26704644c9fff6667f0dc4b069a46140f9ed120a",
+      "candidate": null,
+      "classification": "creator-only"
+    },
+    {
+      "path": "tests/test_shot_motion.py",
+      "creator": "aa83f710f36191e96b6adbb2545528964810ee47",
+      "candidate": null,
+      "classification": "creator-only"
+    }
+  ]
+}

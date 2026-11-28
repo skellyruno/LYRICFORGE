@@ -1,0 +1,75 @@
+name: Compact installer / exact verified payload
+on:
+  push:
+    branches: [feature/field-notes-production-20261126]
+    paths:
+      - 'packaging/SkellyMotion.iss'
+      - 'packaging/test-installer.ps1'
+      - 'packaging/payload_integrity.py'
+      - 'packaging/test_payload_integrity.py'
+      - 'packaging/capture-installed-ui.ps1'
+      - '.github/workflows/compact-installer.yml'
+  workflow_dispatch:
+permissions:
+  actions: read
+  contents: read
+concurrency:
+  group: compact-installer-${{ github.ref }}-${{ github.event_name == 'push' && 'push' || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'push' && github.ref == 'refs/heads/feature/field-notes-production-20261126' }}
+jobs:
+  installer:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Verify exact successful canonical build and artifact
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $run = gh api "repos/${{ github.repository }}/actions/runs/46032977554" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or $run.conclusion -ne 'success' -or $run.head_sha -ne '13d8311ad66f39418110db4785170f5846e8cce2') { throw 'Canonical release gate not verified' }
+          $artifact = gh api "repos/${{ github.repository }}/actions/artifacts/15215018868" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or $artifact.expired -or $artifact.digest -ne 'sha256:832c297bce2ff4f836c5de29a6080232299a781390782ec7e977f46755b06f74') { throw 'Unexpected canonical package artifact' }
+      - uses: actions/download-artifact@v4
+        with:
+          name: SkellyMotion-Consolidated-Windows-x64
+          run-id: 46032977554
+          github-token: ${{ github.token }}
+          path: dist/SkellyMotion
+      - name: Test identity guard
+        run: python -m unittest discover -s packaging -p test_payload_integrity.py -v
+      - name: Locate official Inno Setup 6
+        shell: pwsh
+        run: |
+          $compiler = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
+          if (-not (Test-Path -LiteralPath $compiler) -and -not (Get-Command ISCC.exe -ErrorAction SilentlyContinue)) {
+            choco install innosetup --yes --no-progress
+            if ($LASTEXITCODE -ne 0) { throw 'Inno Setup installation failed' }
+          }
+          if (Test-Path -LiteralPath $compiler) {
+            Write-Host (Get-Item $compiler).VersionInfo.FileVersion
+          }
+      - name: Build smaller single-file installer and verify actual installed runtime
+        shell: pwsh
+        run: ./packaging/test-installer.ps1 -VerifyCanonicalPayload -EvidenceDirectory 'installer-evidence'
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: SkellyMotion-Compact-Installer-Evidence
+          path: installer-evidence/
+          retention-days: 14
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@v6
+        if: success()
+        with:
+          name: SkellyMotion-Compact-Windows-Setup
+          path: dist/installer/SkellyMotion-Setup.exe
+          compression-level: 0
+          retention-days: 14
+          if-no-files-found: error

@@ -1,0 +1,7 @@
+# Field Notes 06 final-master recovery
+
+The new helper is deliberately separate from the existing Creator and renderer code. It consumes the actual neural chapter-clock report, five already-rendered video-only H.264 scenes (60 fps, matching encoder configuration, no B frames) and a completed PCM mix with exactly the required duration. It refuses inconsistent inputs and existing output paths. It never time-stretches speech or re-encodes picture, normalizes the H.264 packet clock and checks every output video packet's payload hash plus exact audio/video stream durations. Audio is encoded as 48 kHz AAC. This does not perform music mixing, subjective review or new neural inference.
+
+    python field-notes/v20-staging/tools/finalize_master.py report.json final-mix.wav narrated-master.mp4 scene1.mp4 scene2.mp4 scene3.mp4 scene4.mp4 scene5.mp4
+
+Local FFmpeg 7.1.5: four pytest regressions passed on five synthetic real H.264 clips with unequal lengths (35 total frames; exactly 28,000 48 kHz audio samples). Picture hashes unchanged; wrong scene order, bad chapter clocks, short mix and overwrite rejected. Actual original five scene clips and finished PCM mix were not recovered in the current environment; no new final film claim. Existing genuine neural narration artifact: https://github.com/skellyruno/LYRICFORGE/actions/runs/45948801081/artifacts/15175289212 . No old master or source deleted.

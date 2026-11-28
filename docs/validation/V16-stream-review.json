@@ -1,0 +1,26 @@
+{
+  "programs": [],
+  "stream_groups": [],
+  "streams": [
+    {
+      "codec_name": "h264",
+      "width": 960,
+      "height": 540,
+      "r_frame_rate": "60/1",
+      "duration": "27.288000",
+      "nb_read_frames": "1636"
+    },
+    {
+      "codec_name": "aac",
+      "sample_rate": "48000",
+      "channels": 2,
+      "r_frame_rate": "0/0",
+      "duration": "27.288000",
+      "nb_read_frames": "1280"
+    }
+  ],
+  "format": {
+    "duration": "27.288000"
+  },
+  "audio_summary": "\n\n  Integrated loudness:\n    I:         -19.6 LUFS\n    Threshold: -31.7 LUFS\n\n  Loudness range:\n    LRA:        16.6 LU\n    Threshold: -41.8 LUFS\n    LRA low:   -32.8 LUFS\n    LRA high:  -16.1 LUFS\n\n  True peak:\n    Peak:       -5.0 dBFS\n[out#0/null @ 0x562cbf4772c0] video:0KiB audio:5120KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: unknown\nsize=N/A time=00:00:27.30 bitrate=N/A speed= 215x    \n"
+}

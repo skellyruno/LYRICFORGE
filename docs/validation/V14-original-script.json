@@ -1,0 +1,26 @@
+[
+  {
+    "title": "Chapter 1",
+    "narration": "Every image is a signal. A camera turns light into information, and a digital screen turns that information back into light."
+  },
+  {
+    "title": "Chapter 2",
+    "narration": "A moving picture is really a sequence of images. Each frame can be examined on its own, without guessing what the camera recorded."
+  },
+  {
+    "title": "Chapter 3",
+    "narration": "A digital image is a grid of samples. This original screen capture has a precise width and height, and every pixel has stored color values."
+  },
+  {
+    "title": "Chapter 4",
+    "narration": "Instead of inventing numbers, we can measure the source directly. This report calculates the dimensions, pixel count and red, green and blue values of a single sample."
+  },
+  {
+    "title": "Chapter 5",
+    "narration": "The same image can also become a texture. Here we averaged the colors into a smaller grid and mapped those values onto a curved three-dimensional surface."
+  },
+  {
+    "title": "Chapter 6",
+    "narration": "From a single sample to a moving picture, from a flat image to a world: information becomes something we can see. Skelly Motion."
+  }
+]

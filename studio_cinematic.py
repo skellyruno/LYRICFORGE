@@ -212,3 +212,20 @@ def voice_chain(style):
     if style=='off':return base
     if style=='present':return base+',highpass=f=95,equalizer=f=280:t=q:w=1:g=-2,equalizer=f=3200:t=q:w=1:g=2,lowpass=f=13000,acompressor=threshold=0.09:ratio=2.5:attack=8:release=120,loudnorm=I=-16:TP=-2:LRA=7,aresample=48000'
     return base+',highpass=f=80,lowpass=f=11000,acompressor=threshold=0.10:ratio=2:attack=12:release=120,loudnorm=I=-17:TP=-2:LRA=7,aresample=48000'
+
+
+# Preserve the Creator caption/transition path for existing plans. Explicit
+# documentary marker/auto captions use the exact editorial implementation.
+import studio_editorial_cinematic as _editorial_cinema
+_creator_write_kinetic_ass = write_kinetic_ass
+_creator_voice_chain = voice_chain
+silent_voice = _editorial_cinema.silent_voice
+
+def write_kinetic_ass(plan,width,height,target):
+    if (plan.get('editorial_engine')=='v20' or plan.get('caption_style') in ('marker','auto')
+            or (plan.get('preset')=='doc' and plan.get('caption_track') is not None)):
+        return _editorial_cinema.write_kinetic_ass(plan,width,height,target)
+    return _creator_write_kinetic_ass(plan,width,height,target)
+
+def voice_chain(style, *, silent=False):
+    return _editorial_cinema.voice_chain(style,silent=True) if silent else _creator_voice_chain(style)

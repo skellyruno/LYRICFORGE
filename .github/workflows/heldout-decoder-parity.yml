@@ -1,0 +1,73 @@
+name: Held-out Small Whisper decoder parity
+on:
+  push:
+    branches: [feature/field-notes-production-20261126]
+    paths:
+      - 'packaging/compact-media/compact_aac_metadata.py'
+      - 'packaging/compact-media/test_compact_aac_metadata.py'
+      - 'packaging/compact-media/heldout_decoder_parity.py'
+      - '.github/workflows/heldout-decoder-parity.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: heldout-decoder-${{ github.ref }}-${{ github.event_name == 'push' && 'push' || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'push' && github.ref == 'refs/heads/feature/field-notes-production-20261126' }}
+jobs:
+  heldout:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Verify exact runtime and narration artifact provenance
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $repo="${{ github.repository }}"
+          foreach ($entry in @(@{id=15220591812;sha='12e763d9ff2e50221eb821835dda2875542ca95fdd14b2702b113c23e7003748'},@{id=15175289212;sha='a91297c2b41b0e8fe94067dba90aa0da1d74d01da6af05454fe5227b711580b0'},@{id=15215018868;sha='832c297bce2ff4f836c5de29a6080232299a781390782ec7e977f46755b06f74'})) {
+            $a=gh api "repos/$repo/actions/artifacts/$($entry.id)" | ConvertFrom-Json
+            if ($LASTEXITCODE -ne 0 -or $a.expired -or $a.digest -ne ('sha256:'+$entry.sha)) { throw "Unexpected artifact $($entry.id)" }
+          }
+      - uses: actions/download-artifact@v4
+        with:
+          name: SkellyMotion-Consolidated-Windows-x64
+          run-id: 46032977554
+          github-token: ${{ github.token }}
+          path: original
+      - uses: actions/download-artifact@v4
+        with:
+          name: compact-ffmpeg-runtime-and-source
+          run-id: 46040313923
+          github-token: ${{ github.token }}
+          path: compact-ffmpeg
+      - uses: actions/download-artifact@v4
+        with:
+          name: Field-Notes-06-Kokoro-Michael
+          run-id: 45948801081
+          github-token: ${{ github.token }}
+          path: narration
+      - name: Test strict AAC metadata parsing
+        run: python -m unittest discover -s packaging/compact-media -p test_compact_aac_metadata.py -v
+      - name: Install exact shipped AI package versions
+        run: python -m pip install "faster-whisper==1.2.1" "av==18.1.1" "ctranslate2==4.9.1"
+      - name: Compare full narration and default Small inference
+        shell: pwsh
+        run: |
+          python packaging/compact-media/heldout_decoder_parity.py original/_internal/tools/ffmpeg.exe compact-ffmpeg/ffmpeg.exe compact-ffmpeg/ffprobe.exe narration/take-1.00/narration.wav heldout-evidence
+          if ($LASTEXITCODE -ne 0) { throw 'Held-out parity not established; keep PyAV' }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: heldout-small-decoder-evidence
+          path: |
+            heldout-evidence/*.json
+            heldout-evidence/*.debug.log
+          if-no-files-found: warn
+          retention-days: 14

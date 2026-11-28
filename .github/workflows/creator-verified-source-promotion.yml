@@ -1,0 +1,76 @@
+name: Promote verified consolidated source to draft
+on:
+  push:
+    branches: [feature/field-notes-production-20261126]
+    paths:
+      - 'field-notes/release-promotion/promote_verified.py'
+      - '.github/workflows/creator-verified-source-promotion.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: creator-verified-source-promotion-${{ github.ref }}-${{ github.event_name == 'push' && 'push' || github.run_id }}
+  cancel-in-progress: false
+jobs:
+  promote:
+    if: github.ref == 'refs/heads/feature/field-notes-production-20261126'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Verify exact successful canonical release gates
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          run=46032977554
+          for i in $(seq 1 120); do
+            gh api "repos/$REPO/actions/runs/$run" > run.json
+            test "$(jq -r .head_sha run.json)" = '13d8311ad66f39418110db4785170f5846e8cce2'
+            test "$(jq -r .head_branch run.json)" = 'feature/field-notes-production-20261126'
+            if [ "$(jq -r .status run.json)" = completed ]; then break; fi
+            sleep 15
+          done
+          test "$(jq -r .conclusion run.json)" = success
+          gh api "repos/$REPO/actions/runs/$run/jobs" > jobs.json
+          jq -e '["prepare","integration","windows"] as $required | [.jobs[] | select(.conclusion=="success") | .name] as $ok | ($required - $ok | length)==0' jobs.json
+      - uses: actions/download-artifact@v4
+        with:
+          name: exact-staged-source
+          run-id: 46032977554
+          github-token: ${{ github.token }}
+          path: verified-source
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Stage byte-exact source without deleting history
+        run: |
+          git config core.autocrlf false
+          python field-notes/release-promotion/promote_verified.py . verified-source promotion-report.json
+          git diff --cached --stat
+      - name: Commit exact tested tree only to active draft
+        run: |
+          set -euo pipefail
+          branch='feature/field-notes-production-20261126'
+          git fetch origin "$branch"
+          test "$(git rev-parse FETCH_HEAD)" = "$GITHUB_SHA"
+          git config user.name 'SkellyMotion verified source gate'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Promote exact verified consolidated SkellyMotion application source'
+          git push origin "HEAD:refs/heads/$branch"
+          git rev-parse HEAD > promoted-revision.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: verified-source-promotion-ledger
+          path: |
+            promotion-report.json
+            promoted-revision.txt
+            run.json
+            jobs.json
+          retention-days: 14
+          if-no-files-found: warn

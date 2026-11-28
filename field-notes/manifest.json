@@ -1,0 +1,75 @@
+{
+  "schema": 1,
+  "edition": "Field Notes / Volume 01 / V15",
+  "publication": "candidate; rights and owner approval pending",
+  "archives": {
+    "SkellyMotion-Editorial-V15-Source-Candidate.zip": {
+      "sha256": "2a57ba5b82642136723c4a69ab201d8f596ede4d33f386748d36865196185689",
+      "bytes": 1134219,
+      "members": 220
+    },
+    "SkellyMotion-Field-Notes-Screening-Package.zip": {
+      "sha256": "99202695e47a5b1bd9979a4e877f3a19a00e0b333e5b5a491b7eac65297bc64c",
+      "bytes": 18257149,
+      "members": 7
+    }
+  },
+  "website_members": {
+    "README.txt": {
+      "sha256": "4ed9bbc75e461d361d84317f4549bcb4171e3958e5ded8c9eb86bddd2b98e860",
+      "bytes": 990
+    },
+    "SOUNDFONT-PROVENANCE.txt": {
+      "sha256": "6ef01652619cf29b289a9403cd2ab59550fa3e2c30844c67292eea5421f993e9",
+      "bytes": 2307
+    },
+    "index.html": {
+      "sha256": "398e4e11a4ca8136474f250207bfd8d6a7bebe3ea22f2fb4a0b3a735149558b6",
+      "bytes": 4688
+    },
+    "media/the-anatomy-of-an-image.jpg": {
+      "sha256": "43a56dddd5c418bfe8629f103833313ca3373937a6cc3f470c78f44ef495351e",
+      "bytes": 64344
+    },
+    "media/the-anatomy-of-an-image.mp4": {
+      "sha256": "406db26b88b33e1eb44b0cb6f732211082e2a8ad8635ebeac995dffd3c73fec1",
+      "bytes": 7270337
+    },
+    "media/the-shape-of-sound.jpg": {
+      "sha256": "ffdb32de6915bd0b30017cfadda0a24008aa6e75922c70330db955b1b72b5597",
+      "bytes": 107072
+    },
+    "media/the-shape-of-sound.mp4": {
+      "sha256": "70a0e2ec2b8dd479a59f71f75ba5a2a5b56ddf4036d951f6f67724f22523efbc",
+      "bytes": 11000370
+    }
+  },
+  "films": [
+    {
+      "id": "01",
+      "title": "The Shape of Sound",
+      "path": "media/the-shape-of-sound.mp4",
+      "frames": 2700,
+      "fps": 60,
+      "width": 1280,
+      "height": 720,
+      "audio_channels": 2,
+      "audio_rate": 48000,
+      "lufs": -16.4,
+      "true_peak_dbfs": -3.6
+    },
+    {
+      "id": "02",
+      "title": "The Anatomy of an Image",
+      "path": "media/the-anatomy-of-an-image.mp4",
+      "frames": 3273,
+      "fps": 60,
+      "width": 1280,
+      "height": 720,
+      "audio_channels": 2,
+      "audio_rate": 48000,
+      "lufs": -16.6,
+      "true_peak_dbfs": -3.6
+    }
+  ]
+}

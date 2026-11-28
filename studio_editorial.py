@@ -96,3 +96,6 @@ def technical_frame(kind,t,theme='legacy'):
         txt(70,415,'LEFT',14,colors['muted']);txt(890,415,'RIGHT',14,colors['muted'],'ra')
         txt(480,450,'Illustrated frequency-dependent stereo width',22,colors['accent'],'mm')
     return im
+
+# Missing V20 primitives; preserve Creator evidence_card and technical_frame.
+from studio_editorial_primitives import ACCENT, STOP, emphasis, marker_font, marker_layout, fit_text, artwork

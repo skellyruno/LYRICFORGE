@@ -21,6 +21,7 @@ on:
   push:
     branches:
       - main
+      - feature/field-notes-production-20261126
     paths:
       - 'desktop_launcher.py'
       - 'server.py'
@@ -40,8 +41,8 @@ on:
 permissions:
   contents: write
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || (github.event_name == 'push' && github.ref == 'refs/heads/feature/field-notes-production-20261126' && github.ref) || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/feature/field-notes-production-20261126') }}
 jobs:
   windows:
     runs-on: windows-latest
@@ -61,6 +62,8 @@ jobs:
           node --check static/app.js
           node --check static/autoclip.js
           node --check static/make.js
+          node --check static/quick-create.js
+          node --check static/welcome-preferences.js
           node tests/preview_clock.mjs
           node tests/editor_smoke.mjs
           if ($LASTEXITCODE -ne 0) { throw 'Editor JavaScript smoke test failed' }
@@ -132,6 +135,8 @@ jobs:
           node --check static/app.js
           node --check static/autoclip.js
           node --check static/make.js
+          node --check static/quick-create.js
+          node --check static/welcome-preferences.js
       - name: Test original editor on Windows
         run: python -m pytest tests -q
       - name: Build self-contained Windows folder
@@ -415,7 +420,7 @@ jobs:
         shell: pwsh
         run: ./packaging/test-installer.ps1
       - uses: actions/upload-artifact@v6
-        if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main' || (github.event_name == 'pull_request' && (contains(github.event.pull_request.labels.*.name, 'release-gate') || github.head_ref == 'feature/creator-consolidated-20261126'))
+        if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/field-notes-production-20261126' || (github.event_name == 'pull_request' && (contains(github.event.pull_request.labels.*.name, 'release-gate') || github.head_ref == 'feature/creator-consolidated-20261126'))
         with:
           name: SkellyMotion-Windows-Setup
           path: dist/installer/SkellyMotion-Setup.exe
@@ -434,7 +439,7 @@ jobs:
       # Tagged versions publish their ZIP through GitHub Releases instead.
       # Main/manual builds and explicitly release-gate-labeled PRs keep a portable artifact for seven days.
       - uses: actions/upload-artifact@v6
-        if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main' || (github.event_name == 'pull_request' && (contains(github.event.pull_request.labels.*.name, 'release-gate') || github.head_ref == 'feature/creator-consolidated-20261126'))
+        if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/field-notes-production-20261126' || (github.event_name == 'pull_request' && (contains(github.event.pull_request.labels.*.name, 'release-gate') || github.head_ref == 'feature/creator-consolidated-20261126'))
         with:
           name: SkellyMotion-Windows-x64
           path: dist/SkellyMotion/

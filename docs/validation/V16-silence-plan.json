@@ -1,0 +1,2015 @@
+{
+  "version": 25,
+  "preset": "doc",
+  "fps": 60,
+  "duration": 27.266666666666666,
+  "frames": 1636,
+  "scenes": [
+    {
+      "type": "big_text",
+      "text": "The Architecture of Silence",
+      "start": 0.0,
+      "end": 6.816666666666666,
+      "frames": 409,
+      "captions": [],
+      "camera": "still",
+      "cinematic_finish": true,
+      "brand": "SKELLYMOTION",
+      "chapter": 1,
+      "editorial": "graphic",
+      "editorial_look": "midnight",
+      "graphic": {
+        "kind": "composition",
+        "title": "The Architecture of Silence",
+        "source": "FIELD NOTES / ORIGINAL VISUAL STUDY \u00b7 WAVE ILLUSTRATION",
+        "camera": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            0.5,
+            0.0,
+            0.0,
+            1.015
+          ],
+          [
+            1.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "layers": [
+          {
+            "id": "echo",
+            "type": "rings",
+            "color": "mint",
+            "depth": 1.5,
+            "width": 1.1,
+            "height": 0.75,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.48,
+                0.72,
+                0.2
+              ],
+              [
+                0.42,
+                0.5,
+                0.48,
+                1.05,
+                0.8
+              ],
+              [
+                0.83,
+                0.5,
+                0.48,
+                1.24,
+                0.25
+              ],
+              [
+                1.0,
+                0.5,
+                0.48,
+                1.24,
+                0.0
+              ]
+            ],
+            "harmonics": 0.0
+          },
+          {
+            "id": "surface",
+            "type": "surface",
+            "color": "mint",
+            "depth": 0.8,
+            "width": 1.1,
+            "height": 0.4,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.72,
+                0.92,
+                0.0
+              ],
+              [
+                0.22,
+                0.5,
+                0.69,
+                1.0,
+                1.0
+              ],
+              [
+                0.7,
+                0.5,
+                0.66,
+                1.1,
+                0.8
+              ],
+              [
+                1.0,
+                0.5,
+                0.66,
+                1.05,
+                0.0
+              ]
+            ],
+            "curve": "continuous",
+            "harmonics": 0.0
+          },
+          {
+            "id": "tag",
+            "type": "text",
+            "color": "gold",
+            "depth": 0.0,
+            "width": 0.84,
+            "height": 0.065,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.125,
+                1.0,
+                0.0
+              ],
+              [
+                0.0001,
+                0.5,
+                0.125,
+                1.0,
+                0.0
+              ],
+              [
+                0.14,
+                0.5,
+                0.1,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.1,
+                1.0,
+                1.0
+              ]
+            ],
+            "text": "FIELD NOTES   /   03",
+            "size": 0.034,
+            "face": "mono",
+            "align": "center"
+          },
+          {
+            "id": "opening",
+            "type": "text",
+            "color": "white",
+            "depth": 0.0,
+            "width": 0.82,
+            "height": 0.29,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.405,
+                1.0,
+                0.0
+              ],
+              [
+                0.02,
+                0.5,
+                0.405,
+                1.0,
+                0.0
+              ],
+              [
+                0.19,
+                0.5,
+                0.38,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.38,
+                1.0,
+                1.0
+              ]
+            ],
+            "curve": "continuous",
+            "text": "The Architecture of Silence",
+            "size": 0.104,
+            "face": "serif",
+            "align": "center"
+          },
+          {
+            "id": "subtitle",
+            "type": "text",
+            "color": "white",
+            "depth": 0.0,
+            "width": 0.82,
+            "height": 0.1,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.8,
+                1.0,
+                0.0
+              ],
+              [
+                0.44,
+                0.5,
+                0.8,
+                1.0,
+                0.0
+              ],
+              [
+                0.64,
+                0.5,
+                0.8,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.8,
+                1.0,
+                1.0
+              ]
+            ],
+            "curve": "continuous",
+            "text": "What happens when sound disappears?",
+            "size": 0.049,
+            "face": "serif",
+            "align": "center"
+          }
+        ]
+      }
+    },
+    {
+      "type": "big_text",
+      "text": "Sound fades",
+      "start": 6.816666666666666,
+      "end": 13.633333333333333,
+      "frames": 409,
+      "captions": [],
+      "camera": "still",
+      "cinematic_finish": true,
+      "brand": "SKELLYMOTION",
+      "chapter": 2,
+      "editorial": "graphic",
+      "editorial_look": "midnight",
+      "graphic": {
+        "kind": "composition",
+        "title": "Sound fades",
+        "source": "FLOATING-POINT 440 HZ EXAMPLE \u00b7 50 MS RMS WINDOWS \u00b7 NOT A ROOM MEASUREMENT",
+        "camera": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            0.5,
+            0.0,
+            0.0,
+            1.015
+          ],
+          [
+            1.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "layers": [
+          {
+            "id": "tag",
+            "type": "text",
+            "color": "gold",
+            "depth": 0.0,
+            "width": 0.84,
+            "height": 0.065,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.125,
+                1.0,
+                0.0
+              ],
+              [
+                0.0001,
+                0.5,
+                0.125,
+                1.0,
+                0.0
+              ],
+              [
+                0.14,
+                0.5,
+                0.1,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.1,
+                1.0,
+                1.0
+              ]
+            ],
+            "text": "01  /  DECAY",
+            "size": 0.034,
+            "face": "mono",
+            "align": "center"
+          },
+          {
+            "id": "heading",
+            "type": "text",
+            "color": "white",
+            "depth": 0.0,
+            "width": 0.82,
+            "height": 0.13,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.225,
+                1.0,
+                0.0
+              ],
+              [
+                0.01,
+                0.5,
+                0.225,
+                1.0,
+                0.0
+              ],
+              [
+                0.16,
+                0.5,
+                0.2,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.2,
+                1.0,
+                1.0
+              ]
+            ],
+            "curve": "continuous",
+            "text": "Sound does not always stop at once.",
+            "size": 0.062,
+            "face": "serif",
+            "align": "center"
+          },
+          {
+            "id": "trace",
+            "type": "decay_trace",
+            "color": "gold",
+            "depth": 0.0,
+            "width": 0.86,
+            "height": 0.47,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.545,
+                1.0,
+                0.0
+              ],
+              [
+                0.02,
+                0.5,
+                0.545,
+                1.0,
+                0.0
+              ],
+              [
+                0.2,
+                0.5,
+                0.52,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.52,
+                1.0,
+                1.0
+              ]
+            ],
+            "points": [
+              [
+                0.025,
+                0.0
+              ],
+              [
+                0.075,
+                -3.0
+              ],
+              [
+                0.125,
+                -6.0
+              ],
+              [
+                0.175,
+                -9.0
+              ],
+              [
+                0.225,
+                -12.0
+              ],
+              [
+                0.275,
+                -15.0
+              ],
+              [
+                0.325,
+                -18.0
+              ],
+              [
+                0.375,
+                -21.0
+              ],
+              [
+                0.425,
+                -24.0
+              ],
+              [
+                0.475,
+                -27.0
+              ],
+              [
+                0.525,
+                -30.0
+              ],
+              [
+                0.575,
+                -33.0
+              ],
+              [
+                0.625,
+                -36.0
+              ],
+              [
+                0.675,
+                -39.0
+              ],
+              [
+                0.725,
+                -42.0
+              ],
+              [
+                0.775,
+                -45.0
+              ],
+              [
+                0.825,
+                -48.0
+              ],
+              [
+                0.875,
+                -51.0
+              ],
+              [
+                0.925,
+                -54.0
+              ],
+              [
+                0.975,
+                -57.0
+              ],
+              [
+                1.025,
+                -60.0
+              ],
+              [
+                1.075,
+                -63.0
+              ],
+              [
+                1.125,
+                -66.0
+              ],
+              [
+                1.175,
+                -69.0
+              ],
+              [
+                1.225,
+                -72.0
+              ],
+              [
+                1.275,
+                -75.0
+              ],
+              [
+                1.325,
+                -78.0
+              ],
+              [
+                1.375,
+                -81.0
+              ],
+              [
+                1.425,
+                -84.0
+              ],
+              [
+                1.475,
+                -87.0
+              ],
+              [
+                1.525,
+                -90.0
+              ],
+              [
+                1.575,
+                -93.0
+              ],
+              [
+                1.625,
+                -96.0
+              ],
+              [
+                1.675,
+                -99.0
+              ],
+              [
+                1.725,
+                -102.0
+              ],
+              [
+                1.775,
+                -105.0
+              ],
+              [
+                1.825,
+                -108.0
+              ],
+              [
+                1.875,
+                -111.0
+              ],
+              [
+                1.925,
+                -114.0
+              ],
+              [
+                1.975,
+                -117.0
+              ]
+            ],
+            "trace_delay": 1.8,
+            "trace_seconds": 2.0
+          },
+          {
+            "id": "proof",
+            "type": "text",
+            "color": "white",
+            "depth": 0.0,
+            "width": 0.82,
+            "height": 0.1,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.84,
+                1.0,
+                0.0
+              ],
+              [
+                0.1,
+                0.5,
+                0.84,
+                1.0,
+                0.0
+              ],
+              [
+                0.25,
+                0.5,
+                0.84,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.84,
+                1.0,
+                1.0
+              ]
+            ],
+            "curve": "continuous",
+            "text": "A tone with a designed 60 dB/s decay.",
+            "size": 0.043,
+            "face": "serif",
+            "align": "center"
+          }
+        ]
+      },
+      "editorial_bridge_scene": {
+        "start": 0.0,
+        "end": 6.816666666666666,
+        "graphic": {
+          "kind": "composition",
+          "title": "The Architecture of Silence",
+          "source": "FIELD NOTES / ORIGINAL VISUAL STUDY \u00b7 WAVE ILLUSTRATION",
+          "camera": [
+            [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ],
+            [
+              0.5,
+              0.0,
+              0.0,
+              1.015
+            ],
+            [
+              1.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "layers": [
+            {
+              "id": "echo",
+              "type": "rings",
+              "color": "mint",
+              "depth": 1.5,
+              "width": 1.1,
+              "height": 0.75,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.48,
+                  0.72,
+                  0.2
+                ],
+                [
+                  0.42,
+                  0.5,
+                  0.48,
+                  1.05,
+                  0.8
+                ],
+                [
+                  0.83,
+                  0.5,
+                  0.48,
+                  1.24,
+                  0.25
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.48,
+                  1.24,
+                  0.0
+                ]
+              ],
+              "harmonics": 0.0
+            },
+            {
+              "id": "surface",
+              "type": "surface",
+              "color": "mint",
+              "depth": 0.8,
+              "width": 1.1,
+              "height": 0.4,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.72,
+                  0.92,
+                  0.0
+                ],
+                [
+                  0.22,
+                  0.5,
+                  0.69,
+                  1.0,
+                  1.0
+                ],
+                [
+                  0.7,
+                  0.5,
+                  0.66,
+                  1.1,
+                  0.8
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.66,
+                  1.05,
+                  0.0
+                ]
+              ],
+              "curve": "continuous",
+              "harmonics": 0.0
+            },
+            {
+              "id": "tag",
+              "type": "text",
+              "color": "gold",
+              "depth": 0.0,
+              "width": 0.84,
+              "height": 0.065,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.125,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.0001,
+                  0.5,
+                  0.125,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.14,
+                  0.5,
+                  0.1,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.1,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "text": "FIELD NOTES   /   03",
+              "size": 0.034,
+              "face": "mono",
+              "align": "center"
+            },
+            {
+              "id": "opening",
+              "type": "text",
+              "color": "white",
+              "depth": 0.0,
+              "width": 0.82,
+              "height": 0.29,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.405,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.02,
+                  0.5,
+                  0.405,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.19,
+                  0.5,
+                  0.38,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.38,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "curve": "continuous",
+              "text": "The Architecture of Silence",
+              "size": 0.104,
+              "face": "serif",
+              "align": "center"
+            },
+            {
+              "id": "subtitle",
+              "type": "text",
+              "color": "white",
+              "depth": 0.0,
+              "width": 0.82,
+              "height": 0.1,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.8,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.44,
+                  0.5,
+                  0.8,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.64,
+                  0.5,
+                  0.8,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.8,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "curve": "continuous",
+              "text": "What happens when sound disappears?",
+              "size": 0.049,
+              "face": "serif",
+              "align": "center"
+            }
+          ]
+        },
+        "editorial": "graphic",
+        "editorial_look": "midnight",
+        "text": "The Architecture of Silence",
+        "chapter": 1
+      },
+      "editorial_bridge_seconds": 0.9
+    },
+    {
+      "type": "big_text",
+      "text": "A moment of quiet",
+      "start": 13.633333333333333,
+      "end": 20.45,
+      "frames": 409,
+      "captions": [],
+      "camera": "still",
+      "cinematic_finish": true,
+      "brand": "SKELLYMOTION",
+      "chapter": 3,
+      "editorial": "graphic",
+      "editorial_look": "midnight",
+      "graphic": {
+        "kind": "composition",
+        "title": "A moment of quiet",
+        "source": "ILLUSTRATION  /  ZERO PCM SAMPLES  \u00b7  A DELIBERATE REST IN THE SCORE",
+        "camera": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            0.5,
+            0.0,
+            0.0,
+            1.015
+          ],
+          [
+            1.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "layers": [
+          {
+            "id": "tag",
+            "type": "text",
+            "color": "gold",
+            "depth": 0.0,
+            "width": 0.84,
+            "height": 0.065,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.125,
+                1.0,
+                0.0
+              ],
+              [
+                0.0001,
+                0.5,
+                0.125,
+                1.0,
+                0.0
+              ],
+              [
+                0.14,
+                0.5,
+                0.1,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.1,
+                1.0,
+                1.0
+              ]
+            ],
+            "text": "02  /  SILENCE",
+            "size": 0.034,
+            "face": "mono",
+            "align": "center"
+          },
+          {
+            "id": "quiet",
+            "type": "line",
+            "color": "mint",
+            "depth": 0.0,
+            "width": 0.75,
+            "height": 0.025,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.49,
+                0.88,
+                0.5
+              ],
+              [
+                0.25,
+                0.5,
+                0.49,
+                1.0,
+                1.0
+              ],
+              [
+                0.66,
+                0.5,
+                0.49,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.49,
+                1.0,
+                0.4
+              ]
+            ],
+            "curve": "continuous"
+          },
+          {
+            "id": "quiet-label",
+            "type": "text",
+            "color": "white",
+            "depth": 0.0,
+            "width": 0.82,
+            "height": 0.18,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.35500000000000004,
+                1.0,
+                0.0
+              ],
+              [
+                0.0001,
+                0.5,
+                0.35500000000000004,
+                1.0,
+                0.0
+              ],
+              [
+                0.17,
+                0.5,
+                0.33,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.33,
+                1.0,
+                1.0
+              ]
+            ],
+            "curve": "continuous",
+            "text": "Digital silence.",
+            "size": 0.085,
+            "face": "serif",
+            "align": "center"
+          },
+          {
+            "id": "zero",
+            "type": "text",
+            "color": "white",
+            "depth": 0.0,
+            "width": 0.82,
+            "height": 0.14,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.69,
+                1.0,
+                0.0
+              ],
+              [
+                0.16,
+                0.5,
+                0.69,
+                1.0,
+                0.0
+              ],
+              [
+                0.32,
+                0.5,
+                0.69,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.69,
+                1.0,
+                1.0
+              ]
+            ],
+            "curve": "continuous",
+            "text": "In digital silence, every PCM sample is zero.",
+            "size": 0.055,
+            "face": "serif",
+            "align": "center"
+          },
+          {
+            "id": "zero-code",
+            "type": "text",
+            "color": "muted",
+            "depth": 0.0,
+            "width": 0.62,
+            "height": 0.07,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.79,
+                1.0,
+                0.0
+              ],
+              [
+                0.34,
+                0.5,
+                0.79,
+                1.0,
+                0.0
+              ],
+              [
+                0.5,
+                0.5,
+                0.79,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.79,
+                1.0,
+                1.0
+              ]
+            ],
+            "text": "0   0   0   0   0   0   0",
+            "size": 0.033,
+            "face": "mono",
+            "align": "center"
+          }
+        ]
+      },
+      "editorial_bridge_scene": {
+        "start": 6.816666666666666,
+        "end": 13.633333333333333,
+        "graphic": {
+          "kind": "composition",
+          "title": "Sound fades",
+          "source": "FLOATING-POINT 440 HZ EXAMPLE \u00b7 50 MS RMS WINDOWS \u00b7 NOT A ROOM MEASUREMENT",
+          "camera": [
+            [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ],
+            [
+              0.5,
+              0.0,
+              0.0,
+              1.015
+            ],
+            [
+              1.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "layers": [
+            {
+              "id": "tag",
+              "type": "text",
+              "color": "gold",
+              "depth": 0.0,
+              "width": 0.84,
+              "height": 0.065,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.125,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.0001,
+                  0.5,
+                  0.125,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.14,
+                  0.5,
+                  0.1,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.1,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "text": "01  /  DECAY",
+              "size": 0.034,
+              "face": "mono",
+              "align": "center"
+            },
+            {
+              "id": "heading",
+              "type": "text",
+              "color": "white",
+              "depth": 0.0,
+              "width": 0.82,
+              "height": 0.13,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.225,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.01,
+                  0.5,
+                  0.225,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.16,
+                  0.5,
+                  0.2,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.2,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "curve": "continuous",
+              "text": "Sound does not always stop at once.",
+              "size": 0.062,
+              "face": "serif",
+              "align": "center"
+            },
+            {
+              "id": "trace",
+              "type": "decay_trace",
+              "color": "gold",
+              "depth": 0.0,
+              "width": 0.86,
+              "height": 0.47,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.545,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.02,
+                  0.5,
+                  0.545,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.2,
+                  0.5,
+                  0.52,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.52,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "points": [
+                [
+                  0.025,
+                  0.0
+                ],
+                [
+                  0.075,
+                  -3.0
+                ],
+                [
+                  0.125,
+                  -6.0
+                ],
+                [
+                  0.175,
+                  -9.0
+                ],
+                [
+                  0.225,
+                  -12.0
+                ],
+                [
+                  0.275,
+                  -15.0
+                ],
+                [
+                  0.325,
+                  -18.0
+                ],
+                [
+                  0.375,
+                  -21.0
+                ],
+                [
+                  0.425,
+                  -24.0
+                ],
+                [
+                  0.475,
+                  -27.0
+                ],
+                [
+                  0.525,
+                  -30.0
+                ],
+                [
+                  0.575,
+                  -33.0
+                ],
+                [
+                  0.625,
+                  -36.0
+                ],
+                [
+                  0.675,
+                  -39.0
+                ],
+                [
+                  0.725,
+                  -42.0
+                ],
+                [
+                  0.775,
+                  -45.0
+                ],
+                [
+                  0.825,
+                  -48.0
+                ],
+                [
+                  0.875,
+                  -51.0
+                ],
+                [
+                  0.925,
+                  -54.0
+                ],
+                [
+                  0.975,
+                  -57.0
+                ],
+                [
+                  1.025,
+                  -60.0
+                ],
+                [
+                  1.075,
+                  -63.0
+                ],
+                [
+                  1.125,
+                  -66.0
+                ],
+                [
+                  1.175,
+                  -69.0
+                ],
+                [
+                  1.225,
+                  -72.0
+                ],
+                [
+                  1.275,
+                  -75.0
+                ],
+                [
+                  1.325,
+                  -78.0
+                ],
+                [
+                  1.375,
+                  -81.0
+                ],
+                [
+                  1.425,
+                  -84.0
+                ],
+                [
+                  1.475,
+                  -87.0
+                ],
+                [
+                  1.525,
+                  -90.0
+                ],
+                [
+                  1.575,
+                  -93.0
+                ],
+                [
+                  1.625,
+                  -96.0
+                ],
+                [
+                  1.675,
+                  -99.0
+                ],
+                [
+                  1.725,
+                  -102.0
+                ],
+                [
+                  1.775,
+                  -105.0
+                ],
+                [
+                  1.825,
+                  -108.0
+                ],
+                [
+                  1.875,
+                  -111.0
+                ],
+                [
+                  1.925,
+                  -114.0
+                ],
+                [
+                  1.975,
+                  -117.0
+                ]
+              ],
+              "trace_delay": 1.8,
+              "trace_seconds": 2.0
+            },
+            {
+              "id": "proof",
+              "type": "text",
+              "color": "white",
+              "depth": 0.0,
+              "width": 0.82,
+              "height": 0.1,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.84,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.1,
+                  0.5,
+                  0.84,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.25,
+                  0.5,
+                  0.84,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.84,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "curve": "continuous",
+              "text": "A tone with a designed 60 dB/s decay.",
+              "size": 0.043,
+              "face": "serif",
+              "align": "center"
+            }
+          ]
+        },
+        "editorial": "graphic",
+        "editorial_look": "midnight",
+        "text": "Sound fades",
+        "chapter": 2
+      },
+      "editorial_bridge_seconds": 0.9
+    },
+    {
+      "type": "big_text",
+      "text": "Contrast gives sound meaning",
+      "start": 20.45,
+      "end": 27.266666666666666,
+      "frames": 409,
+      "captions": [],
+      "camera": "still",
+      "cinematic_finish": true,
+      "brand": "SKELLYMOTION",
+      "chapter": 4,
+      "editorial": "graphic",
+      "editorial_look": "midnight",
+      "graphic": {
+        "kind": "composition",
+        "title": "Contrast gives sound meaning",
+        "source": "FIELD NOTES  /  ORIGINAL MOTION STUDY",
+        "camera": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            0.5,
+            0.0,
+            0.0,
+            1.015
+          ],
+          [
+            1.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "layers": [
+          {
+            "id": "quiet",
+            "type": "line",
+            "color": "mint",
+            "depth": 0.0,
+            "width": 0.75,
+            "height": 0.025,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.49,
+                1.0,
+                0.4
+              ],
+              [
+                0.25,
+                0.5,
+                0.49,
+                1.0,
+                0.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.49,
+                1.0,
+                0.0
+              ]
+            ]
+          },
+          {
+            "id": "surface",
+            "type": "surface",
+            "color": "mint",
+            "depth": 0.8,
+            "width": 0.96,
+            "height": 0.46,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.69,
+                0.94,
+                0.0
+              ],
+              [
+                0.31,
+                0.5,
+                0.65,
+                1.0,
+                1.0
+              ],
+              [
+                0.68,
+                0.5,
+                0.64,
+                1.08,
+                0.7
+              ],
+              [
+                1.0,
+                0.5,
+                0.64,
+                1.08,
+                0.25
+              ]
+            ],
+            "curve": "continuous",
+            "harmonics": 0.0
+          },
+          {
+            "id": "tag",
+            "type": "text",
+            "color": "gold",
+            "depth": 0.0,
+            "width": 0.84,
+            "height": 0.065,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.125,
+                1.0,
+                0.0
+              ],
+              [
+                0.0001,
+                0.5,
+                0.125,
+                1.0,
+                0.0
+              ],
+              [
+                0.14,
+                0.5,
+                0.1,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.1,
+                1.0,
+                1.0
+              ]
+            ],
+            "text": "03  /  CONTRAST",
+            "size": 0.034,
+            "face": "mono",
+            "align": "center"
+          },
+          {
+            "id": "final",
+            "type": "text",
+            "color": "white",
+            "depth": 0.0,
+            "width": 0.82,
+            "height": 0.24,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.385,
+                1.0,
+                0.0
+              ],
+              [
+                0.08,
+                0.5,
+                0.385,
+                1.0,
+                0.0
+              ],
+              [
+                0.31,
+                0.5,
+                0.36,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.36,
+                1.0,
+                1.0
+              ]
+            ],
+            "curve": "continuous",
+            "text": "Silence gives sound its shape.",
+            "size": 0.08,
+            "face": "serif",
+            "align": "center"
+          },
+          {
+            "id": "credit",
+            "type": "text",
+            "color": "gold",
+            "depth": 0.0,
+            "width": 0.76,
+            "height": 0.07,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.83,
+                1.0,
+                0.0
+              ],
+              [
+                0.56,
+                0.5,
+                0.83,
+                1.0,
+                0.0
+              ],
+              [
+                0.78,
+                0.5,
+                0.83,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.83,
+                1.0,
+                1.0
+              ]
+            ],
+            "text": "SKELLYMOTION   /   FIELD NOTES",
+            "size": 0.033,
+            "face": "mono",
+            "align": "center"
+          }
+        ]
+      },
+      "editorial_bridge_scene": {
+        "start": 13.633333333333333,
+        "end": 20.45,
+        "graphic": {
+          "kind": "composition",
+          "title": "A moment of quiet",
+          "source": "ILLUSTRATION  /  ZERO PCM SAMPLES  \u00b7  A DELIBERATE REST IN THE SCORE",
+          "camera": [
+            [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ],
+            [
+              0.5,
+              0.0,
+              0.0,
+              1.015
+            ],
+            [
+              1.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "layers": [
+            {
+              "id": "tag",
+              "type": "text",
+              "color": "gold",
+              "depth": 0.0,
+              "width": 0.84,
+              "height": 0.065,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.125,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.0001,
+                  0.5,
+                  0.125,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.14,
+                  0.5,
+                  0.1,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.1,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "text": "02  /  SILENCE",
+              "size": 0.034,
+              "face": "mono",
+              "align": "center"
+            },
+            {
+              "id": "quiet",
+              "type": "line",
+              "color": "mint",
+              "depth": 0.0,
+              "width": 0.75,
+              "height": 0.025,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.49,
+                  0.88,
+                  0.5
+                ],
+                [
+                  0.25,
+                  0.5,
+                  0.49,
+                  1.0,
+                  1.0
+                ],
+                [
+                  0.66,
+                  0.5,
+                  0.49,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.49,
+                  1.0,
+                  0.4
+                ]
+              ],
+              "curve": "continuous"
+            },
+            {
+              "id": "quiet-label",
+              "type": "text",
+              "color": "white",
+              "depth": 0.0,
+              "width": 0.82,
+              "height": 0.18,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.35500000000000004,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.0001,
+                  0.5,
+                  0.35500000000000004,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.17,
+                  0.5,
+                  0.33,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.33,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "curve": "continuous",
+              "text": "Digital silence.",
+              "size": 0.085,
+              "face": "serif",
+              "align": "center"
+            },
+            {
+              "id": "zero",
+              "type": "text",
+              "color": "white",
+              "depth": 0.0,
+              "width": 0.82,
+              "height": 0.14,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.69,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.16,
+                  0.5,
+                  0.69,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.32,
+                  0.5,
+                  0.69,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.69,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "curve": "continuous",
+              "text": "In digital silence, every PCM sample is zero.",
+              "size": 0.055,
+              "face": "serif",
+              "align": "center"
+            },
+            {
+              "id": "zero-code",
+              "type": "text",
+              "color": "muted",
+              "depth": 0.0,
+              "width": 0.62,
+              "height": 0.07,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.79,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.34,
+                  0.5,
+                  0.79,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.5,
+                  0.5,
+                  0.79,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.79,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "text": "0   0   0   0   0   0   0",
+              "size": 0.033,
+              "face": "mono",
+              "align": "center"
+            }
+          ]
+        },
+        "editorial": "graphic",
+        "editorial_look": "midnight",
+        "text": "A moment of quiet",
+        "chapter": 3
+      },
+      "editorial_bridge_seconds": 0.9
+    }
+  ],
+  "director": "local",
+  "audio_start": 0.0,
+  "silent": false,
+  "cinematic_finish": true,
+  "caption_style": "off",
+  "caption_track": [],
+  "crossfades": false,
+  "sound_design": true,
+  "music_gain": 1.75,
+  "cue_gain": 0.0,
+  "voice_style": "off",
+  "score_arc": "cinematic",
+  "auto_repair_layout": true,
+  "score_rests": [
+    [
+      8.016666666666667,
+      15.633333333333333,
+      0.65
+    ]
+  ],
+  "layout_repair": {
+    "before": 0,
+    "after": 0,
+    "corrections": [],
+    "basis": "Bounded sampled glyph review; does not guarantee all-frame or artistic quality."
+  },
+  "score_bpm": 88,
+  "beat_locked_cuts": [
+    {
+      "frame": 409,
+      "beat": 10,
+      "shift_frames": 0
+    },
+    {
+      "frame": 818,
+      "beat": 20,
+      "shift_frames": 0
+    },
+    {
+      "frame": 1227,
+      "beat": 30,
+      "shift_frames": 0
+    }
+  ]
+}

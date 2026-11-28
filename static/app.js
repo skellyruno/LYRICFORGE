@@ -1049,7 +1049,13 @@ async function quitStudio(){
  }catch(e){toast('Could not close: '+e.message,true);}
  finally{closeBusy=false;if(!approved){try{await bridge?.cancel_close?.();}catch{}}}
 }
+function showHome(){
+ state.playing=false;audio.pause();
+ $('returnActiveBtn').classList.toggle('hidden',!(state.id||state.demo));
+ $('welcome').classList.remove('hidden');$('welcome').scrollTop=0;
+}
 function resetWorkspace(){
+ $('returnActiveBtn').classList.add('hidden');
  clearTimeout(state.pendingSave);
  state.playing=false;audio.pause();state.id=null;state.persisted=false;state.dirty=false;
  state.demo=false;state.lines=[];resetEditHistory();state.waveform=[];state.duration=0;
@@ -1455,6 +1461,8 @@ function wireUI(){
   if(!state.id){loadDemo();return;}
   mayLeaveProject().then(ok=>{if(ok){resetWorkspace();loadDemo();}});
  });
+ $('homeBtn').addEventListener('click',showHome);
+ $('returnActiveBtn').addEventListener('click',()=>{$('welcome').classList.add('hidden');resizePreview();renderTimeline();});
  $('openProjectsWelcome').addEventListener('click',()=>{$('welcome').classList.add('hidden');panel('library');});
  $('openCreatorWelcome').addEventListener('click',()=>{$('welcome').classList.add('hidden');panel('auto');const creator=$('creatorProduct');creator.closest('details').open=true;creator.scrollIntoView({block:'center'});creator.focus({preventScroll:true});});
  $('resumeLastBtn').addEventListener('click',()=>restore(true));
@@ -1545,7 +1553,7 @@ let lastSession=null;
 try{lastSession=localStorage.getItem('lyricforge-last')}catch{}
 // Small, read-mostly surface used by static/autoclip.js (Autopilot, Shorts, Clip Studio).
 window.SkellyBridge={
- state:()=>state,toast,api,panel,audio:()=>audio,openSavedProject,
+ state:()=>state,toast,api,panel,audio:()=>audio,openSavedProject,home:showHome,
  async reloadProject(id){const project=await api('/api/projects/'+id);loadProjectData(project);$('reviewOverlay').classList.add('hidden');$('welcome').classList.add('hidden');renderTitle();renderLines();renderTimeline();loadWaveform();}
 };
 $('resumeLastBtn').classList.toggle('hidden',!lastSession);

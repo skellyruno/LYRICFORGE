@@ -1,0 +1,11 @@
+Meet SkellyTune Mini. A compact vocal tuning plugin for your DAW. This is a conceptual demonstration.
+
+Pitch correction estimates the vocal note, chooses an allowed target, and corrects toward that target.
+
+Retune speed controls the response. Slower correction can preserve more of the original pitch movement.
+
+Zero milliseconds retune removes correction smoothing. That does not mean zero plugin latency.
+
+Choose a key and scale, or enable and disable individual notes using the interactive piano.
+
+Compare your settings on actual vocal performances. Listen for musical expression and note transitions.

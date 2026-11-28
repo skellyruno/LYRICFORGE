@@ -8,6 +8,7 @@ from pathlib import Path
 import numpy as np
 import studio_performance as perf
 import studio_voice as vs
+from studio_editorial_motion import validate_graphic
 
 MAX_CHAPTERS=120
 MAX_SCRIPT_WORDS=3300
@@ -70,6 +71,24 @@ def draft_script(product, brief, facts, target_seconds=90, story="tutorial", pro
     estimate=round(sum(len(r['narration'].split()) for r in result)/2.35+len(result)*.18,1)
     return {'product':product,'brief':brief,'chapters':result,'target_seconds':target_seconds,'estimated_seconds':estimate,'origin':'local fact-based draft','story':story,'warnings':(['Not enough confirmed material for the requested length. Add facts or have an agent supply a longer approved script.'] if estimate<target_seconds*.75 else [])}
 
+def chapters_from_text(text):
+    """Preserve supplied words; split prose into bounded scene-sized chapters."""
+    if not isinstance(text,str) or not text.strip() or len(text)>60000:raise ValueError('Supply a written script of up to 60,000 characters')
+    rows=[]
+    for paragraph in re.split(r'\n\s*\n|\n',text.strip()):
+        if not paragraph.strip():continue
+        sentences=re.split(r'(?<=[.!?])\s+',paragraph.strip());group=[]
+        for sentence in sentences:
+            for word in sentence.split():
+                if len(word)>1200:raise ValueError('A script token exceeds 1200 characters')
+                if group and (len(group)>=65 or len(' '.join(group))+1+len(word)>1200):
+                    rows.append(' '.join(group));group=[]
+                group.append(word)
+            if len(group)>=30:rows.append(' '.join(group));group=[]
+        if group:rows.append(' '.join(group))
+    return validate_script([{'title':' '.join(x.split()[:5]),'narration':x,'visual_hint':x[:200]} for x in rows])
+
+
 def validate_script(chapters,production_mode='plugin'):
     if production_mode not in PRODUCTION_MODES:raise ValueError('Unknown production mode')
     if not isinstance(chapters,list) or not 1<=len(chapters)<=MAX_CHAPTERS: raise ValueError('Script needs 1–120 chapters')
@@ -83,6 +102,7 @@ def validate_script(chapters,production_mode='plugin'):
         entry={'title':title,'narration':text,'visual_hint':clean(row.get('visual_hint'),300)}
         if production_mode=='research' or row.get('source_url'):
             entry['source_url']=source_url(row.get('source_url'))
+        if row.get('graphic'):entry['graphic']=validate_graphic(row['graphic'])
         out.append(entry)
     if count>MAX_SCRIPT_WORDS:raise ValueError('Script exceeds 3300 words')
     return out
@@ -95,11 +115,11 @@ def voice_options():
     kokoro=bool(kokoro_config())
     return {'piper':piper,'system':os.name=='nt' and bool(shutil.which('powershell.exe')),'draft':bool(shutil.which('espeak-ng') or shutil.which('espeak')),**{name:kokoro for name in KOKORO_VOICES}}
 
-def resolve_voice(voice):
+def resolve_voice(voice, *, allow_draft=True):
     if voice not in VOICES:raise ValueError('Unknown narration provider')
     options=voice_options()
     if voice=='auto':
-        voice=next((name for name in ('kokoro','piper','system','draft') if options.get(name)),'')
+        voice=next((name for name in ('kokoro','piper','system','draft') if options.get(name) and (allow_draft or name!='draft')),'')
     if not options.get(voice):raise ValueError('Requested narrator is unavailable. Configure a local Kokoro or Piper voice or choose another available provider; recorded narration is supported by the regular editor.')
     return voice
 
@@ -209,6 +229,8 @@ def narration(chapters, output, voice='auto', speed=1., check_cancel=lambda:None
                 neural=kokoro_batch(phrases,root,voice,speed,check_cancel,speeds=speeds)
             else:
                 neural=kokoro_batch(phrases,root,voice,speed,check_cancel)
+            neural=list(neural)
+            if len(neural)!=len(phrases):raise RuntimeError('Incomplete neural narration output')
         with wave.open(str(staged),'wb') as wav:
             wav.setnchannels(1);wav.setsampwidth(2);wav.setframerate(rate)
             for i,chapter in enumerate(chapters):
@@ -240,7 +262,7 @@ def narration(chapters, output, voice='auto', speed=1., check_cancel=lambda:None
                     tokens=phrase.split();weights=np.array([max(1,len(vs.spoken(x,pronunciation).strip('.,!?;:').replace(' ',''))) for x in tokens],dtype=float);edges=np.r_[0,np.cumsum(weights)/sum(weights)]
                     words=[{'text':t,'start':float(a+(b-a)*edges[k]),'end':float(a+(b-a)*edges[k+1])} for k,t in enumerate(tokens)]
                     if len(lines)>=500:raise ValueError('Narration exceeds 500 editor clips')
-                    lines.append({'id':uuid.uuid4().hex[:12],'text':phrase,'start':a,'end':b,'words':words,'chapter_title':chapter['title'],'visual_hint':chapter['visual_hint'],**({'source_url':chapter['source_url']} if chapter.get('source_url') else {})})
+                    lines.append({'id':uuid.uuid4().hex[:12],'text':phrase,'start':a,'end':b,'words':words,'chapter_title':chapter['title'],'visual_hint':chapter['visual_hint'],**({'source_url':chapter['source_url']} if chapter.get('source_url') else {}),**({'graphic':chapter['graphic']} if chapter.get('graphic') else {})})
                     wav.writeframes(pcm);cursor+=n
                     gap=round(rate*pause_factor*vs.pause_after(phrase,phrase_gap,chapter_gap,j+1==len(phrases)));wav.writeframes(b'\0\0'*gap);cursor+=gap
         check_cancel();perf.publish_staged_file(staged,output)

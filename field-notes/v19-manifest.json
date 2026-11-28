@@ -1,0 +1,25 @@
+{
+  "edition": "V19",
+  "prior_manifest": "v18-manifest.json",
+  "episode_05": {
+    "frames": 3927,
+    "fps": 60,
+    "duration": 65.45,
+    "sha256": "d74ce7d4ae27a9580314354aa9730d82f3a98cf08479897b5c362910e516a5fc",
+    "audio": "original sampled-instrument score; no speech",
+    "lufs": -17.1,
+    "true_peak_dbfs": -3.6
+  },
+  "media": {
+    "the-anatomy-of-an-image.jpg": "43a56dddd5c418bfe8629f103833313ca3373937a6cc3f470c78f44ef495351e",
+    "the-anatomy-of-an-image.mp4": "5c196a9ab6958d03081dbd71fc1a490d9d28357be46e34dc46b67f0662f96869",
+    "the-architecture-of-silence.jpg": "d601bdcfdcb07bcaf02b81c94fd395bfde0fa76f9b6a66f5910e862db3cf7c85",
+    "the-architecture-of-silence.mp4": "648dc8639de5c1b029f89445db3c7be7afd3df4dbdb6e1816d936bfb5cddc17d",
+    "the-geometry-of-time.jpg": "a03f034d4b65c8bd75b45e8e796cb2645a963da188d81449100ac9ab5c5b4cd0",
+    "the-geometry-of-time.mp4": "d74ce7d4ae27a9580314354aa9730d82f3a98cf08479897b5c362910e516a5fc",
+    "the-science-of-color.jpg": "1b5220eca17500ea40be27316982015649b4b1357af9988e725af892aadb467e",
+    "the-science-of-color.mp4": "c301b4d283d64eac0c8b7a571fb79e4e25e151060727e32f0a386c41fc4f99a6",
+    "the-shape-of-sound.jpg": "ffdb32de6915bd0b30017cfadda0a24008aa6e75922c70330db955b1b72b5597",
+    "the-shape-of-sound.mp4": "f4d60734f1108a1b3e99c619aa766bb23db41b182edd88b84867966d167d374d"
+  }
+}

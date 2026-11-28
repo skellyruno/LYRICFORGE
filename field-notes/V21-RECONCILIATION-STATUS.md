@@ -1,0 +1,5 @@
+# V21 reconciliation checkpoint
+
+Exact Creator base b37a857e4be4cf5dc7f13337452fdbdcb033e29b. V20 candidate and successful non-destructive proposal preserved. Patch archive contains five modified files, six new regression cases, and report. 64 passed, 1 skipped in combined local component/API run. Reconciled studio_voice, studio_creator, studio_director_intelligence, studio_visual_sources; retained Creator's superset Kokoro worker. Server script/recording intake integrated in proposal, remaining render contracts unverified. Remaining conflicts: server.py, static/autoclip.js, static/index.html, studio_cinematic.py, studio_cli.py, studio_director.py, tests/editor_smoke.mjs. Three workflow differences remain. Do not apply as unconditional production overlay. No live Whisper or local vision inference tested.
+
+V20 exact archived Windows build 45947610295 passed 665 tests / 7 skipped and packaged native WebView2. Artifact 15176010548, screenshot 15175711258. Narration workflow 45948801081 and reconciliation 45948801080 succeeded. New patch not in verified Windows executable. Draft only.

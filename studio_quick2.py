@@ -93,39 +93,35 @@ def hold_prepare(f, i):
         raise ValueError("Choose how long to hold the first frame, the last frame, or both")
     v = i["video"]
     fps = _edit_fps(v)
-    # Preserve the source cadence when the requested holds fit its frame clock.
-    # Very low-frame-rate material needs a finer clock for fractional holds.
     if fps < 24 and any(abs(_hold_frames(t, fps) / fps - t) > .001 for t in (a, b)):
         fps = 24.0
-    held_seconds = (_hold_frames(a, fps) + _hold_frames(b, fps)) / fps
-    return {"start": a, "end": b, "seconds": v["duration"] + held_seconds, "has_audio": v["has_audio"], "fps": fps}
+    frames = max(1, round(v['duration']*fps)) + _hold_frames(a,fps) + _hold_frames(b,fps)
+    return {"start": a, "end": b, "seconds": frames/fps, "frames": frames, "has_audio": v["has_audio"], "fps": fps}
 
 
 def hold_build(p, o, out, safe):
+    """Encode only picture: FFmpeg 8+ can deadlock when leading tpad and adelay share a scheduler."""
     fps = o.get("fps", 30.0)
-    first, last = _hold_frames(o["start"], fps), _hold_frames(o["end"], fps)
-    base=f"setpts=PTS-STARTPTS,fps={fps:g}"
-    tail=f",tpad=stop_mode=clone:stop={last}" if last else ""
-    src=str(p["video"])
-    # Use separate finite decoders: the start-hold branch must terminate
-    # before the body begins, without a shared split queue or a second fps
-    # filter asked to synthesize frames before the first input timestamp.
-    if first:
-        graph=(f"[0:v]{base},trim=end_frame=1,tpad=stop_mode=clone:stop={first-1},"
-               f"setpts=N/({fps:g}*TB)[head];[1:v]{base}{tail}[body];"
-               f"[head][body]concat=n=2:v=1:a=0,settb=1/{fps:g},setpts=N[v]")
-        args=[*QUIET,"-y","-filter_complex_threads","1","-threads","1","-i",src,
-              "-threads","2","-i",src,"-filter_complex",graph,"-map","[v]"]
-        audio_index=1
-    else:
-        args=[*QUIET,"-y","-filter_threads","1","-threads","2","-i",src,
-              "-vf",base+tail,"-map","0:v:0"]
-        audio_index=0
-    if o["has_audio"]:
-        af=(f"adelay={round(first/fps*1000)}:all=1," if first else "")+f"apad=whole_dur={o['seconds']},atrim=duration={o['seconds']}"
-        args+=["-map",f"{audio_index}:a:0","-af",af,"-c:a","aac","-b:a","192k"]
-    else:args+=["-an"]
-    return [*args,"-r",str(fps),"-fps_mode","cfr",*X264,"-threads","2",*FAST,"-t",str(o["seconds"]),str(out)]
+    first, last = _hold_frames(o['start'],fps), _hold_frames(o['end'],fps)
+    vf=(f"setpts=PTS-STARTPTS,fps={fps:g},"
+        f"tpad=start_mode=clone:start={first}:stop_mode=clone:stop={last},"
+        f"trim=end_frame={o['frames']},setpts=N/({fps:g}*TB)")
+    return [*QUIET,"-y","-filter_threads","1","-threads","2","-i",str(p['video']),
+            "-vf",vf,"-map","0:v:0","-an","-r",str(fps),"-fps_mode","cfr",
+            *X264,"-threads","2",*FAST,"-frames:v",str(o['frames']),str(out)]
+
+
+def hold_audio_build(p, o, out):
+    fps=o['fps'];first=_hold_frames(o['start'],fps)
+    samples=round(o['seconds']*48000)
+    af="aresample=48000,"+(f"adelay={round(first/fps*48000)}S:all=1," if first else "")+f"apad=whole_len={samples},atrim=end_sample={samples},asetpts=N/SR/TB"
+    return [*QUIET,"-y","-filter_threads","1","-threads","2","-i",str(p['video']),
+            "-vn","-map","0:a:0","-af",af,"-c:a","aac","-b:a","192k",str(out)]
+
+
+def hold_mux_build(picture, audio, out):
+    # Independent finite streams: no filter graph, no second encode, no shortest/truncation.
+    return [*QUIET,"-y","-i",str(picture),"-i",str(audio),"-map","0:v:0","-map","1:a:0","-c","copy",*FAST,str(out)]
 
 
 # ---- cut out a section
@@ -629,7 +625,7 @@ MORE: dict[str, Quick] = {q.id: q for q in (
     _t("zoom", "Zoom in", "zoomed.mp4", "video", V, zoom_prepare, zoom_build, lambda o: f"Zoomed in {o['zoom']:g}x", ("crop", "scale", "setsar")),
     _t("letterbox", "Add borders", "bordered.mp4", "video", V, letterbox_prepare, letterbox_build, lambda o: f"Fitted into {o['shape']}",
        ("scale", "pad", "setsar")),
-    _t("hold", "Hold first / last frame", "held.mp4", "video", V, hold_prepare, hold_build, lambda o: "Video with held frames", ("fps", "setpts", "tpad", "adelay", "apad", "atrim")),
+    _t("hold", "Hold first / last frame", "held.mp4", "video", V, hold_prepare, hold_build, lambda o: "Video with held frames", ("fps", "setpts", "tpad", "trim", "aresample", "adelay", "apad", "atrim", "asetpts")),
     _t("cut", "Cut out a section", "cut.mp4", "video", V, cut_prepare, cut_build, lambda o: "Video with a section removed",
        ("fps", "select", "setpts", "aselect", "asetpts")),
     _t("look", "Look", "looked.mp4", "video", V, look_prepare, look_build, lambda o: f"{LOOKS[o['look']][1]} look",

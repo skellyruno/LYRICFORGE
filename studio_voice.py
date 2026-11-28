@@ -118,12 +118,12 @@ def recording_lines(chapters, duration, chapter_starts, split_phrases):
             s=a+(b-a)*offset/weight;offset+=len(words);e=a+(b-a)*offset/weight
             if e-s<.05: raise ValueError('Recording too short for script; shorten the script or add a longer take')
             points=np.linspace(s,e,len(words)+1)
-            rows.append({'id':uuid.uuid4().hex[:12],'text':phrase,'start':s,'end':e,'words':[{'text':w,'start':float(points[i]),'end':float(points[i+1])} for i,w in enumerate(words)],'chapter_title':chapter['title'],'visual_hint':chapter['visual_hint'],**({'source_url':chapter['source_url']} if chapter.get('source_url') else {})})
+            rows.append({'id':uuid.uuid4().hex[:12],'text':phrase,'start':s,'end':e,'words':[{'text':w,'start':float(points[i]),'end':float(points[i+1])} for i,w in enumerate(words)],'chapter_title':chapter['title'],'visual_hint':chapter['visual_hint'],**({'source_url':chapter['source_url']} if chapter.get('source_url') else {}),**({'graphic':chapter['graphic']} if chapter.get('graphic') else {})})
     if len(rows)>500: raise ValueError('Recording script exceeds 500 clips')
     return rows,origin
 
 
-def prepare_recording(source, target, chapters, chapter_starts, run_checked, split_phrases, check_cancel=lambda:None):
+def prepare_recording(source, target, chapters, chapter_starts, run_checked, split_phrases, check_cancel=lambda:None, *, transcriber=None):
     target=Path(target);rate=24000
     with tempfile.TemporaryDirectory(prefix='recorded-voice-',dir=target.parent) as temp:
         wav=Path(temp)/'voice.wav'
@@ -138,8 +138,14 @@ def prepare_recording(source, target, chapters, chapter_starts, run_checked, spl
                 if not samples.size:break
                 peak=max(peak,float(np.abs(samples).max()));total+=float(samples@samples);clipped+=int(np.count_nonzero(np.abs(samples)>=32760))
         if peak<30 or total/n<4:raise ValueError('Recording contains no usable narration')
-        lines,origin=recording_lines(chapters,duration,chapter_starts,split_phrases)
+        if chapters:
+            lines,origin=recording_lines(chapters,duration,chapter_starts,split_phrases)
+        else:
+            if transcriber is None:raise ValueError('Automatic transcription is unavailable; supply the recorded script instead')
+            if chapter_starts:raise ValueError('Manual chapter timestamps require a written script')
+            lines=transcriber(wav,duration,check_cancel);origin='speech recognition word timestamps; review before publication'
+            if not lines or len(lines)>500:raise ValueError('No usable speech or too many recognized clips')
         check_cancel();perf.publish_staged_file(wav,target)
-    warnings=['Review estimated word timing against the recording before publishing.']
+    warnings=['Review '+('estimated word timing' if chapters else 'the recognized transcript and word timing')+' against the recording before publishing.']
     if clipped:warnings.append('Recording contains clipped samples; consider recording another take.')
     return {'duration':duration,'lines':lines,'provider':'recorded','word_timing':origin,'peak_dbfs':round(20*math.log10(peak/32768),2),'rms_dbfs':round(10*math.log10(total/n/32768**2),2),'clipped_samples':clipped,'warnings':warnings}

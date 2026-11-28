@@ -1,0 +1,92 @@
+name: Finalize compact installer with restored editor logo
+on:
+  push:
+    branches: [feature/field-notes-production-20261126]
+    paths:
+      - 'packaging/finalize-tested-compact.ps1'
+      - 'packaging/restore_original_icon.py'
+      - 'packaging/restore_editor_header.py'
+      - 'packaging/append_icon_resources.py'
+      - 'studio_icon.py'
+      - '.github/workflows/finalize-tested-compact.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: finalize-compact-${{ github.ref }}-${{ github.event_name == 'push' && 'push' || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'push' && github.ref == 'refs/heads/feature/field-notes-production-20261126' }}
+jobs:
+  package:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Verify actual prior runtime and regression gates passed
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $repo="${{ github.repository }}"
+          $run=gh api "repos/$repo/actions/runs/46040313923" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or $run.head_sha -ne 'e18a4bd26ecd34e6cbab44bbe4490be9a4748d3a' -or $run.status -ne 'completed') { throw 'Wrong runtime test run' }
+          $jobs=(gh api "repos/$repo/actions/runs/46040313923/jobs" | ConvertFrom-Json).jobs
+          if (($jobs | Where-Object name -eq 'build').conclusion -ne 'success') { throw 'Runtime compile not verified' }
+          $validate=$jobs | Where-Object name -eq 'validate'
+          foreach ($name in @('Compare decoded reference media and capabilities','Compare actual encoded ASS cinematic and audio filter output','Run full consolidated test suite using compact FFmpeg only')) {
+            if (($validate.steps | Where-Object name -eq $name).conclusion -ne 'success') { throw "Required gate not passed: $name" }
+          }
+          foreach ($entry in @(@{id=15220591812;sha='12e763d9ff2e50221eb821835dda2875542ca95fdd14b2702b113c23e7003748'},@{id=15222010048;sha='c995df34a652165c5585ff582713dc989477592886eaed65918cff0b8568b363'},@{id=15215018868;sha='832c297bce2ff4f836c5de29a6080232299a781390782ec7e977f46755b06f74'})) {
+            $a=gh api "repos/$repo/actions/artifacts/$($entry.id)" | ConvertFrom-Json
+            if ($LASTEXITCODE -ne 0 -or $a.expired -or $a.digest -ne ('sha256:'+$entry.sha)) { throw "Unexpected artifact $($entry.id)" }
+          }
+      - uses: actions/download-artifact@v4
+        with:
+          name: compact-ffmpeg-runtime-and-source
+          run-id: 46040313923
+          github-token: ${{ github.token }}
+          path: compact-ffmpeg
+      - uses: actions/download-artifact@v4
+        with:
+          name: compact-ffmpeg-validation-evidence
+          run-id: 46040313923
+          github-token: ${{ github.token }}
+          path: prior-media-evidence
+      - uses: actions/download-artifact@v4
+        with:
+          name: SkellyMotion-Consolidated-Windows-x64
+          run-id: 46032977554
+          github-token: ${{ github.token }}
+          path: dist/SkellyMotion
+      - name: Check exact runtime and prior parity evidence
+        shell: pwsh
+        run: |
+          $media=Get-Content prior-media-evidence/media-compatibility.json -Raw | ConvertFrom-Json
+          $parity=Get-Content prior-media-evidence/render-parity.json -Raw | ConvertFrom-Json
+          $expected='861fe956cca8c442eeac82e5971fff0273a166e6410e98269fefbdf6731ae117'
+          if ((Get-FileHash compact-ffmpeg/ffmpeg.exe -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expected -or $media.candidate_sha256 -ne $expected -or -not $media.passed -or -not $parity.passed -or $media.cases.Count -ne 14) { throw 'Runtime or parity evidence mismatch' }
+          if (@($media.cases | Where-Object { -not $_.exact }).Count -ne 0 -or -not $parity.video.exact -or -not $parity.audio.exact) { throw 'Decoded samples not identical' }
+          Write-Host 'Exact tested runtime and 14 bit-identical media cases verified.'
+      - name: Compile single installer and prove installed package
+        shell: pwsh
+        run: ./packaging/finalize-tested-compact.ps1 -Candidate compact-ffmpeg/ffmpeg.exe
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: restored-header-compact-installer-evidence
+          path: compact-media-evidence/
+          retention-days: 14
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@v6
+        if: success()
+        with:
+          name: SkellyMotion-Restored-Header-Windows-Setup
+          path: dist/installer/SkellyMotion-Setup.exe
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 14

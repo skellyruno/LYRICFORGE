@@ -1,0 +1,65 @@
+name: Research live sources and local model proof
+on:
+  push:
+    branches: [feature/field-notes-production-20261126]
+    paths: ['studio_research_compose.py','studio_research_edits.py','tests/test_research_edits.py','static/quick-create.js','packaging/release-audit/research_live.py','.github/workflows/research-live-proof.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: research-live-proof-${{ github.ref }}-${{ github.event_name == 'push' && 'push' || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'push' && github.ref == 'refs/heads/feature/field-notes-production-20261126' }}
+jobs:
+  sources:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - run: python -m pip install fastapi numpy Pillow psutil
+      - name: Verify direct editor operations and model schema
+        run: |
+          python -m pip install pytest
+          PYTHONPATH=. python -m pytest tests/test_research_edits.py tests/test_research_compose.py -q -k 'not import_and_render_video'
+          node --check static/quick-create.js
+      - name: Query real source providers
+        run: PYTHONPATH=. python packaging/release-audit/research_live.py network live-research.json
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: live-research-evidence
+          path: live-research.json
+          if-no-files-found: warn
+  local-model:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - run: python -m pip install fastapi numpy Pillow psutil
+      - name: Start actual optional model server (test only)
+        run: |
+          docker run -d --name skelly-model -p 127.0.0.1:11434:11434 ollama/ollama:0.13.0
+          docker image inspect ollama/ollama:0.13.0 --format '{{json .RepoDigests}}' > model-image-digest.json
+          for i in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:11434/api/tags >/dev/null; then break; fi
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:11434/api/tags >/dev/null
+          docker exec skelly-model ollama pull qwen2.5:1.5b
+      - name: Generate and revise with actual model inference
+        run: PYTHONPATH=. python packaging/release-audit/research_live.py model actual-model.json --model qwen2.5:1.5b
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: actual-writing-model-evidence
+          path: |
+            actual-model.json
+            model-image-digest.json
+          if-no-files-found: warn
+      - if: always()
+        run: docker rm -f skelly-model || true

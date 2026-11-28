@@ -1,0 +1,19 @@
+# SkellyMotion — Editorial reference study 01
+
+## Reference and measured evidence
+User supplied `videoplayback (1)(2).mp4`; analyzed locally, not redistributed. FFprobe: 657.867755 seconds, 640×360, 30 FPS, video and audio. FFmpeg `select='gt(scene,0.32)'` detected 122 scene changes (rough estimate, not manual shot annotation): 123 intervals, mean 5.35 s, median 5.23 s, longest 14.30 s. Sampled contact sheets at 15-second intervals reveal narrated documentary structure, article/quote/evidence compositions, yellow selective markers, archival/B-roll, statistics, chapter cards, historical dates, visual callbacks and sparse closing. The reference is not a fixed template or a source of new factual claims.
+
+## Implemented in this source candidate
+- Creator documentary story now routes to documentary director instead of plugin director. Hard cuts default for Creator documentary; existing Director transition controls remain independent.
+- Existing cinematic document role is recognized explicitly; user-set focus produces a separate enlarged genuine source crop alongside complete document. No guessed source highlights, invented quotes or redactions.
+- Reusable chapter and statement cards; chapter counts follow explicit chapter boundaries. Intentional chapter cards cannot be replaced by automatic image sourcing or optional semantic/AI visual selection.
+- Marker caption style independently selectable; automatic caption selection resolves to marker for documentary, karaoke for other existing modes. Stable phrases, bounded editorial emphasis, measured line fitting, merged adjacent highlight backgrounds, dark captions on light chapter cards. Heuristic emphasis still needs human direction. Existing clean, word, karaoke and off choices retained.
+- Documentary video selects an advancing bounded source window when duration is known; respects trim and holds final source frame rather than looping footage.
+- Plugin split title wrapping now fits four lines without overflowing footer; plugin story/recording/DSP paths retained.
+- Prior V5 dark studio patch integrated into recovered full source archive; older archives preserved. No private audio or reference footage in source package.
+
+## Verification
+64 focused Python tests passed (editorial, scene director, cinematic, walkthrough, Creator, visual sourcing, director intelligence). Editor and autonomous frontend Node smoke suites passed. 38-test initial/fix passes preceded this broader pass. Creator HTTP produced a 1080p 28.47s documentary, but CLI export process timed out after the project output existed; standalone direct render produced corrected full-length 720p, 683 video frames at 24 FPS with audio, no review errors. Initial output contact sheet exposed light-card contrast and excessive caption spacing; fixed and inspected corrected film. Demo narration is eSpeak draft, not the verified neural voice used for prior V5 benchmarks. Direct local and in-memory browser navigation blocked by administrator; no latest UI screenshot or Windows executable verification. Quick4 offline kit retrieved and SHA256 manifest verified, no JUCE dependency for this Python/FFmpeg work. Native build and remote GitHub draft-branch reconciliation remain unverified; do not merge or replace current remote work wholesale.
+
+## Architecture direction
+Scene plans are editable data and rendering primitives should be composable across jobs, not limited to three production modes. Add explicit evidence-backed quotes, numeric charts, timeline/date markers, arbitrary motion layers, camera paths and custom transitions, reference analysis and asset/story relevance, then music editing with beat/phrase and performance alignment. Future user-provided references are style guidance, not required source footage. Keep original media, preserve audio and distinguish real source from generated illustration. No promise of arbitrary-style automation until actually implemented and validated.

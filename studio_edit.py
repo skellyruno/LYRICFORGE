@@ -373,7 +373,7 @@ def build_render(source: Path, out_w: int, out_h: int, fps: int, output: Path, e
                  intro_clip: dict | None = None, outro_clip: dict | None = None,
                  music: dict | None = None, sfx_track: Path | None = None,
                  sfx_volume: float = .6, voice_filters: list[str] | None = None,
-                 broll: list[dict] | None = None) -> tuple[list[str], str, float]:
+                 broll: list[dict] | None = None, lock_audio_clock: bool = False) -> tuple[list[str], str, float]:
     """One FFmpeg pass that crops, zooms, cuts, captions, watermarks, normalizes, mixes music and sound
     effects, and joins an intro clip / intro card / outro clip / end card around the video.
 
@@ -486,6 +486,11 @@ def build_render(source: Path, out_w: int, out_h: int, fps: int, output: Path, e
         if music or sfx_track:
             parts.append(f"[{voice}]alimiter=limit=0.95[am]")
             voice = "am"
+
+    if lock_audio_clock and voice:
+        samples = max(1, round(main_len * 48000))
+        parts.append(f"[{voice}]aresample=48000,asetpts=N/SR/TB,apad=whole_len={samples},atrim=end_sample={samples},asetpts=N/SR/TB[clocked]")
+        voice = "clocked"
 
     # --- segments joined around the main video (each needs picture and sound)
     ordered: list[tuple[str, str]] = []

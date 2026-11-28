@@ -563,6 +563,7 @@ const on = (id, type, fn) => { const node = $(id); if (node) node.addEventListen
 on('openMake', 'click', () => open());
 on('makeFromStudio', 'click', () => { if (window.SkellyClips) window.SkellyClips.close(); open(); });
 on('makeClose', 'click', close);
+on('makeHome','click',()=>{if(window.SkellyClips?.close()===false)return;close();window.SkellyBridge?.home?.();});
 on('makeSearch', 'input', () => search($('makeSearch').value));
 on('makeTabs', 'keydown', (e) => {
   if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;

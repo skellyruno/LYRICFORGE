@@ -1,17 +1,20 @@
-"""Generate the Windows skull ICO, using Pillow (already a runtime dependency)."""
-from PIL import Image, ImageDraw
+"""Restore the original SkellHub icon; never draw a substitute at build time."""
 from pathlib import Path
+from hashlib import sha256
+from io import BytesIO
+from PIL import Image
 
-root = Path(__file__).resolve().parent
-im = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
-d = ImageDraw.Draw(im)
-dark, green = "#111913", "#a0f58c"
-d.rounded_rectangle((0, 0, 255, 255), radius=56, fill=dark)
-d.ellipse((40, 28, 216, 188), fill=green)
-d.rounded_rectangle((84, 144, 172, 220), radius=10, fill=green)
-d.ellipse((64, 88, 116, 152), fill=dark)
-d.ellipse((140, 88, 192, 152), fill=dark)
-d.polygon([(128,144),(112,176),(144,176)], fill=dark)
-for x in (104,128,152):
-    d.line((x,196,x,220), fill=dark, width=10)
-im.save(root / "static" / "skull.ico", sizes=[(16,16),(24,24),(32,32),(48,48),(64,64),(128,128),(256,256)])
+root = Path(__file__).resolve().parent / "static"
+EXPECTED = "c472c19bbf94f3fdac172c1eeff7322d5e7dc2093e98cc095f2380a3e9bd82bb"
+data = (root / "skellyhub.ico").read_bytes()
+if sha256(data).hexdigest() != EXPECTED:
+    raise RuntimeError("Original SkellHub icon hash mismatch")
+with Image.open(BytesIO(data)) as image:
+    if image.ico.sizes() != {(16,16),(24,24),(32,32),(48,48),(64,64),(128,128),(256,256)}:
+        raise RuntimeError("Missing original Windows icon resolutions")
+target = root / "skull.ico"
+if not target.exists() or target.read_bytes() != data:
+    temporary = target.with_suffix(".ico.tmp")
+    temporary.write_bytes(data)
+    temporary.replace(target)
+print("Original SkellHub icon verified:", EXPECTED)

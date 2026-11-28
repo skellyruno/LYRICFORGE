@@ -1,0 +1,161 @@
+{
+  "version": 10,
+  "preset": "plugin",
+  "fps": 24,
+  "duration": 40.60984126984127,
+  "frames": 975,
+  "scenes": [
+    {
+      "start": 0.0,
+      "end": 7.541666666666667,
+      "frames": 181,
+      "type": "big_text",
+      "text": "Meet SkellyTune Mini",
+      "captions": [
+        {
+          "text": "Meet SkellyTune Mini. A compact vocal tuning plugin",
+          "start": 0.0,
+          "end": 3.624,
+          "words": []
+        },
+        {
+          "text": "for your DAW. This is a conceptual demonstration.",
+          "start": 3.624,
+          "end": 7.248,
+          "words": []
+        }
+      ],
+      "camera": "still"
+    },
+    {
+      "start": 7.541666666666667,
+      "end": 20.875,
+      "frames": 320,
+      "type": "diagram",
+      "text": "Pitch processing",
+      "captions": [
+        {
+          "text": "Pitch correction estimates the vocal note, chooses",
+          "start": 0.00633333333333308,
+          "end": 3.032333333333333,
+          "words": []
+        },
+        {
+          "text": "an allowed target, and corrects toward that target.",
+          "start": 3.032333333333333,
+          "end": 6.4913333333333325,
+          "words": []
+        },
+        {
+          "text": "Retune speed controls the response. Slower",
+          "start": 6.791333333333333,
+          "end": 9.29433333333333,
+          "words": []
+        },
+        {
+          "text": "correction can preserve more of the original pitch",
+          "start": 9.29433333333333,
+          "end": 12.63133333333333,
+          "words": []
+        },
+        {
+          "text": "movement.",
+          "start": 12.63133333333333,
+          "end": 13.048333333333332,
+          "words": []
+        }
+      ],
+      "camera": "still",
+      "retune_demo_ms": 70.0
+    },
+    {
+      "start": 20.875,
+      "end": 27.25,
+      "frames": 153,
+      "type": "diagram",
+      "text": "Pitch processing",
+      "captions": [
+        {
+          "text": "Zero milliseconds retune removes correction",
+          "start": 0.015000000000000568,
+          "end": 2.349,
+          "words": []
+        },
+        {
+          "text": "smoothing. That does not mean zero plugin latency.",
+          "start": 2.349,
+          "end": 6.084,
+          "words": []
+        }
+      ],
+      "camera": "still",
+      "retune_demo_ms": 0.0
+    },
+    {
+      "start": 27.25,
+      "end": 33.541666666666664,
+      "frames": 151,
+      "type": "diagram",
+      "text": "Note selection",
+      "captions": [
+        {
+          "text": "Choose a key and scale, or enable and disable",
+          "start": 0.009000000000000341,
+          "end": 3.5889999999999986,
+          "words": []
+        },
+        {
+          "text": "individual notes using the interactive piano.",
+          "start": 3.5889999999999986,
+          "end": 5.975000000000001,
+          "words": []
+        }
+      ],
+      "camera": "still"
+    },
+    {
+      "start": 33.541666666666664,
+      "end": 40.625,
+      "frames": 170,
+      "type": "big_text",
+      "text": "Compare your settings on actual vocal",
+      "captions": [
+        {
+          "text": "Compare your settings on actual vocal performances.",
+          "start": 0.0,
+          "end": 3.376333333333335,
+          "words": []
+        },
+        {
+          "text": "Listen for musical expression and note transitions.",
+          "start": 3.376333333333335,
+          "end": 6.768333333333338,
+          "words": []
+        }
+      ],
+      "camera": "still"
+    }
+  ],
+  "director": "local",
+  "audio_start": 0.0,
+  "silent": false,
+  "caption_repairs": 0,
+  "warnings": [
+    "Missing or uncertain visuals use transcript cards."
+  ],
+  "review": {
+    "errors": 0,
+    "warnings": 0,
+    "caption_overlaps": 0,
+    "repeated_shots": 0,
+    "issues": []
+  },
+  "local_ai": false,
+  "semantic_vision": false,
+  "visual_sources": {
+    "downloaded": 0,
+    "cached": 0,
+    "queries": 0,
+    "remaining_cards": 2
+  }
+}

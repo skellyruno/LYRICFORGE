@@ -1,0 +1,27 @@
+{
+  "documentary": [
+    {"time":3,"role":"hook","technique":"typography"},
+    {"time":15,"role":"evidence","technique":"document"},
+    {"time":60,"role":"comparison","technique":"diagram"},
+    {"time":150,"role":"evidence","technique":"document"},
+    {"time":270,"role":"evidence","technique":"document"},
+    {"time":510,"role":"comparison","technique":"collage"},
+    {"time":570,"role":"explanation","technique":"diagram"}
+  ],
+  "technical_showcase": [
+    {"time":3,"role":"hook","technique":"product"},
+    {"time":30,"role":"context","technique":"collage"},
+    {"time":100,"role":"demonstration","technique":"product"},
+    {"time":160,"role":"comparison","technique":"product"},
+    {"time":230,"role":"context","technique":"typography"},
+    {"time":280,"role":"resolution","technique":"collage"}
+  ],
+  "cinematic_trailer": [
+    {"time":1,"role":"hook","technique":"product"},
+    {"time":5,"role":"demonstration","technique":"product"},
+    {"time":9,"role":"context","technique":"product"},
+    {"time":14,"role":"demonstration","technique":"product"},
+    {"time":19,"role":"resolution","technique":"typography"},
+    {"time":22,"role":"resolution","technique":"typography"}
+  ]
+}

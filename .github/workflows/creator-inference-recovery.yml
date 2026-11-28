@@ -1,0 +1,74 @@
+name: Creator targeted real-model recovery
+on:
+  push:
+    branches: [feature/field-notes-production-20261126]
+    paths:
+      - 'field-notes/inference/**'
+      - '.github/workflows/creator-inference-recovery.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: creator-inference-recovery-${{ github.ref }}-${{ github.event_name == 'push' && 'push' || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'push' && github.ref == 'refs/heads/feature/field-notes-production-20261126' }}
+jobs:
+  real-model:
+    strategy:
+      fail-fast: false
+      matrix:
+        kind: [whisper, vision]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Verify proof checker contracts
+        run: python -m unittest discover -s field-notes/inference -p 'test_*.py'
+      - uses: actions/download-artifact@v4
+        with:
+          name: exact-staged-source
+          run-id: 46028083402
+          github-token: ${{ github.token }}
+          path: staged-source
+      - name: Check exact candidate revision and checksum
+        run: |
+          test "$(cat staged-source/producer-revision.txt)" = '68c3370de0854d633c8d75bd6fd7f713f737b51f'
+          printf '%s  %s\n' '6d3e6e8ce13a7b423603fa07ff0deb5466e5f5691b1bf9b4f09c02f4687ea7d2' staged-source/candidate.zip | sha256sum -c -
+          unzip -q staged-source/candidate.zip -d candidate
+      - uses: actions/download-artifact@v4
+        if: matrix.kind == 'whisper'
+        with:
+          name: Field-Notes-06-Kokoro-Michael
+          run-id: 45948801081
+          github-token: ${{ github.token }}
+          path: neural
+      - uses: actions/cache@v4
+        with:
+          path: models/
+          key: creator-real-model-${{ matrix.kind }}-hash-pinned-v1
+      - name: Install speech runtime
+        if: matrix.kind == 'whisper'
+        run: python -m pip install -r candidate/LYRICFORGE-main/requirements.txt av huggingface-hub
+      - name: Install vision runtime
+        if: matrix.kind == 'vision'
+        run: |
+          python -m pip install 'transformers>=4.48,<5' safetensors huggingface-hub Pillow numpy
+          python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+      - name: Run actual isolated inference
+        run: python field-notes/inference/prove.py "${{ matrix.kind }}" candidate/LYRICFORGE-main neural evidence models
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: creator-real-${{ matrix.kind }}-evidence
+          path: |
+            evidence/*.json
+            evidence/*.png
+            staged-source/producer-revision.txt
+            staged-source/candidate.zip.sha256
+          if-no-files-found: warn
+          retention-days: 14

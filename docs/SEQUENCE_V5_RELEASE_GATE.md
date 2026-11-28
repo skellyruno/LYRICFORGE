@@ -1,0 +1,7 @@
+# Sequence V5 release gate
+- FFmpeg 6/7+ filtergraph compatibility uses the existing shared helper. Windows run 46093159670 had 784 passed, 2 failed, 8 skipped; both failures were the removed legacy filtergraph option. Local regression checks now pass.
+- Optional CLIP evidence is enabled when SKELLYMOTION_VISION_MODEL points to an installed trusted model and the user chooses a local creative planner. In frozen builds set SKELLYMOTION_AI_PYTHON to the isolated Python runtime. No model download is automatic. Sampled stills and relative scores are provisional, not a full video interpretation.
+- Local semantic contract tests decode real frames but simulate the model worker. Actual model inference is not certified.
+- Two additional private, previously uploaded videos tested with manually directed edits: 16s/480 frames and 18s/540 frames, both audio/video exact duration and decoded successfully; 4.499s and 4.949s CPU render respectively on this environment. Source hashes unchanged. The inspected frames exposed mismatched captions and narration context, so professional editorial quality remains unverified. No private footage is included.
+- Historical user GPU report: Intel HD 520 / QSV encoded 60 frames (1.483s) and CPU 60 frames (1.440s); NVENC/AMF unavailable. This predates the current sequence compositor and is not a V5 acceleration claim.
+- New Windows installer, native UI screenshots and actual physical GPU performance remain release gates. Do not promote this draft based on local tests.

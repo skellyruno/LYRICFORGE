@@ -1,0 +1,17 @@
+# V10 Spatial Cinema — local source candidate
+
+Continuation of the verified local V9 archive, not a replacement of the newer remote branch. No app UI redesign, no changes to the plugin walkthrough workflow or stored user projects. The optional offline Quick4 kit was located locally and its 13 manifest entries matched; this Python/FFmpeg app does not need JUCE compilation for this rendering pass.
+
+## Implemented
+- Analytic perspective-projected extruded display-plane geometry, original screenshot texture via inverse homography, eased orbit/dolly, shaded solid faces, feathered caption matte and stylized planar reflection. This is a virtual presentation of a genuine UI capture, not a reconstructed 3D hardware product or a ray-traced physically based render. Existing 2D path remains available.
+- After media selection, recompute spatial provenance. Eligible documentary capture-to-graphic boundaries use a moving outgoing plane and progressive incoming visual reveal. Actual recorded video and guided replays are not retimed.
+- Documentary process diagrams use a connected animated rail with staggered node and label reveals in landscape. Existing portrait and other graphics remain.
+- Generated documentary score clock is shared with the bounded visual cut scheduler (88 BPM). A cut may shift at most 0.24 seconds; minimum adjacent scene length is two seconds. Independent speech/caption clock and total frame count stay unchanged. External music and recorded footage are excluded. Score adds a string counterline and brushed rhythm; plugin underscore verified sample-identical to V9 for the 10-second test interval.
+- Retimed local caption metadata is clipped to scene bounds; redundant fragments below 25 ms are omitted without changing global ASS/VTT captions. Final metadata-only fix produces byte-identical ASS and identical scene overlay flags; the existing full film was not re-encoded for this metadata-only correction.
+
+## Evidence
+- Targeted suite: 91 passed across 11 Python test modules. Expanded V10 suite after the metadata fix: 6 passed (three new cases, three retested). Both editor and autonomous frontend smoke suites passed.
+- Actual integrated Director benchmark: 1280x720, 60 fps, 1,428 decoded frames, 23.8 s planned, equal stream duration 23.821333 s including container timing. Four scenes, two spatial shots, two spatial handoffs, two beat-aligned boundaries (frame 900 and 1145), one unsnapped boundary preserved by tolerance. Render elapsed 111.63 s in this container, not a general performance guarantee.
+- EBU R128: complete soundtrack -17.0 LUFS, true peak -2.5 dBFS; isolated synthesized music -24.5 LUFS, true peak -12.0 dBFS. User listening approval pending.
+- Actual captured UI images and the prior verified Kokoro Michael recording reused for an A/B benchmark, not fresh inference or a newly recorded screen session. Inspected rendered poses, softened macro framing, added reflection, inspected bridge frames and final decoded contact sheet. A tiny clipped scene-local caption warning was corrected and the metadata rechecked; global captions were always intact. The final film uses earlier genuine screen captures, not third-party reference video.
+- Windows packaging, native UI capture and remote integration remain unverified. No main merge or remote push. No private inputs or model weights included in this archive. The final study is a local rendering proof, not a completed full documentary, generic 3D scene editor or evidence of artistically perfected results.

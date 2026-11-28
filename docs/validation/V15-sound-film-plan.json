@@ -1,0 +1,3023 @@
+{
+  "version": 22,
+  "preset": "doc",
+  "fps": 60,
+  "duration": 45.0,
+  "frames": 2700,
+  "scenes": [
+    {
+      "type": "big_text",
+      "text": "The shape of sound",
+      "start": 0.0,
+      "end": 8.183333333333334,
+      "frames": 491,
+      "captions": [],
+      "camera": "still",
+      "cinematic_finish": true,
+      "brand": "SKELLYMOTION",
+      "chapter": 1,
+      "editorial": "graphic",
+      "editorial_look": "midnight",
+      "graphic": {
+        "kind": "composition",
+        "title": "The shape of sound",
+        "source": "SKELLYMOTION  /  ORIGINAL VISUAL STUDY  \u00b7  PARTICLE MOTION ILLUSTRATION",
+        "camera": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.02
+          ],
+          [
+            0.45,
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            1.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "layers": [
+          {
+            "id": "rings",
+            "type": "rings",
+            "color": "gold",
+            "depth": 1.2,
+            "width": 0.78,
+            "height": 0.78,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.48,
+                1.0,
+                0.7
+              ],
+              [
+                0.45,
+                0.5,
+                0.48,
+                1.2,
+                0.35
+              ],
+              [
+                0.72,
+                0.5,
+                0.48,
+                1.35,
+                0.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.48,
+                1.35,
+                0.0
+              ]
+            ],
+            "curve": "continuous",
+            "harmonics": 0.0
+          },
+          {
+            "id": "mesh",
+            "type": "surface",
+            "color": "mint",
+            "depth": 0.75,
+            "width": 1.04,
+            "height": 0.5,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.59,
+                1.08,
+                0.85
+              ],
+              [
+                0.4,
+                0.5,
+                0.61,
+                1.0,
+                0.85
+              ],
+              [
+                0.62,
+                0.5,
+                0.56,
+                1.0,
+                0.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.56,
+                1.0,
+                0.0
+              ]
+            ],
+            "curve": "continuous",
+            "harmonics": 0.0
+          },
+          {
+            "id": "opening",
+            "type": "text",
+            "color": "white",
+            "depth": 0.0,
+            "width": 0.82,
+            "height": 0.22,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.4,
+                0.94,
+                0.0
+              ],
+              [
+                0.18,
+                0.5,
+                0.38,
+                1.0,
+                1.0
+              ],
+              [
+                0.37,
+                0.5,
+                0.38,
+                1.0,
+                1.0
+              ],
+              [
+                0.48,
+                0.5,
+                0.2,
+                0.76,
+                0.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.2,
+                0.76,
+                0.0
+              ]
+            ],
+            "curve": "continuous",
+            "text": "The Shape of Sound",
+            "size": 0.102,
+            "face": "serif",
+            "align": "center"
+          },
+          {
+            "id": "opening-sub",
+            "type": "text",
+            "color": "white",
+            "depth": 0.0,
+            "width": 0.82,
+            "height": 0.13,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.64,
+                1.0,
+                0.0
+              ],
+              [
+                0.23,
+                0.5,
+                0.64,
+                1.0,
+                0.0
+              ],
+              [
+                0.34,
+                0.5,
+                0.61,
+                1.0,
+                1.0
+              ],
+              [
+                0.49,
+                0.5,
+                0.82,
+                1.0,
+                0.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.82,
+                1.0,
+                0.0
+              ]
+            ],
+            "curve": "continuous",
+            "text": "Everything begins with motion.",
+            "size": 0.051,
+            "face": "sans",
+            "align": "center"
+          },
+          {
+            "id": "air",
+            "type": "particles",
+            "color": "mint",
+            "depth": 0.35,
+            "width": 0.85,
+            "height": 0.37,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.49,
+                1.0,
+                0.0
+              ],
+              [
+                0.43,
+                0.5,
+                0.49,
+                1.0,
+                0.0
+              ],
+              [
+                0.63,
+                0.5,
+                0.49,
+                1.0,
+                1.0
+              ],
+              [
+                0.88,
+                0.5,
+                0.49,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.49,
+                1.0,
+                0.85
+              ]
+            ],
+            "curve": "continuous",
+            "harmonics": 0.0
+          },
+          {
+            "id": "air-label",
+            "type": "text",
+            "color": "white",
+            "depth": 0.0,
+            "width": 0.82,
+            "height": 0.16,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.8,
+                1.0,
+                0.0
+              ],
+              [
+                0.52,
+                0.5,
+                0.8,
+                1.0,
+                0.0
+              ],
+              [
+                0.72,
+                0.5,
+                0.79,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.79,
+                1.0,
+                1.0
+              ]
+            ],
+            "curve": "continuous",
+            "text": "Air particles vibrate around their resting positions.",
+            "size": 0.049,
+            "face": "sans",
+            "align": "center"
+          },
+          {
+            "id": "wave",
+            "type": "wave",
+            "color": "mint",
+            "depth": 0.12,
+            "width": 0.82,
+            "height": 0.34,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.54,
+                1.0,
+                0.0
+              ],
+              [
+                0.68,
+                0.5,
+                0.54,
+                1.0,
+                0.0
+              ],
+              [
+                0.92,
+                0.5,
+                0.5,
+                1.0,
+                0.85
+              ],
+              [
+                1.0,
+                0.5,
+                0.5,
+                1.0,
+                1.0
+              ]
+            ],
+            "curve": "continuous",
+            "harmonics": 0.0
+          },
+          {
+            "id": "episode",
+            "type": "text",
+            "color": "gold",
+            "depth": -0.1,
+            "width": 0.68,
+            "height": 0.07,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.2,
+                1.0,
+                0.0
+              ],
+              [
+                0.12,
+                0.5,
+                0.19,
+                1.0,
+                1.0
+              ],
+              [
+                0.36,
+                0.5,
+                0.19,
+                1.0,
+                1.0
+              ],
+              [
+                0.48,
+                0.5,
+                0.17,
+                1.0,
+                0.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.17,
+                1.0,
+                0.0
+              ]
+            ],
+            "text": "FIELD NOTES  /  01",
+            "size": 0.032,
+            "face": "mono",
+            "align": "center"
+          }
+        ]
+      }
+    },
+    {
+      "type": "big_text",
+      "text": "Pressure over time",
+      "start": 8.183333333333334,
+      "end": 16.366666666666667,
+      "frames": 491,
+      "captions": [],
+      "camera": "still",
+      "cinematic_finish": true,
+      "brand": "SKELLYMOTION",
+      "chapter": 2,
+      "editorial": "graphic",
+      "editorial_look": "midnight",
+      "graphic": {
+        "kind": "composition",
+        "title": "Pressure over time",
+        "source": "ILLUSTRATION  /  A PERIODIC WAVEFORM, NOT A LIVE RECORDING",
+        "camera": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            1.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "layers": [
+          {
+            "id": "section1",
+            "type": "text",
+            "color": "gold",
+            "depth": 0.0,
+            "width": 0.82,
+            "height": 0.075,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.13,
+                1.0,
+                0.0
+              ],
+              [
+                0.0001,
+                0.5,
+                0.13,
+                1.0,
+                0.0
+              ],
+              [
+                0.12,
+                0.5,
+                0.105,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.105,
+                1.0,
+                1.0
+              ]
+            ],
+            "curve": "continuous",
+            "text": "01  /  THE WAVE",
+            "size": 0.037,
+            "face": "mono",
+            "align": "center"
+          },
+          {
+            "id": "sub1",
+            "type": "text",
+            "color": "white",
+            "depth": 0.0,
+            "width": 0.82,
+            "height": 0.14,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.225,
+                1.0,
+                0.0
+              ],
+              [
+                0.04,
+                0.5,
+                0.225,
+                1.0,
+                0.0
+              ],
+              [
+                0.2,
+                0.5,
+                0.2,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.2,
+                1.0,
+                1.0
+              ]
+            ],
+            "curve": "continuous",
+            "text": "Pressure becomes a pattern.",
+            "size": 0.059,
+            "face": "serif",
+            "align": "center"
+          },
+          {
+            "id": "air",
+            "type": "particles",
+            "color": "mint",
+            "depth": 0.35,
+            "width": 0.85,
+            "height": 0.37,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.49,
+                1.0,
+                0.85
+              ],
+              [
+                0.36,
+                0.5,
+                0.42,
+                1.0,
+                0.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.42,
+                1.0,
+                0.0
+              ]
+            ],
+            "curve": "continuous",
+            "harmonics": 0.0
+          },
+          {
+            "id": "wave",
+            "type": "wave",
+            "color": "mint",
+            "depth": 0.12,
+            "width": 0.82,
+            "height": 0.34,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.5,
+                1.0,
+                1.0
+              ],
+              [
+                0.34,
+                0.5,
+                0.51,
+                1.0,
+                1.0
+              ],
+              [
+                0.7,
+                0.5,
+                0.51,
+                1.07,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.51,
+                1.0,
+                1.0
+              ]
+            ],
+            "curve": "continuous",
+            "harmonics": 0.0
+          },
+          {
+            "id": "time",
+            "type": "text",
+            "color": "muted",
+            "depth": 0.0,
+            "width": 0.82,
+            "height": 0.07,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.755,
+                1.0,
+                0.0
+              ],
+              [
+                0.15,
+                0.5,
+                0.755,
+                1.0,
+                0.0
+              ],
+              [
+                0.3,
+                0.5,
+                0.73,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.73,
+                1.0,
+                1.0
+              ]
+            ],
+            "curve": "continuous",
+            "text": "TIME  \u2192",
+            "size": 0.031,
+            "face": "sans",
+            "align": "center"
+          },
+          {
+            "id": "pattern",
+            "type": "text",
+            "color": "white",
+            "depth": 0.0,
+            "width": 0.82,
+            "height": 0.11,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.855,
+                1.0,
+                0.0
+              ],
+              [
+                0.33,
+                0.5,
+                0.855,
+                1.0,
+                0.0
+              ],
+              [
+                0.49,
+                0.5,
+                0.83,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.83,
+                1.0,
+                1.0
+              ]
+            ],
+            "curve": "continuous",
+            "text": "A repeating cycle is a periodic wave.",
+            "size": 0.045,
+            "face": "sans",
+            "align": "center"
+          }
+        ]
+      },
+      "editorial_bridge_scene": {
+        "start": 0.0,
+        "end": 8.183333333333334,
+        "graphic": {
+          "kind": "composition",
+          "title": "The shape of sound",
+          "source": "SKELLYMOTION  /  ORIGINAL VISUAL STUDY  \u00b7  PARTICLE MOTION ILLUSTRATION",
+          "camera": [
+            [
+              0.0,
+              0.0,
+              0.0,
+              1.02
+            ],
+            [
+              0.45,
+              0.0,
+              0.0,
+              1.0
+            ],
+            [
+              1.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "layers": [
+            {
+              "id": "rings",
+              "type": "rings",
+              "color": "gold",
+              "depth": 1.2,
+              "width": 0.78,
+              "height": 0.78,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.48,
+                  1.0,
+                  0.7
+                ],
+                [
+                  0.45,
+                  0.5,
+                  0.48,
+                  1.2,
+                  0.35
+                ],
+                [
+                  0.72,
+                  0.5,
+                  0.48,
+                  1.35,
+                  0.0
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.48,
+                  1.35,
+                  0.0
+                ]
+              ],
+              "curve": "continuous",
+              "harmonics": 0.0
+            },
+            {
+              "id": "mesh",
+              "type": "surface",
+              "color": "mint",
+              "depth": 0.75,
+              "width": 1.04,
+              "height": 0.5,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.59,
+                  1.08,
+                  0.85
+                ],
+                [
+                  0.4,
+                  0.5,
+                  0.61,
+                  1.0,
+                  0.85
+                ],
+                [
+                  0.62,
+                  0.5,
+                  0.56,
+                  1.0,
+                  0.0
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.56,
+                  1.0,
+                  0.0
+                ]
+              ],
+              "curve": "continuous",
+              "harmonics": 0.0
+            },
+            {
+              "id": "opening",
+              "type": "text",
+              "color": "white",
+              "depth": 0.0,
+              "width": 0.82,
+              "height": 0.22,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.4,
+                  0.94,
+                  0.0
+                ],
+                [
+                  0.18,
+                  0.5,
+                  0.38,
+                  1.0,
+                  1.0
+                ],
+                [
+                  0.37,
+                  0.5,
+                  0.38,
+                  1.0,
+                  1.0
+                ],
+                [
+                  0.48,
+                  0.5,
+                  0.2,
+                  0.76,
+                  0.0
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.2,
+                  0.76,
+                  0.0
+                ]
+              ],
+              "curve": "continuous",
+              "text": "The Shape of Sound",
+              "size": 0.102,
+              "face": "serif",
+              "align": "center"
+            },
+            {
+              "id": "opening-sub",
+              "type": "text",
+              "color": "white",
+              "depth": 0.0,
+              "width": 0.82,
+              "height": 0.13,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.64,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.23,
+                  0.5,
+                  0.64,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.34,
+                  0.5,
+                  0.61,
+                  1.0,
+                  1.0
+                ],
+                [
+                  0.49,
+                  0.5,
+                  0.82,
+                  1.0,
+                  0.0
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.82,
+                  1.0,
+                  0.0
+                ]
+              ],
+              "curve": "continuous",
+              "text": "Everything begins with motion.",
+              "size": 0.051,
+              "face": "sans",
+              "align": "center"
+            },
+            {
+              "id": "air",
+              "type": "particles",
+              "color": "mint",
+              "depth": 0.35,
+              "width": 0.85,
+              "height": 0.37,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.49,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.43,
+                  0.5,
+                  0.49,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.63,
+                  0.5,
+                  0.49,
+                  1.0,
+                  1.0
+                ],
+                [
+                  0.88,
+                  0.5,
+                  0.49,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.49,
+                  1.0,
+                  0.85
+                ]
+              ],
+              "curve": "continuous",
+              "harmonics": 0.0
+            },
+            {
+              "id": "air-label",
+              "type": "text",
+              "color": "white",
+              "depth": 0.0,
+              "width": 0.82,
+              "height": 0.16,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.8,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.52,
+                  0.5,
+                  0.8,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.72,
+                  0.5,
+                  0.79,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.79,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "curve": "continuous",
+              "text": "Air particles vibrate around their resting positions.",
+              "size": 0.049,
+              "face": "sans",
+              "align": "center"
+            },
+            {
+              "id": "wave",
+              "type": "wave",
+              "color": "mint",
+              "depth": 0.12,
+              "width": 0.82,
+              "height": 0.34,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.54,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.68,
+                  0.5,
+                  0.54,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.92,
+                  0.5,
+                  0.5,
+                  1.0,
+                  0.85
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.5,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "curve": "continuous",
+              "harmonics": 0.0
+            },
+            {
+              "id": "episode",
+              "type": "text",
+              "color": "gold",
+              "depth": -0.1,
+              "width": 0.68,
+              "height": 0.07,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.2,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.12,
+                  0.5,
+                  0.19,
+                  1.0,
+                  1.0
+                ],
+                [
+                  0.36,
+                  0.5,
+                  0.19,
+                  1.0,
+                  1.0
+                ],
+                [
+                  0.48,
+                  0.5,
+                  0.17,
+                  1.0,
+                  0.0
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.17,
+                  1.0,
+                  0.0
+                ]
+              ],
+              "text": "FIELD NOTES  /  01",
+              "size": 0.032,
+              "face": "mono",
+              "align": "center"
+            }
+          ]
+        },
+        "editorial": "graphic",
+        "editorial_look": "midnight",
+        "text": "The shape of sound",
+        "chapter": 1
+      },
+      "editorial_bridge_seconds": 0.9
+    },
+    {
+      "type": "big_text",
+      "text": "A sound can contain many frequencies",
+      "start": 16.366666666666667,
+      "end": 25.916666666666668,
+      "frames": 573,
+      "captions": [],
+      "camera": "still",
+      "cinematic_finish": true,
+      "brand": "SKELLYMOTION",
+      "chapter": 3,
+      "editorial": "graphic",
+      "editorial_look": "midnight",
+      "graphic": {
+        "kind": "composition",
+        "title": "A sound can contain many frequencies",
+        "source": "ILLUSTRATION + MEASURED FFT OF AN ORIGINAL SYNTHETIC TEST SIGNAL",
+        "camera": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            1.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "layers": [
+          {
+            "id": "section2",
+            "type": "text",
+            "color": "gold",
+            "depth": 0.0,
+            "width": 0.82,
+            "height": 0.075,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.13,
+                1.0,
+                0.0
+              ],
+              [
+                0.0001,
+                0.5,
+                0.13,
+                1.0,
+                0.0
+              ],
+              [
+                0.12,
+                0.5,
+                0.105,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.105,
+                1.0,
+                1.0
+              ]
+            ],
+            "curve": "continuous",
+            "text": "02  /  THE SPECTRUM",
+            "size": 0.037,
+            "face": "mono",
+            "align": "center"
+          },
+          {
+            "id": "sub2",
+            "type": "text",
+            "color": "white",
+            "depth": 0.0,
+            "width": 0.82,
+            "height": 0.14,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.225,
+                1.0,
+                0.0
+              ],
+              [
+                0.04,
+                0.5,
+                0.225,
+                1.0,
+                0.0
+              ],
+              [
+                0.2,
+                0.5,
+                0.2,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.2,
+                1.0,
+                1.0
+              ]
+            ],
+            "curve": "continuous",
+            "text": "One sound. Many frequencies.",
+            "size": 0.059,
+            "face": "serif",
+            "align": "center"
+          },
+          {
+            "id": "wave",
+            "type": "wave",
+            "color": "mint",
+            "depth": 0.12,
+            "width": 0.82,
+            "height": 0.34,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.51,
+                1.0,
+                1.0
+              ],
+              [
+                0.3,
+                0.5,
+                0.37,
+                0.65,
+                0.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.37,
+                0.65,
+                0.0
+              ]
+            ],
+            "curve": "continuous",
+            "harmonics": 0.0
+          },
+          {
+            "id": "complex",
+            "type": "wave",
+            "color": "mint",
+            "depth": 0.12,
+            "width": 0.82,
+            "height": 0.31,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.43,
+                0.86,
+                0.0
+              ],
+              [
+                0.24,
+                0.5,
+                0.4,
+                0.86,
+                0.0
+              ],
+              [
+                0.43,
+                0.5,
+                0.37,
+                0.7,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.37,
+                0.7,
+                1.0
+              ]
+            ],
+            "curve": "continuous",
+            "harmonics": 1.0
+          },
+          {
+            "id": "spec",
+            "type": "spectrum",
+            "color": "gold",
+            "depth": 0.0,
+            "width": 0.77,
+            "height": 0.32,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.68,
+                1.0,
+                0.0
+              ],
+              [
+                0.32,
+                0.5,
+                0.68,
+                1.0,
+                0.0
+              ],
+              [
+                0.55,
+                0.5,
+                0.64,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.64,
+                1.0,
+                1.0
+              ]
+            ],
+            "curve": "continuous",
+            "values": [
+              {
+                "label": "440 Hz",
+                "value": 1.0
+              },
+              {
+                "label": "880 Hz",
+                "value": 0.5
+              },
+              {
+                "label": "1320 Hz",
+                "value": 0.25
+              }
+            ]
+          },
+          {
+            "id": "spectext",
+            "type": "text",
+            "color": "white",
+            "depth": 0.0,
+            "width": 0.82,
+            "height": 0.12,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.865,
+                1.0,
+                0.0
+              ],
+              [
+                0.45,
+                0.5,
+                0.865,
+                1.0,
+                0.0
+              ],
+              [
+                0.64,
+                0.5,
+                0.84,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.84,
+                1.0,
+                1.0
+              ]
+            ],
+            "curve": "continuous",
+            "text": "A spectrum separates a signal by frequency.",
+            "size": 0.046,
+            "face": "sans",
+            "align": "center"
+          }
+        ]
+      },
+      "editorial_bridge_scene": {
+        "start": 8.183333333333334,
+        "end": 16.366666666666667,
+        "graphic": {
+          "kind": "composition",
+          "title": "Pressure over time",
+          "source": "ILLUSTRATION  /  A PERIODIC WAVEFORM, NOT A LIVE RECORDING",
+          "camera": [
+            [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ],
+            [
+              1.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "layers": [
+            {
+              "id": "section1",
+              "type": "text",
+              "color": "gold",
+              "depth": 0.0,
+              "width": 0.82,
+              "height": 0.075,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.13,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.0001,
+                  0.5,
+                  0.13,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.12,
+                  0.5,
+                  0.105,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.105,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "curve": "continuous",
+              "text": "01  /  THE WAVE",
+              "size": 0.037,
+              "face": "mono",
+              "align": "center"
+            },
+            {
+              "id": "sub1",
+              "type": "text",
+              "color": "white",
+              "depth": 0.0,
+              "width": 0.82,
+              "height": 0.14,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.225,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.04,
+                  0.5,
+                  0.225,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.2,
+                  0.5,
+                  0.2,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.2,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "curve": "continuous",
+              "text": "Pressure becomes a pattern.",
+              "size": 0.059,
+              "face": "serif",
+              "align": "center"
+            },
+            {
+              "id": "air",
+              "type": "particles",
+              "color": "mint",
+              "depth": 0.35,
+              "width": 0.85,
+              "height": 0.37,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.49,
+                  1.0,
+                  0.85
+                ],
+                [
+                  0.36,
+                  0.5,
+                  0.42,
+                  1.0,
+                  0.0
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.42,
+                  1.0,
+                  0.0
+                ]
+              ],
+              "curve": "continuous",
+              "harmonics": 0.0
+            },
+            {
+              "id": "wave",
+              "type": "wave",
+              "color": "mint",
+              "depth": 0.12,
+              "width": 0.82,
+              "height": 0.34,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.5,
+                  1.0,
+                  1.0
+                ],
+                [
+                  0.34,
+                  0.5,
+                  0.51,
+                  1.0,
+                  1.0
+                ],
+                [
+                  0.7,
+                  0.5,
+                  0.51,
+                  1.07,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.51,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "curve": "continuous",
+              "harmonics": 0.0
+            },
+            {
+              "id": "time",
+              "type": "text",
+              "color": "muted",
+              "depth": 0.0,
+              "width": 0.82,
+              "height": 0.07,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.755,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.15,
+                  0.5,
+                  0.755,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.3,
+                  0.5,
+                  0.73,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.73,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "curve": "continuous",
+              "text": "TIME  \u2192",
+              "size": 0.031,
+              "face": "sans",
+              "align": "center"
+            },
+            {
+              "id": "pattern",
+              "type": "text",
+              "color": "white",
+              "depth": 0.0,
+              "width": 0.82,
+              "height": 0.11,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.855,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.33,
+                  0.5,
+                  0.855,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.49,
+                  0.5,
+                  0.83,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.83,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "curve": "continuous",
+              "text": "A repeating cycle is a periodic wave.",
+              "size": 0.045,
+              "face": "sans",
+              "align": "center"
+            }
+          ]
+        },
+        "editorial": "graphic",
+        "editorial_look": "midnight",
+        "text": "Pressure over time",
+        "chapter": 2
+      },
+      "editorial_bridge_seconds": 0.9
+    },
+    {
+      "type": "big_text",
+      "text": "Measurement makes the invisible visible",
+      "start": 25.916666666666668,
+      "end": 34.083333333333336,
+      "frames": 490,
+      "captions": [],
+      "camera": "still",
+      "cinematic_finish": true,
+      "brand": "SKELLYMOTION",
+      "chapter": 4,
+      "editorial": "graphic",
+      "editorial_look": "midnight",
+      "graphic": {
+        "kind": "composition",
+        "title": "Measurement makes the invisible visible",
+        "source": "MEASUREMENT  /  ONE-SECOND SYNTHETIC SIGNAL  \u00b7  NORMALIZED FFT MAGNITUDES",
+        "camera": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            1.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "layers": [
+          {
+            "id": "section3",
+            "type": "text",
+            "color": "gold",
+            "depth": 0.0,
+            "width": 0.82,
+            "height": 0.075,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.13,
+                1.0,
+                0.0
+              ],
+              [
+                0.0001,
+                0.5,
+                0.13,
+                1.0,
+                0.0
+              ],
+              [
+                0.12,
+                0.5,
+                0.105,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.105,
+                1.0,
+                1.0
+              ]
+            ],
+            "curve": "continuous",
+            "text": "03  /  THE EVIDENCE",
+            "size": 0.037,
+            "face": "mono",
+            "align": "center"
+          },
+          {
+            "id": "sub3",
+            "type": "text",
+            "color": "white",
+            "depth": 0.0,
+            "width": 0.82,
+            "height": 0.14,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.225,
+                1.0,
+                0.0
+              ],
+              [
+                0.04,
+                0.5,
+                0.225,
+                1.0,
+                0.0
+              ],
+              [
+                0.2,
+                0.5,
+                0.2,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.2,
+                1.0,
+                1.0
+              ]
+            ],
+            "curve": "continuous",
+            "text": "We can measure those components.",
+            "size": 0.059,
+            "face": "serif",
+            "align": "center"
+          },
+          {
+            "id": "spec",
+            "type": "spectrum",
+            "color": "gold",
+            "depth": 0.0,
+            "width": 0.77,
+            "height": 0.32,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.64,
+                1.0,
+                1.0
+              ],
+              [
+                0.32,
+                0.31,
+                0.48,
+                0.66,
+                1.0
+              ],
+              [
+                0.9,
+                0.31,
+                0.48,
+                0.66,
+                1.0
+              ],
+              [
+                1.0,
+                0.31,
+                0.48,
+                0.66,
+                1.0
+              ]
+            ],
+            "curve": "continuous",
+            "values": [
+              {
+                "label": "440 Hz",
+                "value": 1.0
+              },
+              {
+                "label": "880 Hz",
+                "value": 0.5
+              },
+              {
+                "label": "1320 Hz",
+                "value": 0.25
+              }
+            ]
+          },
+          {
+            "id": "paper1",
+            "type": "paper",
+            "color": "white",
+            "depth": 0.25,
+            "width": 0.34,
+            "height": 0.17,
+            "track": [
+              [
+                0.0,
+                0.75,
+                0.385,
+                1.0,
+                0.0
+              ],
+              [
+                0.16,
+                0.75,
+                0.385,
+                1.0,
+                0.0
+              ],
+              [
+                0.32,
+                0.75,
+                0.36,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.75,
+                0.36,
+                1.0,
+                1.0
+              ]
+            ],
+            "curve": "continuous",
+            "text": "440 Hz  \u00b7  1.00",
+            "label": "FUNDAMENTAL"
+          },
+          {
+            "id": "paper2",
+            "type": "paper",
+            "color": "white",
+            "depth": 0.1,
+            "width": 0.34,
+            "height": 0.17,
+            "track": [
+              [
+                0.0,
+                0.75,
+                0.555,
+                1.0,
+                0.0
+              ],
+              [
+                0.31,
+                0.75,
+                0.555,
+                1.0,
+                0.0
+              ],
+              [
+                0.47,
+                0.75,
+                0.53,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.75,
+                0.53,
+                1.0,
+                1.0
+              ]
+            ],
+            "curve": "continuous",
+            "text": "880 Hz  \u00b7  0.50",
+            "label": "SECOND HARMONIC"
+          },
+          {
+            "id": "paper3",
+            "type": "paper",
+            "color": "white",
+            "depth": -0.05,
+            "width": 0.34,
+            "height": 0.17,
+            "track": [
+              [
+                0.0,
+                0.75,
+                0.725,
+                1.0,
+                0.0
+              ],
+              [
+                0.46,
+                0.75,
+                0.725,
+                1.0,
+                0.0
+              ],
+              [
+                0.62,
+                0.75,
+                0.7,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.75,
+                0.7,
+                1.0,
+                1.0
+              ]
+            ],
+            "curve": "continuous",
+            "text": "1320 Hz  \u00b7  0.25",
+            "label": "THIRD HARMONIC"
+          },
+          {
+            "id": "measured",
+            "type": "text",
+            "color": "white",
+            "depth": 0.0,
+            "width": 0.82,
+            "height": 0.11,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.865,
+                1.0,
+                0.0
+              ],
+              [
+                0.52,
+                0.5,
+                0.865,
+                1.0,
+                0.0
+              ],
+              [
+                0.7,
+                0.5,
+                0.84,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.84,
+                1.0,
+                1.0
+              ]
+            ],
+            "curve": "continuous",
+            "text": "Three peaks. One combined waveform.",
+            "size": 0.046,
+            "face": "sans",
+            "align": "center"
+          }
+        ]
+      },
+      "editorial_bridge_scene": {
+        "start": 16.366666666666667,
+        "end": 25.916666666666668,
+        "graphic": {
+          "kind": "composition",
+          "title": "A sound can contain many frequencies",
+          "source": "ILLUSTRATION + MEASURED FFT OF AN ORIGINAL SYNTHETIC TEST SIGNAL",
+          "camera": [
+            [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ],
+            [
+              1.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "layers": [
+            {
+              "id": "section2",
+              "type": "text",
+              "color": "gold",
+              "depth": 0.0,
+              "width": 0.82,
+              "height": 0.075,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.13,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.0001,
+                  0.5,
+                  0.13,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.12,
+                  0.5,
+                  0.105,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.105,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "curve": "continuous",
+              "text": "02  /  THE SPECTRUM",
+              "size": 0.037,
+              "face": "mono",
+              "align": "center"
+            },
+            {
+              "id": "sub2",
+              "type": "text",
+              "color": "white",
+              "depth": 0.0,
+              "width": 0.82,
+              "height": 0.14,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.225,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.04,
+                  0.5,
+                  0.225,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.2,
+                  0.5,
+                  0.2,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.2,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "curve": "continuous",
+              "text": "One sound. Many frequencies.",
+              "size": 0.059,
+              "face": "serif",
+              "align": "center"
+            },
+            {
+              "id": "wave",
+              "type": "wave",
+              "color": "mint",
+              "depth": 0.12,
+              "width": 0.82,
+              "height": 0.34,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.51,
+                  1.0,
+                  1.0
+                ],
+                [
+                  0.3,
+                  0.5,
+                  0.37,
+                  0.65,
+                  0.0
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.37,
+                  0.65,
+                  0.0
+                ]
+              ],
+              "curve": "continuous",
+              "harmonics": 0.0
+            },
+            {
+              "id": "complex",
+              "type": "wave",
+              "color": "mint",
+              "depth": 0.12,
+              "width": 0.82,
+              "height": 0.31,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.43,
+                  0.86,
+                  0.0
+                ],
+                [
+                  0.24,
+                  0.5,
+                  0.4,
+                  0.86,
+                  0.0
+                ],
+                [
+                  0.43,
+                  0.5,
+                  0.37,
+                  0.7,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.37,
+                  0.7,
+                  1.0
+                ]
+              ],
+              "curve": "continuous",
+              "harmonics": 1.0
+            },
+            {
+              "id": "spec",
+              "type": "spectrum",
+              "color": "gold",
+              "depth": 0.0,
+              "width": 0.77,
+              "height": 0.32,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.68,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.32,
+                  0.5,
+                  0.68,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.55,
+                  0.5,
+                  0.64,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.64,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "curve": "continuous",
+              "values": [
+                {
+                  "label": "440 Hz",
+                  "value": 1.0
+                },
+                {
+                  "label": "880 Hz",
+                  "value": 0.5
+                },
+                {
+                  "label": "1320 Hz",
+                  "value": 0.25
+                }
+              ]
+            },
+            {
+              "id": "spectext",
+              "type": "text",
+              "color": "white",
+              "depth": 0.0,
+              "width": 0.82,
+              "height": 0.12,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.865,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.45,
+                  0.5,
+                  0.865,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.64,
+                  0.5,
+                  0.84,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.84,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "curve": "continuous",
+              "text": "A spectrum separates a signal by frequency.",
+              "size": 0.046,
+              "face": "sans",
+              "align": "center"
+            }
+          ]
+        },
+        "editorial": "graphic",
+        "editorial_look": "midnight",
+        "text": "A sound can contain many frequencies",
+        "chapter": 3
+      },
+      "editorial_bridge_seconds": 0.9
+    },
+    {
+      "type": "big_text",
+      "text": "From continuous motion to digital audio",
+      "start": 34.083333333333336,
+      "end": 45.0,
+      "frames": 655,
+      "captions": [],
+      "camera": "still",
+      "cinematic_finish": true,
+      "brand": "SKELLYMOTION",
+      "chapter": 5,
+      "editorial": "graphic",
+      "editorial_look": "midnight",
+      "graphic": {
+        "kind": "composition",
+        "title": "From continuous motion to digital audio",
+        "source": "ILLUSTRATION  /  SAMPLING AT DISCRETE INSTANTS  \u00b7  NOT TO SCALE",
+        "camera": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            1.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "layers": [
+          {
+            "id": "section4",
+            "type": "text",
+            "color": "gold",
+            "depth": 0.0,
+            "width": 0.82,
+            "height": 0.075,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.12,
+                1.0,
+                0.0
+              ],
+              [
+                0.12,
+                0.5,
+                0.105,
+                1.0,
+                1.0
+              ],
+              [
+                0.68,
+                0.5,
+                0.105,
+                1.0,
+                1.0
+              ],
+              [
+                0.83,
+                0.5,
+                0.08,
+                1.0,
+                0.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.08,
+                1.0,
+                0.0
+              ]
+            ],
+            "curve": "continuous",
+            "text": "04  /  THE RECORDING",
+            "size": 0.037,
+            "face": "mono",
+            "align": "center"
+          },
+          {
+            "id": "sub4",
+            "type": "text",
+            "color": "white",
+            "depth": 0.0,
+            "width": 0.82,
+            "height": 0.14,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.22,
+                1.0,
+                0.0
+              ],
+              [
+                0.18,
+                0.5,
+                0.2,
+                1.0,
+                1.0
+              ],
+              [
+                0.68,
+                0.5,
+                0.2,
+                1.0,
+                1.0
+              ],
+              [
+                0.83,
+                0.5,
+                0.16,
+                1.0,
+                0.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.16,
+                1.0,
+                0.0
+              ]
+            ],
+            "curve": "continuous",
+            "text": "A digital recording stores measurements.",
+            "size": 0.059,
+            "face": "serif",
+            "align": "center"
+          },
+          {
+            "id": "complex",
+            "type": "wave",
+            "color": "mint",
+            "depth": 0.12,
+            "width": 0.82,
+            "height": 0.31,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.48,
+                1.0,
+                1.0
+              ],
+              [
+                0.27,
+                0.5,
+                0.48,
+                1.0,
+                1.0
+              ],
+              [
+                0.52,
+                0.5,
+                0.48,
+                1.0,
+                0.35
+              ],
+              [
+                0.69,
+                0.5,
+                0.48,
+                1.0,
+                0.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.48,
+                1.0,
+                0.0
+              ]
+            ],
+            "curve": "continuous",
+            "harmonics": 1.0
+          },
+          {
+            "id": "samples",
+            "type": "samples",
+            "color": "gold",
+            "depth": 0.0,
+            "width": 0.82,
+            "height": 0.31,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.48,
+                1.0,
+                0.0
+              ],
+              [
+                0.18,
+                0.5,
+                0.48,
+                1.0,
+                0.0
+              ],
+              [
+                0.42,
+                0.5,
+                0.48,
+                1.0,
+                1.0
+              ],
+              [
+                0.7,
+                0.5,
+                0.48,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.48,
+                1.0,
+                0.2
+              ]
+            ],
+            "curve": "continuous",
+            "harmonics": 1.0
+          },
+          {
+            "id": "samples-label",
+            "type": "text",
+            "color": "white",
+            "depth": 0.0,
+            "width": 0.82,
+            "height": 0.14,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.77,
+                1.0,
+                0.0
+              ],
+              [
+                0.25,
+                0.5,
+                0.77,
+                1.0,
+                0.0
+              ],
+              [
+                0.48,
+                0.5,
+                0.77,
+                1.0,
+                1.0
+              ],
+              [
+                0.69,
+                0.5,
+                0.77,
+                1.0,
+                1.0
+              ],
+              [
+                0.83,
+                0.5,
+                0.77,
+                1.0,
+                0.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.77,
+                1.0,
+                0.0
+              ]
+            ],
+            "curve": "continuous",
+            "text": "Each point records the signal at a moment in time.",
+            "size": 0.047,
+            "face": "sans",
+            "align": "center"
+          },
+          {
+            "id": "final",
+            "type": "text",
+            "color": "white",
+            "depth": -0.3,
+            "width": 0.82,
+            "height": 0.21,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.51,
+                0.95,
+                0.0
+              ],
+              [
+                0.72,
+                0.5,
+                0.51,
+                0.95,
+                0.0
+              ],
+              [
+                0.87,
+                0.5,
+                0.48,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.48,
+                1.0,
+                1.0
+              ]
+            ],
+            "curve": "continuous",
+            "text": "From motion to music.",
+            "size": 0.086,
+            "face": "serif",
+            "align": "center"
+          },
+          {
+            "id": "credit",
+            "type": "text",
+            "color": "gold",
+            "depth": 0.0,
+            "width": 0.82,
+            "height": 0.08,
+            "track": [
+              [
+                0.0,
+                0.5,
+                0.72,
+                1.0,
+                0.0
+              ],
+              [
+                0.76,
+                0.5,
+                0.72,
+                1.0,
+                0.0
+              ],
+              [
+                0.93,
+                0.5,
+                0.7,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.7,
+                1.0,
+                1.0
+              ]
+            ],
+            "curve": "continuous",
+            "text": "SKELLYMOTION  /  FIELD NOTES",
+            "size": 0.034,
+            "face": "mono",
+            "align": "center"
+          }
+        ]
+      },
+      "editorial_bridge_scene": {
+        "start": 25.916666666666668,
+        "end": 34.083333333333336,
+        "graphic": {
+          "kind": "composition",
+          "title": "Measurement makes the invisible visible",
+          "source": "MEASUREMENT  /  ONE-SECOND SYNTHETIC SIGNAL  \u00b7  NORMALIZED FFT MAGNITUDES",
+          "camera": [
+            [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ],
+            [
+              1.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "layers": [
+            {
+              "id": "section3",
+              "type": "text",
+              "color": "gold",
+              "depth": 0.0,
+              "width": 0.82,
+              "height": 0.075,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.13,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.0001,
+                  0.5,
+                  0.13,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.12,
+                  0.5,
+                  0.105,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.105,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "curve": "continuous",
+              "text": "03  /  THE EVIDENCE",
+              "size": 0.037,
+              "face": "mono",
+              "align": "center"
+            },
+            {
+              "id": "sub3",
+              "type": "text",
+              "color": "white",
+              "depth": 0.0,
+              "width": 0.82,
+              "height": 0.14,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.225,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.04,
+                  0.5,
+                  0.225,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.2,
+                  0.5,
+                  0.2,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.2,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "curve": "continuous",
+              "text": "We can measure those components.",
+              "size": 0.059,
+              "face": "serif",
+              "align": "center"
+            },
+            {
+              "id": "spec",
+              "type": "spectrum",
+              "color": "gold",
+              "depth": 0.0,
+              "width": 0.77,
+              "height": 0.32,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.64,
+                  1.0,
+                  1.0
+                ],
+                [
+                  0.32,
+                  0.31,
+                  0.48,
+                  0.66,
+                  1.0
+                ],
+                [
+                  0.9,
+                  0.31,
+                  0.48,
+                  0.66,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.31,
+                  0.48,
+                  0.66,
+                  1.0
+                ]
+              ],
+              "curve": "continuous",
+              "values": [
+                {
+                  "label": "440 Hz",
+                  "value": 1.0
+                },
+                {
+                  "label": "880 Hz",
+                  "value": 0.5
+                },
+                {
+                  "label": "1320 Hz",
+                  "value": 0.25
+                }
+              ]
+            },
+            {
+              "id": "paper1",
+              "type": "paper",
+              "color": "white",
+              "depth": 0.25,
+              "width": 0.34,
+              "height": 0.17,
+              "track": [
+                [
+                  0.0,
+                  0.75,
+                  0.385,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.16,
+                  0.75,
+                  0.385,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.32,
+                  0.75,
+                  0.36,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.75,
+                  0.36,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "curve": "continuous",
+              "text": "440 Hz  \u00b7  1.00",
+              "label": "FUNDAMENTAL"
+            },
+            {
+              "id": "paper2",
+              "type": "paper",
+              "color": "white",
+              "depth": 0.1,
+              "width": 0.34,
+              "height": 0.17,
+              "track": [
+                [
+                  0.0,
+                  0.75,
+                  0.555,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.31,
+                  0.75,
+                  0.555,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.47,
+                  0.75,
+                  0.53,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.75,
+                  0.53,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "curve": "continuous",
+              "text": "880 Hz  \u00b7  0.50",
+              "label": "SECOND HARMONIC"
+            },
+            {
+              "id": "paper3",
+              "type": "paper",
+              "color": "white",
+              "depth": -0.05,
+              "width": 0.34,
+              "height": 0.17,
+              "track": [
+                [
+                  0.0,
+                  0.75,
+                  0.725,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.46,
+                  0.75,
+                  0.725,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.62,
+                  0.75,
+                  0.7,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.75,
+                  0.7,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "curve": "continuous",
+              "text": "1320 Hz  \u00b7  0.25",
+              "label": "THIRD HARMONIC"
+            },
+            {
+              "id": "measured",
+              "type": "text",
+              "color": "white",
+              "depth": 0.0,
+              "width": 0.82,
+              "height": 0.11,
+              "track": [
+                [
+                  0.0,
+                  0.5,
+                  0.865,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.52,
+                  0.5,
+                  0.865,
+                  1.0,
+                  0.0
+                ],
+                [
+                  0.7,
+                  0.5,
+                  0.84,
+                  1.0,
+                  1.0
+                ],
+                [
+                  1.0,
+                  0.5,
+                  0.84,
+                  1.0,
+                  1.0
+                ]
+              ],
+              "curve": "continuous",
+              "text": "Three peaks. One combined waveform.",
+              "size": 0.046,
+              "face": "sans",
+              "align": "center"
+            }
+          ]
+        },
+        "editorial": "graphic",
+        "editorial_look": "midnight",
+        "text": "Measurement makes the invisible visible",
+        "chapter": 4
+      },
+      "editorial_bridge_seconds": 0.9
+    }
+  ],
+  "director": "local",
+  "audio_start": 0.0,
+  "silent": false,
+  "cinematic_finish": true,
+  "caption_style": "off",
+  "caption_track": [],
+  "crossfades": false,
+  "sound_design": true,
+  "music_gain": 1.75,
+  "cue_gain": 0.0,
+  "voice_style": "natural",
+  "score_bpm": 88,
+  "beat_locked_cuts": [
+    {
+      "frame": 491,
+      "beat": 12,
+      "shift_frames": 0
+    },
+    {
+      "frame": 982,
+      "beat": 24,
+      "shift_frames": 0
+    },
+    {
+      "frame": 1555,
+      "beat": 38,
+      "shift_frames": 0
+    },
+    {
+      "frame": 2045,
+      "beat": 50,
+      "shift_frames": 0
+    }
+  ],
+  "score_arc": "cinematic",
+  "auto_repair_layout": true,
+  "layout_repair": {
+    "before": 0,
+    "after": 0,
+    "corrections": [],
+    "basis": "Bounded sampled glyph review; does not guarantee all-frame or artistic quality."
+  }
+}

@@ -1,0 +1,59 @@
+/* Exact SkellHub artwork, adapted to Motion's existing welcome layout. */
+.brand-symbol{clip-path:none!important;border-radius:10px;background:radial-gradient(circle,#192915,#090e09 73%)!important;box-shadow:inset 0 1px #dcff9b19,0 0 15px #a3ff450d;padding:2px;border:0}
+.brand-symbol img{display:block;width:100%!important;height:100%!important;object-fit:contain;filter:drop-shadow(0 0 4px #acff1250)}
+.welcome-overlay,html.desktop-mode .welcome-overlay{display:grid;grid-template-columns:minmax(0,660px) minmax(180px,360px);gap:clamp(16px,4vw,60px);justify-content:center;align-content:safe center;align-items:center;padding:24px clamp(18px,4vw,56px)}
+.welcome-overlay:before,.welcome-overlay:after{display:none!important;content:none!important}
+.welcome-content,html.desktop-mode .welcome-content{max-width:660px;width:100%;min-width:0;margin:0}
+.welcome-hub-art{width:100%;display:grid;place-items:center;align-self:center;pointer-events:none;min-width:0;isolation:isolate}
+.motion-radar{position:relative;width:min(100%,360px);aspect-ratio:531/505;display:grid;place-items:center;isolation:isolate}
+.motion-radar img{display:block;width:100%;height:100%;object-fit:contain;mix-blend-mode:screen;filter:drop-shadow(0 0 11px #a1ff142e);mask-image:radial-gradient(circle closest-side at center,#000 87%,transparent 100%);-webkit-mask-image:radial-gradient(circle closest-side at center,#000 87%,transparent 100%)}
+.motion-radar .radar-sweep{pointer-events:none;position:absolute;inset:14%;border:1px solid #a1ff193b;border-left-color:#a1ff1900;border-right-color:#adff258e;border-radius:50%;transform-origin:center;animation:motion-hub-sweep 24s linear infinite}
+.motion-radar .radar-pulse{pointer-events:none;position:absolute;inset:35%;border:1px solid #a6ff1f77;border-radius:50%;box-shadow:0 0 12px #a2ff2622,inset 0 0 12px #a2ff2613;animation:motion-hub-pulse 5.4s ease-in-out infinite}
+.welcome-hub-label{margin-top:10px;font-size:10px;letter-spacing:.18em;color:#a4ba9f;text-align:center}
+@keyframes motion-hub-sweep{to{transform:rotate(360deg)}}
+@keyframes motion-hub-pulse{0%,100%{opacity:.38;transform:scale(.96)}50%{opacity:.80;transform:scale(1.055)}}
+html.motion-document-hidden .motion-radar span{animation-play-state:paused!important}
+html:has(#startupPerformance option[value=eco]:checked) .motion-radar span,html:has(#performanceMode option[value=eco]:checked) .motion-radar span{animation:none!important}
+@media(prefers-reduced-motion:reduce){.motion-radar span{animation:none!important}}
+@media(max-width:900px){.welcome-overlay,html.desktop-mode .welcome-overlay{grid-template-columns:minmax(0,680px);align-content:start;padding:18px}.welcome-hub-art{display:none}}
+@media(max-height:720px){.welcome-overlay,html.desktop-mode .welcome-overlay{align-content:start}.welcome-hub-art{align-self:center}}
+/* Decorative children must not consume a grid cell. */
+.welcome-overlay>.welcome-grain{display:none!important}
+.welcome-overlay>.welcome-content{grid-column:1;grid-row:1}
+.welcome-overlay>.welcome-hub-art{grid-column:2;grid-row:1}
+.welcome-content h1,html.desktop-mode .welcome-content h1{font-size:clamp(40px,4.3vw,68px);line-height:.99;letter-spacing:-.055em;margin:12px 0 14px}
+.welcome-content>p,html.desktop-mode .welcome-content>p{margin:0 0 16px;max-width:530px}
+@media(max-height:760px){.welcome-content h1,html.desktop-mode .welcome-content h1{font-size:clamp(36px,4vw,54px);margin:8px 0 10px}.welcome-content>p{margin-bottom:10px}.welcome-features{margin-top:10px}}
+
+/* Hub identity v3: sampled from the original skull PNG. */
+:root{--accent:#aaff1a;--accent-dark:#2b3e12;--hub-accent:#aaff1a;--hub-accent-soft:#d5ff99}
+.brand-name span,.welcome-content h1 em,.welcome-kicker,.upload-arrow,.rail-item.active,.eyebrow,.flex-label span{color:var(--hub-accent)}
+.green-dot,.live-indicator{background:var(--hub-accent);box-shadow:0 0 11px #aaff1a70}
+.brand-pill{color:var(--hub-accent);border-color:#526c29}
+.primary-btn,.play-button{background:var(--hub-accent);color:#18260a;box-shadow:0 0 14px #aaff1a16}
+.primary-btn:hover:not(:disabled),.play-button:hover{background:#c1ff58}
+.welcome-creator-btn{color:var(--hub-accent);background:#202c13;border-color:#536c2a}
+.welcome-creator-btn:hover{background:#2c3c1a;border-color:var(--hub-accent)}
+.hero-upload{border-color:#85ae43;background:#1a2214e8}
+.hero-upload:hover,.hero-upload.drag-over{border-color:var(--hub-accent);background:#273619}
+.upload-glyph{color:var(--hub-accent);background:#2c3a1a;border-color:#536f2c}
+.welcome-secondary-actions .demo-btn,.welcome-secondary-actions #openProjectsWelcome{color:var(--hub-accent-soft)}
+.rail-item.active{background:#202b15;border-color:#4e632b}
+.lyric-clip{border-color:#89bf36;background:#2d4017;color:#e4ffc0}
+.lyric-clip.selected{background:#466323;box-shadow:inset 0 0 0 1px #c6ff67}
+.playhead{background:var(--hub-accent);box-shadow:0 0 5px #aaff1a80}
+.welcome-overlay,html.desktop-mode .welcome-overlay{grid-template-columns:minmax(0,660px) minmax(0,540px);gap:clamp(18px,3vw,52px);background:radial-gradient(ellipse at 78% 45%,#222f13 0%,#121b10 39%,#0e1510 75%,#0c120e)}
+.motion-radar{width:min(100%,540px,70vh);aspect-ratio:531/505;isolation:isolate}
+/* Ring layer rotates; central skull stays upright. Both use original asset. */
+.motion-radar img{transform-origin:48.97% 49.5%;animation:motion-hub-rotation 18s linear infinite;mask-image:radial-gradient(circle closest-side at 48.97% 49.5%,transparent 0 29%,#000 31% 92%,transparent 100%);-webkit-mask-image:radial-gradient(circle closest-side at 48.97% 49.5%,transparent 0 29%,#000 31% 92%,transparent 100%);filter:none;will-change:transform}
+.motion-radar::after{content:"";position:absolute;inset:0;background:url('/static/skelly-radar.png') center/contain no-repeat;mix-blend-mode:screen;mask-image:radial-gradient(circle closest-side at 48.97% 49.5%,#000 0 29%,transparent 31%);-webkit-mask-image:radial-gradient(circle closest-side at 48.97% 49.5%,#000 0 29%,transparent 31%);pointer-events:none}
+.motion-radar .radar-sweep{display:none}
+.motion-radar .radar-pulse{inset:34.7% 35.5% 35.7% 34.5%;border-color:#aaff1a5c;box-shadow:none;animation:motion-hub-pulse 5.4s ease-in-out infinite}
+@keyframes motion-hub-rotation{to{transform:rotate(360deg)}}
+html.motion-document-hidden .motion-radar img,html:has(#welcome.hidden) .motion-radar img,html:has(#welcome.hidden) .motion-radar span{animation-play-state:paused!important;will-change:auto}
+html:has(#startupPerformance option[value=eco]:checked) .motion-radar img,html:has(#performanceMode option[value=eco]:checked) .motion-radar img{animation:none!important;will-change:auto}
+@media(prefers-reduced-motion:reduce){.motion-radar img{animation:none!important;will-change:auto}}
+@media(max-width:900px){.welcome-overlay,html.desktop-mode .welcome-overlay{grid-template-columns:minmax(0,680px);align-content:start;padding:18px}.welcome-hub-art{display:none}}
+/* Prevent the rotated rectangular source bounds from creating scrollbars. */
+.motion-radar{overflow:clip;border-radius:50%}
+.welcome-hub-art{overflow:hidden}

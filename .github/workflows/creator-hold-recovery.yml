@@ -1,0 +1,66 @@
+name: Creator Hold compatibility diagnostics
+on:
+  push:
+    branches: [feature/field-notes-production-20261126]
+    paths:
+      - 'field-notes/hold-recovery/**'
+      - '.github/workflows/creator-hold-recovery.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: creator-hold-recovery-${{ github.ref }}-${{ github.event_name == 'push' && 'push' || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'push' && github.ref == 'refs/heads/feature/field-notes-production-20261126' }}
+jobs:
+  compare:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, ubuntu-latest]
+        variant: [loop, tpad]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@v4
+        with:
+          name: exact-staged-source
+          run-id: 46028083402
+          github-token: ${{ github.token }}
+          path: staged-source
+      - name: Verify and unpack the same candidate
+        run: |
+          test "$(cat staged-source/producer-revision.txt)" = '68c3370de0854d633c8d75bd6fd7f713f737b51f'
+          printf '%s  %s\n' '6d3e6e8ce13a7b423603fa07ff0deb5466e5f5691b1bf9b4f09c02f4687ea7d2' staged-source/candidate.zip | sha256sum -c -
+          unzip -q staged-source/candidate.zip -d candidate
+          mkdir -p evidence
+      - name: Install and record actual FFmpeg version
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y ffmpeg fonts-dejavu-core
+          ffmpeg -version | tee evidence/ffmpeg-version.txt
+          python -m pip install -r candidate/LYRICFORGE-main/requirements.txt av httpx pytest
+      - name: Exercise bounded direct Hold encodes with exact frame/sample clocks
+        run: python field-notes/hold-recovery/probe_hold.py candidate/LYRICFORGE-main evidence/hold "${{ matrix.variant }}"
+      - name: Run real server Hold and Cut suite with visible test progress
+        working-directory: candidate/LYRICFORGE-main
+        timeout-minutes: 5
+        run: |
+          set -o pipefail
+          python -m pytest -vv -s --maxfail=1 tests/test_quick_tools2.py -k 'hold or cut' 2>&1 | tee ../../evidence/server-hold-cut.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hold-diagnostics-${{ matrix.os }}-${{ matrix.variant }}
+          path: |
+            evidence/**/*.json
+            evidence/*.txt
+            evidence/*.log
+          retention-days: 14
+          if-no-files-found: error
