@@ -1,0 +1,20 @@
+name: Motion decoded cutaway review
+on:
+  push:
+    branches: [staging/motion-render-review-20261127]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - run: sudo apt-get update -q && sudo apt-get install -y ffmpeg
+      - run: python -m pip install -r requirements-desktop.txt pytest httpx
+      - run: node --check static/autoclip.js && node tests/autoclip_smoke.mjs
+      - run: python -m pytest -q tests/test_sequence_visual_review.py tests/test_sequence_semantic.py tests/test_voice_alignment.py tests/test_studio_sequence.py

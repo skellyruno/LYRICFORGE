@@ -19,6 +19,7 @@ class Request(BaseModel):
     instruction:str=Field(default='',max_length=500)
     model:str=Field(default='',max_length=120)
     mode:str=Field(default='direct',pattern=r'^(direct|film|semantic)$')
+    review_picture:bool=False
     encoder:str=Field(default='auto',pattern=r'^(auto|cpu|gpu)$')
     format:str=Field(default='720p',pattern=r'^(720p|1080p|portrait|square)$')
 
@@ -126,6 +127,9 @@ def build_router(*,project_dir,read_project,broll_library,brand_asset,probe_medi
                         with job_lock:jobs[job].update(stage='timeline_render',progress=min(99,n))
                     w,h=FORMATS[body.format];encoding=renderer.render(s,a,out,width=w,height=h,cancel=lambda:check_cancel(job),progress=progress,encoder=body.encoder)
                     if not isinstance(encoding,dict):encoding={}
+                    if body.review_picture:
+                        from studio_sequence_visual_review import review
+                        encoding['visual_review']=review(out,s,a,w,h,cancel=lambda:check_cancel(job))
                     check_cancel(job);words=tl.remap_words(data.get('original_words') or [],s['base']);caption=out.with_suffix('.vtt');temp=caption.with_suffix('.tmp')
                     try:temp.write_text(edit.to_vtt(edit.cues_from_words(words)),encoding='utf-8');os.replace(temp,caption)
                     finally:temp.unlink(missing_ok=True)
