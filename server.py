@@ -5072,7 +5072,7 @@ def run_autoedit(project_id: str, job_id: str, opts: dict, settings: dict) -> No
                 has_audio=media["has_audio"], script_name=script, intro_ass=intro_card, intro_seconds=intro_secs,
                 intro_clip=intro_clip, outro_clip=outro_clip, music=music, sfx_track=sfx_path,
                 sfx_volume=brand["audio"]["sfx_volume"], voice_filters=sa.voice_cleanup_filters(opts["voice_cleanup"]),
-                broll=[{"path": b["path"], "start": b["start"], "length": b["length"]} for b in broll_plan] or None)
+                broll=[{"path": b["path"], "start": b["start"], "length": b["length"]} for b in broll_plan] or None, lock_audio_clock=bool(data.get("timeline_parent")))
 
         total_len = encode_graph(child, settings, p, build, temporary)
         temporary.replace(p / "autoedit.mp4")
@@ -5378,5 +5378,11 @@ import studio_topic_research as topic_research
 app.include_router(topic_research.router)
 import studio_research_compose as research_compose
 app.include_router(research_compose.router)
+
+from studio_timeline_api import build_router as build_timeline_router
+app.include_router(build_timeline_router(project_dir=project_dir,read_project=read_project,broll_library=broll_library,probe_media=clips.probe_media,register_job=register_job,executor=executor,jobs=jobs,job_lock=job_lock,fail_job=fail_job,check_cancel=check_cancel,sanitize_settings=sanitize_settings))
+
+from studio_sequence_api import build_router as build_sequence_router
+app.include_router(build_sequence_router(project_dir=project_dir,read_project=read_project,broll_library=broll_library,brand_asset=brand_asset,probe_media=clips.probe_media,register_job=register_job,executor=executor,jobs=jobs,job_lock=job_lock,fail_job=fail_job,check_cancel=check_cancel,sanitize_settings=sanitize_settings))
 
 app.mount("/static", StaticFiles(directory=STATIC), name="static")

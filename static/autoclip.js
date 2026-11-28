@@ -376,6 +376,8 @@ function showCards(suggestions) {
   updateRenderCount();
 }
 function showReady(project) {
+  seqClear();
+  clearTimeline();$('timelineAssetList').textContent='';
   setStep('clipReadyStep'); showCards(project.clip_suggestions || []);
   if (!(project.clip_suggestions || []).length) toast('No clip-length sections were found. Try a lower minimum.', true);
 }
@@ -813,6 +815,118 @@ on('clipEditNow','click',()=>{if(!studio.selected||studio.autoPending||studio.bu
 on('clipPick', 'click', () => $('clipFile').click());
 on('clipFile', 'change', (e) => { const f = e.target.files && e.target.files[0]; if(f){if(studio.oneClick){studio.selected=f;$('clipSelectedName').textContent=f.name;$('clipEditNow').disabled=false;}else uploadSource(f);} e.target.value = ''; });
 on('clipRegen', 'click', regenerate);
+/* Separate preview/export for non-destructive hard-cut timeline edits. */
+let timelineDraft=null, timelineTicket=0;
+function clearTimeline(){timelineDraft=null; ++timelineTicket; $('timelineRender').disabled=true; $('timelineResult').textContent=''; $('timelineOutput').replaceChildren();$('timelineSuggestions').replaceChildren();}
+async function listTimelineAssets(){
+  if(!studio.id||studio.busy)return;
+  const id=studio.id;
+  try{const reply=await api('/api/projects/'+id+'/timeline/assets');if(id!==studio.id)return;$('timelineAssetList').textContent=reply.assets.map(a=>`${a.id} (${a.duration.toFixed(2)}s${a.keywords?.length?' · '+a.keywords.join(', '):''})`).join(' · ');}
+  catch(e){if(id===studio.id)$('timelineAssetList').textContent=e.message;}
+}
+async function previewTimeline(){
+  if(!studio.id||studio.busy)return;clearTimeline();
+  const id=studio.id,ticket=timelineTicket,instruction=$('timelineInstruction').value.trim();
+  if(!instruction){$('timelineResult').textContent='Enter an editing instruction.';return;}
+  $('timelinePreview').disabled=true;
+  try{
+    const result=await post('/api/projects/'+id+'/timeline/plan',{instruction,format:$('timelineFormat').value,editable_copy:$('timelineCopy').checked});
+    if(id!==studio.id||ticket!==timelineTicket)return;
+    timelineDraft={id,instruction,fingerprint:result.fingerprint,format:result.format,editable_copy:result.editable_copy};
+    $('timelineResult').textContent=`${result.duration.toFixed(2)}s · ${result.frames} frames\n${result.changes.join('\n')}\n${result.warnings.join('\n')}${result.suggestions.length?'\nSuggestions (not applied):\n'+result.suggestions.map(s=>s.reason+(s.instruction?'\nTry: '+s.instruction:'')).join('\n'):''}`;
+    $('timelineRender').disabled=false;
+  }catch(e){if(id===studio.id&&ticket===timelineTicket)$('timelineResult').textContent=e.message;}
+  finally{$('timelinePreview').disabled=false;}
+}
+async function exportTimeline(){
+  if(studio.busy||!timelineDraft)return;
+  const draft=timelineDraft;
+  if(draft.id!==studio.id||draft.instruction!==$('timelineInstruction').value.trim()){clearTimeline();return;}
+  studio.busy=true;$('timelineRender').disabled=true;$('timelineInstruction').disabled=true;$('timelinePreview').disabled=true;$('timelineFormat').disabled=true;$('timelineCopy').disabled=true;
+  try{
+    const {job_id}=await post('/api/projects/'+draft.id+'/timeline/render',{instruction:draft.instruction,fingerprint:draft.fingerprint,format:draft.format,editable_copy:draft.editable_copy});
+    const job=await runJob(job_id,j=>{if(draft.id===studio.id)showStatus($('timelineResult'),j);});
+    if(draft.id!==studio.id)return;
+    const link=document.createElement('a');link.href=job.outputs.video;link.textContent='Download edited video';link.download='SkellyMotion-Timeline.mp4';
+    const caps=document.createElement('a');caps.href=job.outputs.captions;caps.textContent='Download captions';caps.download='SkellyMotion-Timeline.vtt';
+    $('timelineOutput').replaceChildren(link,document.createTextNode(' · '),caps);
+    if(job.outputs.editable_project_id){const open=document.createElement('button');open.type='button';open.className='ghost-btn';open.textContent='Open editable copy';open.addEventListener('click',()=>openStudio(job.outputs.editable_project_id));$('timelineOutput').append(document.createTextNode(' '),open);}
+    $('timelineResult').textContent='Export complete. Original recording unchanged.';
+  }catch(e){if(draft.id===studio.id)$('timelineResult').textContent=e.message;}
+  finally{studio.busy=false;$('timelineInstruction').disabled=false;$('timelinePreview').disabled=false;$('timelineFormat').disabled=false;$('timelineCopy').disabled=false;if(timelineDraft===draft)$('timelineRender').disabled=false;}
+}
+on('timelineInstruction','input',clearTimeline);
+on('timelineAssets','click',listTimelineAssets);
+on('timelinePreview','click',previewTimeline);
+on('timelineRender','click',exportTimeline);
+
+on('timelineFormat','change',clearTimeline);
+on('timelineCopy','change',clearTimeline);
+async function creativeTimeline(){
+  if(!studio.id||studio.busy)return;
+  clearTimeline();const id=studio.id,ticket=timelineTicket,base=$('timelineInstruction').value.trim();
+  $('timelineCreative').disabled=true;$('timelineSuggestions').textContent='Finding alternatives…';
+  try{const result=await post('/api/projects/'+id+'/timeline/creative',{instruction:base,goal:$('timelineGoal').value});
+    if(id!==studio.id||ticket!==timelineTicket)return;
+    const container=$('timelineSuggestions');container.textContent=result.warning;
+    for(const hint of result.suggestions){const row=document.createElement('p');row.textContent=hint.reason+(hint.duration!==undefined?' · '+hint.duration.toFixed(2)+'s after edit':'');
+      if(hint.instruction){const b=document.createElement('button');b.type='button';b.className='ghost-btn';b.textContent='Use suggestion';b.addEventListener('click',()=>{if(id!==studio.id||ticket!==timelineTicket)return;$('timelineInstruction').value=hint.instruction;clearTimeline();previewTimeline();});row.append(document.createTextNode(' '),b);}container.append(row);}
+    if(!result.suggestions.length)container.append(document.createTextNode(' No supported suggestions found.'));
+  }catch(e){if(id===studio.id&&ticket===timelineTicket)$('timelineSuggestions').textContent=e.message;}
+  finally{$('timelineCreative').disabled=false;}
+}
+async function checkTimelineModels(){
+  if(!studio.id||studio.busy)return;const id=studio.id;
+  $('timelineModels').disabled=true;
+  try{const status=await api('/api/projects/'+id+'/timeline/model-setup');if(id!==studio.id)return;
+    const select=$('timelineModel');select.replaceChildren(new Option('No model',''),...status.models.map(m=>new Option(m,m)));
+    $('timelineSetup').textContent=(status.connected?'Local service connected.':'Local service not detected.')+'\nProject drive free: '+(status.project_disk_free_bytes/1073741824).toFixed(1)+' GiB\n'+status.steps.join('\n')+'\n'+status.example_command+'\n'+status.warning;
+  }catch(e){if(id===studio.id)$('timelineSetup').textContent=e.message;}finally{$('timelineModels').disabled=false;}
+}
+async function translateTimeline(){
+  if(!studio.id||studio.busy)return;const id=studio.id,model=$('timelineModel').value,instruction=$('timelineInstruction').value.trim();
+  if(!model||!instruction){$('timelineSetup').textContent='Select a detected model and enter a request.';return;}
+  clearTimeline();const ticket=timelineTicket;$('timelineTranslate').disabled=true;
+  try{const r=await post('/api/projects/'+id+'/timeline/creative',{model,instruction});if(id!==studio.id||ticket!==timelineTicket)return;
+    $('timelineInstruction').value=r.proposal;$('timelineSetup').textContent=r.warning;await previewTimeline();
+  }catch(e){if(id===studio.id&&ticket===timelineTicket)$('timelineSetup').textContent=e.message;}finally{$('timelineTranslate').disabled=false;}
+}
+on('timelineCreative','click',creativeTimeline);
+on('timelineModels','click',checkTimelineModels);
+on('timelineTranslate','click',translateTimeline);
+
+/* Saved sequence studio. Never alter V2 preview or legacy Auto-edit. */
+let seqState=null,seqAssets=[],seqEditId=null,seqEpoch=0,seqBusy=false;
+const seqFrame=id=>Math.round(Number($(id).value)*30);
+const seqSecs=n=>(n/30).toFixed(2);
+function seqClear(){++seqEpoch;seqState=null;seqAssets=[];seqEditId=null;for(const id of ['seqTracks','seqSuggestions','seqOutput','seqRipplePreview'])$(id).replaceChildren();$('seqStatus').textContent='Load the saved sequence.';seqDraw();}
+function seqAssetChoices(){const kind=$('seqKind').value,old=$('seqAsset').value;const choices=kind==='sfx'?['pop','whoosh','riser','impact']:seqAssets.filter(a=>a.id!=='source'&&(kind==='visual'?a.has_video:a.has_audio)).map(a=>a.id);$('seqAsset').replaceChildren(...choices.map(k=>new Option(k,k)));if(choices.includes(old))$('seqAsset').value=old;$('seqOffset').disabled=false;$('seqFade').disabled=kind==='sfx';$('seqFadeOut').disabled=kind==='sfx';$('seqGain').disabled=kind==='visual';$('seqDuck').disabled=kind!=='music';}
+function seqStopEdit(){seqEditId=null;$('seqPut').textContent='Add layer';$('seqCancelEdit').classList.add('hidden');}
+function seqDraw(){
+ const s=seqState,valid=!!s&&!s.media_error&&!seqBusy;for(const id of ['seqUndo','seqRedo','seqReset','seqRender','seqSetBase','seqPut','seqSuggest','seqSetTransition'])$(id).disabled=!valid;
+ $('seqUndo').disabled=!valid||!s?.can_undo;$('seqRedo').disabled=!valid||!s?.can_redo;$('seqReset').disabled=!s||seqBusy;
+ if(!s)return;const state=s.state,total=state.base.frames,root=$('seqTracks');root.replaceChildren();
+ $('seqStatus').textContent=s.media_error||`${seqSecs(total)}s · revision ${s.revision} · ${state.layers.length} independent clips`;
+ function track(name,items,color){const row=document.createElement('div');row.style.cssText='display:grid;grid-template-columns:70px minmax(0,1fr);align-items:center;gap:6px';const label=document.createElement('strong');label.textContent=name;const rail=document.createElement('div');rail.style.cssText='position:relative;height:30px;background:#22252c;border:1px solid #454955;border-radius:4px;overflow:hidden';for(const item of items){const block=document.createElement('button');block.type='button';block.textContent=item.label;block.title=item.label+' · '+seqSecs(item.at)+'s';block.style.cssText=`position:absolute;top:2px;bottom:2px;left:${100*item.at/total}%;width:${100*item.length/total}%;border:1px solid #777;border-radius:3px;background:${color};color:#fff;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:11px;padding:1px;`;if(item.layer)block.addEventListener('click',()=>seqEditLayer(item.layer));else block.disabled=true;rail.append(block);}row.append(label,rail);root.append(row);}
+ let cursor=0;track('Base',state.base.pieces.map(p=>{const a={at:cursor,length:p.length,label:p.asset};cursor+=p.length;return a;}),'#3d4758');
+ // Overlapping cutaways remain individually accessible in the list below.
+ for(const [kind,label,col] of [['visual','Picture','#45446f'],['music','Music','#315a50'],['sfx','SFX','#795138']])track(label,state.layers.filter(x=>x.kind===kind).map(x=>({at:x.at,length:x.length,label:x.asset||x.effect,layer:x})),col);
+ for(const x of state.layers){const row=document.createElement('div');row.className='preset-bar';const name=document.createElement('span');name.textContent=`${x.kind} · ${x.asset||x.effect} · ${seqSecs(x.at)}–${seqSecs(x.at+x.length)}s`;const e=document.createElement('button');e.type='button';e.className='ghost-btn';e.textContent='Edit';e.disabled=!valid;e.onclick=()=>seqEditLayer(x);const d=document.createElement('button');d.type='button';d.className='ghost-btn';d.textContent='Remove';d.disabled=!valid;d.onclick=()=>seqMutate({op:'remove',id:x.id});row.append(name,e,d);root.append(row);}
+ cursor=0;const cut=$('seqCut'),old=cut.value;cut.replaceChildren(...state.base.pieces.slice(0,-1).map(p=>{cursor+=p.length;const t=state.transitions.find(x=>x.at===cursor);return new Option(seqSecs(cursor)+'s · '+(t?'dip '+seqSecs(t.half*2)+'s':'cut'),String(cursor));}));if([...cut.options].some(o=>o.value===old))cut.value=old;$('seqSetTransition').disabled=!valid||!cut.options.length;seqCutChange();
+}
+function seqCutChange(){const t=seqState?.state.transitions.find(x=>x.at===Number($('seqCut').value));$('seqTransition').value=t?'dip':'cut';$('seqHalf').value=t?t.half/30:.2;}
+function seqEditLayer(x){if(seqBusy||!seqState)return;seqEditId=x.id;$('seqKind').value=x.kind;seqAssetChoices();$('seqAsset').value=x.asset||x.effect;$('seqAt').value=x.at/30;$('seqLength').value=x.length/30;$('seqOffset').value=(x.offset||0)/30;$('seqFade').value=(x.fade_in??x.fade??0)/30;$('seqFadeOut').value=(x.fade_out??x.fade??0)/30;$('seqGain').value=x.gain??.15;$('seqDuck').checked=x.duck??true;$('seqPut').textContent='Update layer';$('seqCancelEdit').classList.remove('hidden');}
+async function seqLoad(){if(!studio.id||seqBusy||studio.busy)return;const id=studio.id,t=++seqEpoch;seqBusy=true;seqDraw();try{const r=await api('/api/projects/'+id+'/sequence');if(id!==studio.id||t!==seqEpoch)return;seqState=r;seqAssets=r.assets;seqStopEdit();seqAssetChoices();$('seqSuggestions').replaceChildren();}catch(e){if(t===seqEpoch)$('seqStatus').textContent=e.message;}finally{seqBusy=false;if(t===seqEpoch)seqDraw();}}
+async function seqMutate(action){if(!seqState||seqBusy||studio.busy)return;const id=studio.id,t=seqEpoch;seqBusy=true;seqDraw();let err='';try{const r=await post('/api/projects/'+id+'/sequence/edit',{revision:seqState.revision,action});if(id!==studio.id||t!==seqEpoch)return;seqState=r;seqStopEdit();$('seqSuggestions').replaceChildren();$('seqOutput').replaceChildren();$('seqRipplePreview').replaceChildren();}catch(e){err=e.message;}finally{seqBusy=false;if(t===seqEpoch){seqDraw();if(err)$('seqStatus').textContent=err;}}}
+async function seqSuggest(){if(!seqState||seqBusy||studio.busy)return;const id=studio.id,t=seqEpoch,revision=seqState.revision;seqBusy=true;seqDraw();$('seqSuggestions').textContent='Analyzing bounded samples…';try{const r=await post('/api/projects/'+id+'/sequence/creative',{revision,instruction:$('seqIntent').value,model:$('seqModel').value});if(id!==studio.id||t!==seqEpoch||seqState.revision!==revision)return;const root=$('seqSuggestions');root.textContent=r.warning;for(const hint of r.suggestions){const line=document.createElement('p');line.textContent=hint.reason;if(hint.preview){const summary=document.createElement('p');summary.textContent=`Proposed: ${seqSecs(hint.preview.before_frames)}s → ${seqSecs(hint.preview.after_frames)}s · ${hint.preview.layers.length} clips · ${hint.preview.transitions.length} transitions`;line.append(summary);for(const a of hint.action.actions||[]){const entry=document.createElement('div');entry.textContent=a.op==='ripple'?a.instruction:a.op==='put'?`${a.layer.kind}: ${a.layer.asset||a.layer.effect} at ${seqSecs(a.layer.at)}s for ${seqSecs(a.layer.length)}s`:`${a.kind} at ${seqSecs(a.at)}s`;line.append(entry);}}if(hint.action){const b=document.createElement('button');b.type='button';b.className='ghost-btn';b.textContent='Apply';b.onclick=()=>{if(t===seqEpoch&&seqState?.revision===revision)seqMutate(hint.action);};line.append(document.createTextNode(' '),b);}root.append(line);}if(!r.suggestions.length)root.append(document.createTextNode(' No supported suggestions. Add footage or a local music asset.'));}catch(e){if(t===seqEpoch)$('seqSuggestions').textContent=e.message;}finally{seqBusy=false;if(t===seqEpoch)seqDraw();}}
+async function seqRender(){if(!seqState||seqBusy||studio.busy)return;const id=studio.id,t=seqEpoch;seqBusy=true;studio.busy=true;seqDraw();let err='';try{const r=await post('/api/projects/'+id+'/sequence/render',{revision:seqState.revision,format:$('seqFormat').value,encoder:$('seqEncoder').value});const job=await runJob(r.job_id,j=>{if(t===seqEpoch)showStatus($('seqStatus'),j);});if(t!==seqEpoch||id!==studio.id)return;const root=$('seqOutput');root.replaceChildren();if(job.outputs.encoder){const info=document.createElement('p');info.textContent=`Encoder: ${job.outputs.encoder}${job.outputs.fallback?' · '+job.outputs.fallback:''}`;root.append(info);}for(const [key,label] of [['video','Download sequence'],['captions','Download captions']]){const a=document.createElement('a');a.href=job.outputs[key];a.textContent=label;a.download='';root.append(a,document.createTextNode(' '));}}catch(e){err=e.message;}finally{studio.busy=false;seqBusy=false;if(t===seqEpoch){seqDraw();if(err)$('seqStatus').textContent=err;}}}
+async function seqUploadMusic(){if(!studio.id||studio.busy||seqBusy)return;const file=$('seqMusicFile').files[0];if(!file){$('seqStatus').textContent='Choose an audio file.';return;}const id=studio.id,t=seqEpoch,form=new FormData();form.append('file',file);seqBusy=true;seqDraw();try{await api('/api/projects/'+id+'/sequence/music',{method:'POST',body:form});if(id!==studio.id||t!==seqEpoch)return;$('seqMusicFile').value='';seqBusy=false;await seqLoad();}catch(e){if(t===seqEpoch)$('seqStatus').textContent=e.message;}finally{seqBusy=false;if(t===seqEpoch){const message=$('seqStatus').textContent;seqDraw();$('seqStatus').textContent=message;}}}
+async function seqPreviewRipple(){if(!seqState||seqBusy||studio.busy)return;const id=studio.id,t=seqEpoch,revision=seqState.revision,instruction=$('seqBase').value.trim(),root=$('seqRipplePreview');root.replaceChildren();if(!instruction){root.textContent='Enter cut, insert or replace.';return;}seqBusy=true;seqDraw();try{const action={op:'ripple',instruction};const r=await post('/api/projects/'+id+'/sequence/preview-edit',{revision,action});if(id!==studio.id||t!==seqEpoch||seqState?.revision!==revision)return;const summary=document.createElement('p');summary.textContent=`Duration: ${seqSecs(seqState.state.base.frames)}s → ${seqSecs(r.state.base.frames)}s`;root.append(summary);for(const text of [...r.state.base.changes,...(r.state.ripple_report||[])]){const p=document.createElement('div');p.textContent=text;root.append(p);}const apply=document.createElement('button');apply.type='button';apply.className='ghost-btn';apply.textContent='Apply reviewed ripple edit';apply.onclick=()=>{if(t===seqEpoch&&id===studio.id&&seqState?.revision===revision&&$('seqBase').value.trim()===instruction)seqMutate(action);else root.textContent='Edit changed; preview again.';};root.append(apply);}catch(e){if(t===seqEpoch)root.textContent=e.message;}finally{seqBusy=false;if(t===seqEpoch)seqDraw();}}
+async function seqDetectModels(){const select=$('seqModel'),previous=select.value,status=$('seqModelStatus');try{const r=await api('/api/creator/writing-models');select.replaceChildren(new Option('Direct analysis (no model)',''),...(r.models||[]).map(m=>new Option(m.name,m.name)));if([...select.options].some(o=>o.value===previous))select.value=previous;status.textContent=r.connected?(r.models.length?'Local models detected. Proposals are validated before review.':'Ollama connected; no models installed.'):'Ollama is not connected. Direct analysis remains available.';}catch(e){status.textContent='Model detection unavailable. Direct analysis remains available.';}}
+on('seqModelRefresh','click',seqDetectModels);
+on('seqMusicUpload','click',seqUploadMusic);on('seqCut','change',seqCutChange);on('seqRefresh','click',seqLoad);on('seqUndo','click',()=>seqMutate({op:'undo'}));on('seqRedo','click',()=>seqMutate({op:'redo'}));on('seqReset','click',()=>{if(confirm('Reset saved sequence to original? Undo remains available.'))seqMutate({op:'reset'});});on('seqSetBase','click',seqPreviewRipple);on('seqKind','change',seqAssetChoices);on('seqCancelEdit','click',seqStopEdit);on('seqPut','click',()=>{const kind=$('seqKind').value,fade=seqFrame('seqFade'),x={id:seqEditId||'clip-'+crypto.randomUUID().replaceAll('-',''),kind,at:seqFrame('seqAt'),length:seqFrame('seqLength'),offset:seqFrame('seqOffset'),asset:$('seqAsset').value,effect:$('seqAsset').value,fade:0,fade_in:fade,fade_out:seqFrame('seqFadeOut'),gain:Number($('seqGain').value),duck:$('seqDuck').checked};seqMutate({op:'put',layer:x});});on('seqSetTransition','click',()=>seqMutate({op:'transition',at:Number($('seqCut').value),kind:$('seqTransition').value,half:seqFrame('seqHalf')}));on('seqSuggest','click',seqSuggest);on('seqRender','click',seqRender);
+on('sequencePanel','toggle',()=>{if($('sequencePanel').open&&!seqState)seqLoad();});
+
 on('autoEditRun', 'click', runAutoEdit);
 on('aeDetectModels','click',detectEditModels);
 on('aeSuggest','click',previewVideoInstruction);
