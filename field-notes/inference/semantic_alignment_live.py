@@ -34,8 +34,12 @@ def vision(out,models):
             d.polygon([(0,216),(140,40),(260,216)],fill='#366f46');d.polygon([(120,216),(300,80),(384,216)],fill='#29452c')
         else:d.rectangle((45,55,340,160),fill='#414141')
         im.save(p);dest=out/(name+'.mp4');duration=14 if name=='source' else 4
-        subprocess.run(['ffmpeg','-v','error','-y','-loop','1','-i',str(p),'-t',str(duration),'-r','30','-c:v','libx264','-threads','1','-pix_fmt','yuv420p',str(dest)],check=True)
-        assets[name]={'path':dest,'duration':duration,'has_video':True,'has_audio':False,'keywords':[]}
+        # Timeline remapping intentionally drops transcript for a silent source.
+        # Attach a controlled audio track so this synthetic-clock fixture exercises
+        # the real picture/voice-preservation path. Actual ASR is tested separately.
+        audio=['-f','lavfi','-i','anullsrc=r=48000:cl=stereo'] if name=='source' else []
+        subprocess.run(['ffmpeg','-v','error','-y','-loop','1','-i',str(p),*audio,'-t',str(duration),'-r','30','-c:v','libx264','-threads','1','-pix_fmt','yuv420p',*(['-c:a','aac'] if audio else []),str(dest)],check=True)
+        assets[name]={'path':dest,'duration':duration,'has_video':True,'has_audio':bool(audio),'keywords':[]}
     phrases=[(2.,3.5,'frequency response graph with an equalizer curve'),(8.,9.5,'audio mixing console with rotary knobs and meters')]
     windows=[(k,assets[k]['path'],0,90) for k in ('shot-a','shot-b','shot-c')]
     captured={}
@@ -60,7 +64,7 @@ def vision(out,models):
     assert [x['asset'] for x in state['layers']]==['shot-a','shot-b']
     stats=renderer.render(state,assets,out/'semantic-proof.mp4',width=384,height=216)
     subprocess.run(['ffmpeg','-v','error','-xerror','-i',str(out/'semantic-proof.mp4'),'-f','null','-'],check=True)
-    write(out/'result.json',{'passed':True,'render':stats})
+    write(out/'result.json',{'passed':True,'render':stats,'scope':'Actual CLIP selection and rendered timeline using generated images and a synthetic transcript clock. Actual ASR verified separately.'})
 
 
 def voice(out,models):

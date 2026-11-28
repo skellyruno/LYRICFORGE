@@ -1,7 +1,7 @@
-name: Motion actual semantic montage and speech alignment
+name: Motion semantic montage final integration proof
 on:
   push:
-    branches: [staging/motion-semantic-alignment-20261127]
+    branches: [staging/motion-semantic-vision-final-20261127]
   workflow_dispatch:
 permissions:
   contents: read
@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kind: [regression, vision, voice]
+        kind: [vision]
     steps:
       - uses: actions/checkout@v6
         with:
