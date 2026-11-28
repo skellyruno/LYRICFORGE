@@ -1,13 +1,18 @@
-name: Motion production engine compact installer verification
+name: Motion consolidated production compact installer verification
 on:
   push:
-    branches: [staging/motion-production-engine-20261127]
+    branches: [staging/motion-production-consolidated-20261128]
     paths:
       - 'packaging/direct-media/**'
       - 'studio_research_*.py'
       - 'studio_sequence_*.py'
       - 'studio_voice.py'
+      - 'studio_voice_alignment.py'
+      - 'server.py'
+      - 'tests/test_voice_alignment.py'
       - 'studio_creator.py'
+      - 'studio_expression_worker.py'
+      - 'tests/test_creator_expression.py'
       - 'tests/test_sequence_*.py'
       - 'tests/test_voice_direction.py'
       - 'static/quick-create.js'
@@ -23,7 +28,7 @@ permissions:
   actions: read
 concurrency:
   group: direct-media-half-size-${{ github.ref }}-${{ github.event_name == 'push' && 'push' || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'push' && github.ref == 'refs/heads/staging/motion-production-engine-20261127' }}
+  cancel-in-progress: ${{ github.event_name == 'push' && github.ref == 'refs/heads/staging/motion-production-consolidated-20261128' }}
 jobs:
   candidate:
     runs-on: windows-latest
@@ -39,13 +44,14 @@ jobs:
       - name: Verify exact product revision
         shell: pwsh
         run: |
-          $expected=@{'server.py'='44a0d6517862ef48a4b2571c31ecfcd17fd9e9fb';'studio_sequence_api.py'='29f3de930c174ea764881131447738c652afe3a3';'studio_sequence_model.py'='63552586cd95399b03e8cbbf0b3700e921a88f75';'studio_sequence_render.py'='8868c2bb335ae3b947c451461ec0528a8e0f104d';'studio_sequence_vision.py'='d6729ef1ce2a4e3c51c208d42ad47f4ac320f738'}
+          $expected=@{'server.py'='25844eb6bb61795188d8e238e96a920fca3f0f93';'studio_sequence_model.py'='63552586cd95399b03e8cbbf0b3700e921a88f75';'studio_sequence_render.py'='8868c2bb335ae3b947c451461ec0528a8e0f104d';'studio_sequence_vision.py'='d6729ef1ce2a4e3c51c208d42ad47f4ac320f738';'studio_sequence_semantic.py'='a6026369ba678197bedc96a1e6fb1c975065f72f';'studio_voice_alignment.py'='b50245431ea229102a7641cf6abc170b6d428f82';'tests/test_sequence_vision.py'='f1ceb7a912d69e835bdc718d51f553dac1da5a2c';'studio_creator.py'='05b09f72b37c933f5b73e985a87e632b81d3cd29';'studio_expression_worker.py'='9e5b1fe2c71d8557b5f5af19dbcfd18404298630';'studio_sequence_shot_scan.py'='9c5a6f4fd7d8d1a59c8bc013c1bf999a70c999cf';'studio_sequence_visual_review.py'='d5d9fb6c05880720feb97cb7f6f7a4916cfb901c';'packaging/direct-media/package_direct.ps1'='5f0ca4c1587f93fc3c414c58d88c7801cd4cc234';'studio_sequence_api.py'='2b5fc900e6255838ce7596efd3330df2bc5c9b03';'studio_sequence_deep_review.py'='2af9df3cc98b2d7655fd13a3325029c0b18ea833'}
           foreach ($file in $expected.Keys) {
             if ((git hash-object $file) -ne $expected[$file]) { throw "Unexpected product source: $file" }
           }
       - name: Check creation interface source
         run: |
           node --check static/quick-create.js
+          node --check static/autoclip.js
           node tests/editor_smoke.mjs
           node tests/autoclip_smoke.mjs
       - name: Verify exact prior artifacts
@@ -153,7 +159,7 @@ jobs:
       - uses: actions/upload-artifact@v6
         if: success()
         with:
-          name: SkellyMotion-Production-Engine-Compact-Windows-Setup
+          name: SkellyMotion-Consolidated-Production-Compact-Windows-Setup
           path: direct-stage/dist/installer/SkellyMotion-Setup.exe
           compression-level: 0
           if-no-files-found: error
