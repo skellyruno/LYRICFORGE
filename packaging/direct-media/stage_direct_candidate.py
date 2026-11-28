@@ -3,6 +3,18 @@ import argparse,hashlib,importlib.util,io,shutil,subprocess,zipfile
 from pathlib import Path
 HERE=Path(__file__).resolve().parent
 
+REFERENCE_COMMIT="c5b9e5ceccfab26f77c0f0b6e0c3926c905d3cd0"
+REFERENCE_SERVER_BLOB="b731f6c0315169d0fc98a7e3e67cca46a112a60d"
+
+def git_blob_id(raw):
+    return hashlib.sha1(b"blob "+str(len(raw)).encode("ascii")+b"\0"+raw).hexdigest()
+
+def verified_reference(root):
+    raw=subprocess.check_output(["git","-C",str(root),"show",REFERENCE_COMMIT+":server.py"])
+    if git_blob_id(raw)!=REFERENCE_SERVER_BLOB:
+        raise ValueError("Unexpected verified server reference Git blob")
+    return raw.decode("utf-8").replace("\r\n","\n")
+
 def checked_media_region(text,reference):
     def bounds(s):
         a="def media_duration(path: Path) -> float:"
@@ -27,9 +39,7 @@ def stage(root,dest):
     # The previous verified compact source is immutable. Verify its whole
     # checksum, then compare the exact region we replace. New routes outside
     # this region pass through unchanged; unexpected changes inside fail closed.
-    reference=subprocess.check_output(["git","-C",str(root),"show","c5b9e5ceccfab26f77c0f0b6e0c3926c905d3cd0:server.py"]).decode("utf-8").replace("\r\n","\n")
-    if hashlib.sha256(reference.encode()).hexdigest()!="38dd2e1c32ea59cd36ff9e08b8219fd02a65e1379fd2a6eb144365ddd1f78a98":
-        raise ValueError("Unexpected verified server reference")
+    reference=verified_reference(root)
     start,end=checked_media_region(text,reference)
     replacement='''def media_duration(path: Path) -> float:
     from studio_media_runtime import media_duration as read_duration
