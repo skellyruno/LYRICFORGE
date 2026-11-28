@@ -26,3 +26,9 @@ def test_render_sfx_slice_and_hardware_fallback(tmp_path,monkeypatch):
     orig=audio(ref);cut=audio(out)
     # After the edit, retained SFX samples are shifted by exactly 0.5s, not restarted.
     aa=orig[74400:90000];bb=cut[50400:66000];assert np.corrcoef(aa,bb)[0,1]>.98
+
+
+@pytest.mark.parametrize("major,expected", [(6,"-filter_complex_script"),(7,"-/filter_complex"),(8,"-/filter_complex")])
+def test_sequence_graph_file_compatibility(major, expected, monkeypatch):
+    monkeypatch.setattr(renderer.edit, "ffmpeg_major", lambda: major)
+    assert renderer.edit.graph_file_args("graph with spaces.txt") == [expected,"graph with spaces.txt"]

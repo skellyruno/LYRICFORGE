@@ -77,7 +77,7 @@ def render(state,assets,target,*,width=1280,height=720,cancel=lambda:None,progre
         cpu_args=['-c:v','libx264','-crf','18','-preset','veryfast','-threads','2']
         def encode(codec):
             opts=cpu_args if codec=='libx264' else perf.encode_args(codec,'quality',width,height,2)
-            run([*args,'-filter_complex_threads','1','-filter_complex_script',str(graph),'-map','[vout]','-map','[aout]',*opts,'-c:a','aac','-b:a','192k','-r','30','-fps_mode','cfr','-video_track_timescale','30000','-movflags','+faststart',str(out)],cancel)
+            run([*args,'-filter_complex_threads','1',*edit.graph_file_args(str(graph)),'-map','[vout]','-map','[aout]',*opts,'-c:a','aac','-b:a','192k','-r','30','-fps_mode','cfr','-video_track_timescale','30000','-movflags','+faststart',str(out)],cancel)
         try:encode(selected)
         except RuntimeError as exc:
             cancel()
