@@ -21,14 +21,18 @@ def propose(state, assets, words, instruction):
     actions, evidence, occupied = [], [], [(x['at'], x['at']+x['length']) for x in state['layers'] if x['kind']=='visual']
     budget = min(6, seq.MAX_LAYERS-len(state['layers']))
     spoken = tl.remap_words(words, state['base'])
+    if not spoken and any(p['audio'] for p in state['base']['pieces']) and not re.search(r'\bvisual[- ]only\b',instruction,re.I):
+        return {'suggestions':[],'warning':'Audio is present but no aligned transcript is available. Analyze speech first, or explicitly request visual-only montage for non-narrative material.'}
     # Demonstration narration is a conservative cue to leave its picture alone.
     for w in spoken:
         if tokens(w.get('text')) & {'listen', 'compare', 'before', 'after', 'dry', 'wet'}:
             occupied.append((max(0, round(float(w['start'])*30)-30), min(total,round(float(w['end'])*30)+120)))
-    candidates=[]
+    candidates=[]; scanned=0
     for key,a in sorted(assets.items()):
-        if len(candidates)>=12: break
+        if scanned>=12: break
         if key=='source' or not a.get('has_video') or a.get('music'): continue
+        if {str(t).casefold() for t in a.get('keywords',[])} & {'finished','captioned','baked-subtitles','baked-titles','a-b-proof'}:continue
+        scanned+=1
         try:
             v=creative.visual(a)
             q=v.get('sample_quality') or [v['quality']]
@@ -74,4 +78,4 @@ def propose(state, assets, words, instruction):
         evidence.append({'asset':key,'at_seconds':at/30,'offset_seconds':off/30,'quality':round(q,3),'motion':round(m,3),'matching_tags':matches})
     if not actions:return {'suggestions':[],'warning':'No unoccupied shot windows matched the narration. Add relevant tagged footage; existing picture and audio are unchanged.'}
     action={'op':'batch','actions':actions};candidate=seq.apply(state,action,assets)
-    return {'suggestions':[{'reason':f'Compose {len(actions)} distinct cutaways from measured shot windows; preserve the original narration and timing.', 'action':action,'preview':{'before_frames':total,'after_frames':candidate['base']['frames'],'layers':candidate['layers'],'transitions':candidate['transitions']},'evidence':evidence}], 'warning':'Automatic montage, not semantic proof. Review subject relevance and embedded text before applying. A/B speech cues and existing picture layers are protected.'}
+    return {'suggestions':[{'reason':f'Compose {len(actions)} distinct cutaways from measured shot windows; preserve the original narration and timing.', 'action':action,'preview':{'before_frames':total,'after_frames':candidate['base']['frames'],'layers':candidate['layers'],'transitions':candidate['transitions']},'evidence':evidence}], 'warning':'Automatic montage, not semantic proof. Review subject relevance and embedded text before applying. Known A/B speech cue regions and existing picture layers are protected; untagged baked text is not detected.'}

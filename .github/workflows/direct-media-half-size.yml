@@ -5,6 +5,11 @@ on:
     paths:
       - 'packaging/direct-media/**'
       - 'studio_research_*.py'
+      - 'studio_sequence_*.py'
+      - 'studio_voice.py'
+      - 'studio_creator.py'
+      - 'tests/test_sequence_*.py'
+      - 'tests/test_voice_direction.py'
       - 'static/quick-create.js'
       - 'static/autoclip.js'
       - 'static/index.html'
