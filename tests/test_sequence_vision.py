@@ -5,7 +5,7 @@ import pytest
 import studio_sequence_vision as vision
 import studio_sequence_model as planner
 import studio_sequence as seq
-from test_sequence_model import no_decode, mock, layer
+from test_sequence_model import no_decode, mock, layer, wire
 from test_studio_sequence import assets
 
 @pytest.fixture
@@ -39,6 +39,6 @@ def test_vision_context_to_model(assets,no_decode,monkeypatch):
     def get(path,payload=None,timeout=4):
         if path=='/api/tags':return {'models':[{'name':'test:3b'}]}
         context=json.loads(payload['messages'][1]['content']);assert context['semantic_evidence']['observations'][0]['asset']=='city'
-        return {'message':{'content':json.dumps({'reason':'Use reviewed context','actions':[layer()]})}}
+        return {'message':{'content':json.dumps({'reason':'Use reviewed context','actions':[wire(layer())]})}}
     result=planner.propose(seq.initial(assets),assets,[],'make cinematic','test:3b',get)
     assert 'Vision: sampled' in result['warning']
